@@ -1,5 +1,12 @@
 # vmware-exporter
 
+> [!WARNING]
+> **Projet en cours de développement.** Le code n'a fait l'objet d'aucun audit de sécurité
+> et peut contenir des bugs ou des failles. Il n'est pas recommandé pour la production :
+> à utiliser à vos risques, de préférence dans un environnement de test, avec un compte
+> vCenter en **lecture seule**. Le comportement, la configuration et les métriques
+> peuvent encore changer sans préavis.
+
 Exporter Prometheus en Go pour **vCenter 8.x** et **vCenter 9.x (VCF 9 / VVF 9)**.
 Il expose l'état complet de l'infrastructure vSphere — ressources, santé, alarmes —
 pour les graphes (Grafana) **et** l'alerting (Prometheus / Alertmanager).
