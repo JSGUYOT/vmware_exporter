@@ -1,0 +1,13 @@
+# Extrait à intégrer dans prometheus.yml
+rule_files:
+  - /etc/prometheus/rules/vmware-alerts.yml
+
+scrape_configs:
+  - job_name: vmware
+    # L'exporter collecte en arrière-plan (cache) : le scrape est instantané,
+    # un intervalle plus court que 'interval' n'apporte rien.
+    scrape_interval: 60s
+    scrape_timeout: 30s
+    static_configs:
+      - targets: ['exporter-host.example.local:9272']
+    # Les séries portent déjà le label "vcenter" : inutile d'utiliser honor_labels.

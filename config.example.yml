@@ -1,0 +1,99 @@
+# =============================================================================
+# vmware-exporter - configuration d'exemple
+# Compatible vCenter 8.x et vCenter 9.x (VCF 9 / VVF 9).
+#
+# Aucun secret ne doit être écrit en clair ici : utiliser password_file
+# (recommandé, fichier en 0600) ou password_env. La syntaxe ${VARIABLE} est
+# interpolée partout depuis l'environnement.
+# Valider le fichier : vmware-exporter -config.file config.yml -config.check
+# =============================================================================
+
+listen_address: ":9272"        # adresse d'écoute HTTP de /metrics
+telemetry_path: /metrics
+log_level: info                # debug | info | warn | error
+log_format: text               # text | json
+
+# Optionnel : servir /metrics en HTTPS
+# web_tls:
+#   cert_file: /etc/vmware-exporter/tls/exporter.crt
+#   key_file:  /etc/vmware-exporter/tls/exporter.key
+
+# -----------------------------------------------------------------------------
+# Valeurs communes héritées par toutes les cibles (surchargeables par cible)
+# -----------------------------------------------------------------------------
+defaults:
+  # Compte de service en lecture seule. Sur VCF 9 avec fédération d'identité
+  # (VCF Identity Broker, ADFS, Entra ID...), utiliser un compte LOCAL SSO
+  # (ex: svc-prometheus@vsphere.local) : l'API SOAP n'accepte pas les comptes fédérés.
+  username: ${VMWARE_EXPORTER_USER}
+  password_file: /etc/vmware-exporter/vcenter.pass
+  # password_env: VMWARE_EXPORTER_PASSWORD
+
+  # TLS : fournir la CA (VMCA ou PKI d'entreprise) plutôt que désactiver la vérification.
+  ca_file: /etc/vmware-exporter/ca.pem
+  insecure_skip_verify: false
+  tls_min_version: "1.2"       # "1.3" possible (défaut sécurisé des vCenter 9)
+
+  interval: 60s                # période de collecte (>= 20s, granularité temps réel vSphere)
+  # timeout: 55s               # défaut = interval - 5s
+
+  # force_api_version: "8.0.3.0"   # à ne renseigner qu'en dépannage ; sinon négociation automatique
+
+  collectors:
+    vcenter: true        # infos vCenter, certificat TLS, sessions
+    alarms: true         # alarmes vCenter actives (toutes entités) -> base de l'alerting
+    datacenter: true
+    cluster: true        # HA, DRS, capacité, score DRS
+    host: true           # ESX : état, capteurs IPMI, chemins stockage, uplinks, services, certificats
+    vm: true             # VM : état, tools, heartbeat, snapshots, disques invités
+    datastore: true      # capacité, accessibilité, clusters de datastores
+    network: true        # vDS (synchro des ESX), portgroups
+    resourcepool: true
+    perf: true           # compteurs temps réel (CPU ready, latences, réseau...)
+    vsan: true           # santé vSAN (résultats en cache du health service)
+    appliance: true      # santé VAMI, services vCenter, sauvegardes (API REST /api)
+
+  filters:
+    # vm_exclude: "^(vCLS|SupervisorControlPlaneVM)"
+    # vm_include: ".*"
+    # host_exclude: ""
+    # datastore_exclude: "^(local|datastore1)"
+    exclude_system_vms: false    # true = ignore les VMs gérées par une solution (vCLS, Supervisor, agents EAM)
+    include_templates: false
+
+  host:
+    sensors: true                # capteurs matériels IPMI/CIM
+    storage_paths: true          # comptage des chemins multipath (morts, redondance perdue)
+    services: [TSM-SSH, TSM, ntpd, chronyd, vpxa, hostd]
+
+  perf:
+    # Compteurs temps réel (nom vSphere groupe.compteur.rollup). Suffixe ":*" = toutes les instances.
+    # Laisser vide pour les valeurs par défaut (voir README).
+    # host_counters: [cpu.usage.average, mem.usage.average, "datastore.totalReadLatency.average:*"]
+    # vm_counters:   [cpu.ready.summation, cpu.usage.average, disk.maxTotalLatency.latest]
+    batch_size: 100              # entités par requête QueryPerf
+    max_concurrency: 4           # requêtes QueryPerf parallèles par vCenter
+
+  extra_labels:                  # labels statiques ajoutés à toutes les séries
+    env: prod
+
+# -----------------------------------------------------------------------------
+# vCenter à superviser (8.x et 9.x peuvent cohabiter)
+# -----------------------------------------------------------------------------
+targets:
+  - name: vc8-site-a                     # valeur du label "vcenter"
+    url: vcenter-a.example.local         # ou https://vcenter-a.example.local/sdk
+    extra_labels: {site: a}
+
+  - name: vcf9-mgmt
+    url: vcf9-mgmt-vc.example.local
+    tls_min_version: "1.3"
+    extra_labels: {site: b}
+
+  - name: vcf9-wld01
+    url: vcf9-wld01-vc.example.local
+    password_file: /etc/vmware-exporter/vcf9-wld01.pass   # compte différent pour ce domaine
+    interval: 120s                                        # gros domaine de charge : collecte plus espacée
+    filters:
+      exclude_system_vms: true
+    extra_labels: {site: b}
