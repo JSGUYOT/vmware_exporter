@@ -1,0 +1,9 @@
+# Binaires construits (make build) : à publier en Release GitHub plutôt que dans le dépôt
+dist/
+
+# Configuration locale Claude Code
+.claude/
+
+# Fichiers de configuration / secrets locaux
+config.yml
+*.pass
