@@ -4,24 +4,34 @@
 #                               or $$GOPROXY), checked against go.sum; vendor/ is ignored
 DEPS ?= vendor
 BINARY  := vmware-exporter
-VERSION ?= 1.0.0
+VERSION ?= $(shell cat VERSION)
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo local)
 LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT)
 ifeq ($(DEPS),vendor)
-GOFLAGS := -mod=vendor -trimpath
+MODFLAG := -mod=vendor
 else ifeq ($(DEPS),online)
-GOFLAGS := -mod=readonly -trimpath
+MODFLAG := -mod=readonly
 else
 $(error DEPS must be "vendor" or "online", got "$(DEPS)")
 endif
+GOFLAGS := $(MODFLAG) -trimpath
 
-.PHONY: build build-windows test lint check-rules test-rules sim vendor clean
+.PHONY: build build-windows promu promu-tarball test lint check-rules test-rules sim vendor clean
 
 build:
 	CGO_ENABLED=0 go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o dist/$(BINARY) ./cmd/vmware-exporter
 
 build-windows:
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o dist/$(BINARY).exe ./cmd/vmware-exporter
+
+# Same build through promu (https://github.com/prometheus/promu), configured in .promu.yml.
+# Produces ./vmware-exporter; DEPS applies as above.
+promu:
+	GOFLAGS=$(MODFLAG) promu build
+
+# Release tarball (binary + README + example config + deploy/) in dist/
+promu-tarball: promu
+	promu tarball --prefix dist .
 
 test:
 	go test $(GOFLAGS) ./...
@@ -49,4 +59,4 @@ vendor:
 	go mod vendor
 
 clean:
-	rm -rf dist
+	rm -rf dist vmware-exporter

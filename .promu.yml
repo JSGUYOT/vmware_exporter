@@ -1,0 +1,29 @@
+# Build with promu (https://github.com/prometheus/promu), like the official exporters:
+#   promu build                     -> ./vmware-exporter (from vendor/, no network)
+#   GOFLAGS=-mod=readonly promu build  -> modules downloaded from the Go proxy
+#   promu crossbuild && promu crossbuild tarballs   (needs Docker)
+# The version comes from the VERSION file.
+go:
+  version: 1.25
+  cgo: false
+repository:
+  path: github.com/example/vmware-exporter
+build:
+  binaries:
+    - name: vmware-exporter
+      path: ./cmd/vmware-exporter
+  flags: -a -trimpath
+  ldflags: |
+    -s -w
+    -X main.version={{.Version}}
+    -X main.commit={{.Revision}}
+tarball:
+  files:
+    - README.md
+    - config.example.yml
+    - deploy
+crossbuild:
+  platforms:
+    - linux/amd64
+    - linux/arm64
+    - windows/amd64

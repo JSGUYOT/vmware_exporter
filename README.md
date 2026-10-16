@@ -114,6 +114,19 @@ make build-windows         # -> dist/vmware-exporter.exe (DEPS works the same wa
 - Without make: `go build -mod=vendor ./cmd/vmware-exporter` or `go build -mod=readonly ./cmd/vmware-exporter`.
 - After changing dependencies, `make vendor` refreshes `vendor/` (needs network access).
 
+The exporter can also be built with [promu](https://github.com/prometheus/promu), the build tool
+of the official Prometheus exporters, configured in [.promu.yml](.promu.yml); the version comes
+from the `VERSION` file:
+
+```bash
+promu build                          # ./vmware-exporter, from vendor/ (no network needed)
+GOFLAGS=-mod=readonly promu build    # modules downloaded from the Go proxy
+promu tarball --prefix dist .        # dist/vmware_exporter-<version>.linux-amd64.tar.gz
+promu crossbuild                     # linux/amd64, linux/arm64, windows/amd64 (needs Docker)
+make promu [DEPS=online]             # same as the first two, through make
+make promu-tarball                   # build + release tarball in dist/
+```
+
 `make build` produces the static Linux amd64 binary in `dist/` (this directory is not tracked
 in the repository; prebuilt binaries may be published as GitHub Releases).
 

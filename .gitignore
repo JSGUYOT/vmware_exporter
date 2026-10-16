@@ -7,3 +7,6 @@ dist/
 # Local configuration files / secrets
 config.yml
 *.pass
+
+# Binary built by promu at the repository root
+/vmware-exporter
