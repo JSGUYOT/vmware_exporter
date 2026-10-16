@@ -10,3 +10,7 @@ config.yml
 
 # Binary built by promu at the repository root
 /vmware-exporter
+
+# Release builds (make release-tarballs)
+/.build/
+/.tarballs/

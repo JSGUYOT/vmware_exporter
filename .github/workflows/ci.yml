@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main, V1.0]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PROMETHEUS_VERSION: "3.5.0"
+  PROMU_VERSION: "v0.20.0"
+
+jobs:
+  go:
+    name: Go lint and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - run: make lint
+      - run: make test
+      - name: vendor/ matches go.mod / go.sum
+        run: |
+          go mod vendor
+          git diff --exit-code -- vendor
+
+  build:
+    name: Build (DEPS=${{ matrix.deps }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        deps: [vendor, online]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - run: make build DEPS=${{ matrix.deps }}
+      - run: make build-windows DEPS=${{ matrix.deps }}
+      - run: dist/vmware-exporter -version
+
+  promu:
+    name: promu release archives
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - run: go install github.com/prometheus/promu@${PROMU_VERSION}
+      - run: make release-tarballs
+      - run: ls -l .tarballs && cat .tarballs/sha256sums.txt
+
+  rules:
+    name: Alerting rules and dashboard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install promtool
+        run: |
+          curl -sSfL "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz" \
+            | tar xz --strip-components=1 -C /usr/local/bin "prometheus-${PROMETHEUS_VERSION}.linux-amd64/promtool"
+      - run: make check-rules
+      - run: make test-rules
+      - name: Grafana dashboard is in sync with its generator
+        run: |
+          cd deploy/grafana
+          python3 build_dashboard.py | diff -u vmware-overview.json -
+
+  docker:
+    name: Docker image (GO_MOD=${{ matrix.go_mod }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go_mod: [vendor, readonly]
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build --build-arg GO_MOD=${{ matrix.go_mod }} -t vmware-exporter:ci .
+      - run: docker run --rm vmware-exporter:ci -version

@@ -1,5 +1,7 @@
 # vmware-exporter
 
+[![CI](https://github.com/JSGUYOT/vmware_exporter/actions/workflows/ci.yml/badge.svg)](https://github.com/JSGUYOT/vmware_exporter/actions/workflows/ci.yml)
+
 > [!WARNING]
 > **Project under active development, not yet battle-tested.** The code has not yet been
 > thoroughly tested on real infrastructure and may contain bugs.
@@ -127,8 +129,8 @@ make promu [DEPS=online]             # same as the first two, through make
 make promu-tarball                   # build + release tarball in dist/
 ```
 
-`make build` produces the static Linux amd64 binary in `dist/` (this directory is not tracked
-in the repository; prebuilt binaries may be published as GitHub Releases).
+`make build` produces the static Linux amd64 binary in `dist/` (not tracked in the repository).
+Prebuilt archives are attached to each [GitHub release](https://github.com/JSGUYOT/vmware_exporter/releases).
 
 ```bash
 # Deployment
@@ -405,6 +407,20 @@ hack/vcsim/              simulated vCenter (8.x / 9.x) for testing
 docs/METRICS.md          metrics reference
 vendor/                  dependencies (offline build, make build; DEPS=online ignores it)
 ```
+
+## Development workflow
+
+- Development happens on the `V1.0` branch; `main` is protected and only receives changes
+  through pull requests from `V1.0` whose CI checks pass.
+- CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs on every push and pull request:
+  lint, Go tests, `vendor/` consistency, builds with `DEPS=vendor` and `DEPS=online`, promu
+  release archives, promtool rule checks and tests, dashboard generator sync, Docker image.
+- Dependabot ([.github/dependabot.yml](.github/dependabot.yml)) proposes weekly updates of the
+  Go modules (with `vendor/` regenerated), GitHub Actions and the Docker base image, on `V1.0`.
+- Releases: set the version in `VERSION`, merge into `main`, then push the matching tag
+  (`git tag v1.0.0 && git push origin v1.0.0`). The release workflow builds the archives
+  (Linux amd64/arm64, Windows amd64, SHA-256 checksums) and publishes the GitHub release.
+  `make release-tarballs` builds the same archives locally (needs promu).
 
 ## License
 
