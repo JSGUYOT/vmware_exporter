@@ -19,6 +19,8 @@ build:
     -X main.commit={{.Revision}}
 tarball:
   files:
+    - LICENSE
+    - NOTICE
     - README.md
     - config.example.yml
     - deploy

@@ -405,3 +405,7 @@ hack/vcsim/              simulated vCenter (8.x / 9.x) for testing
 docs/METRICS.md          metrics reference
 vendor/                  dependencies (offline build, make build; DEPS=online ignores it)
 ```
+
+## License
+
+Apache License 2.0, see [LICENSE](LICENSE) and [NOTICE](NOTICE).
