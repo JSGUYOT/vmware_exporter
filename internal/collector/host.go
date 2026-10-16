@@ -55,16 +55,16 @@ func collectHosts(ctx context.Context, r *Run) error {
 		}
 
 		s.Gauge(n("host_overall_status"), "Overall status of the host"+statusHelp+".", statusValue(h.OverallStatus), l)
-		s.Gauge(n("host_connection_state"), "Host connection state to vCenter"+hostConnHelp+".", hostConn(h.Runtime.ConnectionState), l)
-		s.Gauge(n("host_power_state"), "Host power state"+powerHelp+".", hostPower(h.Runtime.PowerState), l)
-		s.Gauge(n("host_maintenance_mode"), "1 if the host is in maintenance mode.", b2f(h.Runtime.InMaintenanceMode), l)
+		s.Gauge(n("host_connection_status"), "Host connection state to vCenter"+hostConnHelp+".", hostConn(h.Runtime.ConnectionState), l)
+		s.Gauge(n("host_power_status"), "Host power state"+powerHelp+".", hostPower(h.Runtime.PowerState), l)
+		s.Gauge(n("host_in_maintenance"), "1 if the host is in maintenance mode.", b2f(h.Runtime.InMaintenanceMode), l)
 		s.Gauge(n("host_quarantine_mode"), "1 if the host is in quarantine mode (Proactive HA).", bp2f(h.Runtime.InQuarantineMode), l)
 		s.Gauge(n("host_config_issues"), "Number of configuration issues reported on the host.", float64(len(h.ConfigIssue)), l)
 		s.Gauge(n("host_reboot_required"), "1 if the host requires a reboot.", b2f(h.Summary.RebootRequired), l)
 		s.Gauge(n("host_vms"), "Number of VMs registered on the host.", float64(len(h.Vm)), l)
 		s.Gauge(n("host_datastores"), "Number of datastores mounted on the host.", float64(len(h.Datastore)), l)
 		if h.Runtime.BootTime != nil {
-			s.Gauge(n("host_boot_timestamp_seconds"), "Time of the last host boot.", float64(h.Runtime.BootTime.Unix()), l)
+			s.Gauge(n("host_boot_time_seconds"), "Time of the last host boot.", float64(h.Runtime.BootTime.Unix()), l)
 		}
 		if das := h.Runtime.DasHostState; das != nil {
 			s.Gauge(n("host_ha_state"), "State of the host HA agent (FDM), value 1 for the current state.", 1, append(append(L{}, l...), "state", das.State))

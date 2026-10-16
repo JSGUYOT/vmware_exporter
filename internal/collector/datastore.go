@@ -32,11 +32,11 @@ func collectDatastores(ctx context.Context, r *Run) error {
 		s.Gauge(n("datastore_uncommitted_bytes"), "Provisioned but unconsumed (thin) space on the datastore.", float64(sm.Uncommitted), l)
 		prov := float64(sm.Capacity - sm.FreeSpace + sm.Uncommitted)
 		s.Gauge(n("datastore_provisioned_bytes"), "Total provisioned space (used + unconsumed thin).", prov, l)
-		s.Gauge(n("datastore_accessible"), "1 if the datastore is accessible.", b2f(sm.Accessible), l)
+		s.Gauge(n("datastore_is_accessible"), "1 if the datastore is accessible.", b2f(sm.Accessible), l)
 		mm := sm.MaintenanceMode
-		s.Gauge(n("datastore_maintenance_mode"), "1 if the datastore is in (or entering) maintenance mode.", b2f(mm != "" && mm != "normal"), l)
+		s.Gauge(n("datastore_in_maintenance"), "1 if the datastore is in (or entering) maintenance mode.", b2f(mm != "" && mm != "normal"), l)
 		s.Gauge(n("datastore_overall_status"), "Overall status of the datastore"+statusHelp+".", statusValue(ds.OverallStatus), l)
-		s.Gauge(n("datastore_vms"), "Number of VMs with files on the datastore.", float64(len(ds.Vm)), l)
+		s.Gauge(n("datastore_vms_hosted"), "Number of VMs with files on the datastore.", float64(len(ds.Vm)), l)
 		mounted, inaccessible := 0, 0
 		for _, h := range ds.Host {
 			mounted++

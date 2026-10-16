@@ -221,7 +221,7 @@ groups:
   - name: vmware-host
     rules:
       - alert: VMwareHostNotResponding
-        expr: vmware_host_connection_state == 2
+        expr: vmware_host_connection_status == 2
         for: 3m
         labels: {severity: critical}
         annotations:
@@ -229,7 +229,7 @@ groups:
           description: "vCenter {{ $labels.vcenter }} is no longer receiving heartbeats from host {{ $labels.host }}."
 
       - alert: VMwareHostDisconnected
-        expr: vmware_host_connection_state == 0 and vmware_host_maintenance_mode == 0
+        expr: vmware_host_connection_status == 0 and vmware_host_in_maintenance == 0
         for: 10m
         labels: {severity: warning}
         annotations:
@@ -245,7 +245,7 @@ groups:
           description: "Overall status of host {{ $labels.host }} ({{ $labels.cluster }}) is red."
 
       - alert: VMwareHostMaintenanceMode
-        expr: vmware_host_maintenance_mode == 1
+        expr: vmware_host_in_maintenance == 1
         for: 24h
         labels: {severity: info}
         annotations:
@@ -261,7 +261,7 @@ groups:
           description: "The hardware vendor reported a partial hardware failure."
 
       - alert: VMwareHostHAAgentProblem
-        expr: vmware_host_ha_state{state!~"master|connectedToMaster|election"} == 1 and on(vcenter, host) (vmware_host_maintenance_mode == 0)
+        expr: vmware_host_ha_state{state!~"master|connectedToMaster|election"} == 1 and on(vcenter, host) (vmware_host_in_maintenance == 0)
         for: 10m
         labels: {severity: warning}
         annotations:
@@ -317,7 +317,7 @@ groups:
           description: "Check the host's SAN zoning / links."
 
       - alert: VMwareHostUplinkDown
-        expr: vmware_host_pnic_link_up{used="true"} == 0 and on(vcenter, host) (vmware_host_connection_state == 1)
+        expr: vmware_host_pnic_link_up{used="true"} == 0 and on(vcenter, host) (vmware_host_connection_status == 1)
         for: 5m
         labels: {severity: warning}
         annotations:
@@ -392,7 +392,7 @@ groups:
   - name: vmware-vm
     rules:
       - alert: VMwareVMHeartbeatLost
-        expr: vmware_vm_guest_heartbeat_status == 3 and on(vcenter, vm_moid) (vmware_vm_power_state == 1)
+        expr: vmware_vm_guest_heartbeat_status == 3 and on(vcenter, vm_moid) (vmware_vm_power_status == 1)
         for: 5m
         labels: {severity: critical}
         annotations:
@@ -400,7 +400,7 @@ groups:
           description: "The VM is powered on but the guest OS no longer responds to VMware Tools (hung OS?)."
 
       - alert: VMwareVMToolsNotRunning
-        expr: vmware_vm_tools_running == 0 and on(vcenter, vm_moid) (vmware_vm_power_state == 1) and on(vcenter, vm_moid) (vmware_vm_uptime_seconds > 900)
+        expr: vmware_vm_tools_running == 0 and on(vcenter, vm_moid) (vmware_vm_power_status == 1) and on(vcenter, vm_moid) (vmware_vm_uptime_seconds > 900)
         for: 30m
         labels: {severity: warning}
         annotations:
@@ -440,7 +440,7 @@ groups:
           description: "The oldest snapshot is {{ $value | humanizeDuration }} old. Snapshots are not backups."
 
       - alert: VMwareVMTooManySnapshots
-        expr: vmware_vm_snapshots > 3
+        expr: vmware_vm_snapshots_existing > 3
         for: 1h
         labels: {severity: warning}
         annotations:
@@ -504,7 +504,7 @@ groups:
           description: "Maximum disk latency > 50 ms."
 
       - alert: VMwareVMNotHAProtected
-        expr: vmware_vm_ha_protected == 0 and on(vcenter, vm_moid) (vmware_vm_power_state == 1) and on(vcenter, vm_moid) (vmware_vm_info * on(vcenter, datacenter, cluster) group_left() (vmware_cluster_ha_enabled == 1))
+        expr: vmware_vm_ha_protected == 0 and on(vcenter, vm_moid) (vmware_vm_power_status == 1) and on(vcenter, vm_moid) (vmware_vm_info * on(vcenter, datacenter, cluster) group_left() (vmware_cluster_ha_enabled == 1))
         for: 30m
         labels: {severity: warning}
         annotations:
@@ -555,7 +555,7 @@ groups:
           description: "Thin provisioning exceeds 200% of capacity."
 
       - alert: VMwareDatastoreInaccessible
-        expr: vmware_datastore_accessible == 0
+        expr: vmware_datastore_is_accessible == 0
         for: 2m
         labels: {severity: critical}
         annotations:

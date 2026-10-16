@@ -72,6 +72,9 @@ type Collectors struct {
 	Perf         *bool `yaml:"perf"`
 	VSAN         *bool `yaml:"vsan"`
 	Appliance    *bool `yaml:"appliance"`
+	// Pryorda emits the metric names and labels of pryorda/vmware_exporter
+	// (in addition to the native ones), for existing dashboards.
+	Pryorda *bool `yaml:"pryorda"`
 }
 
 // Filters narrows the scope (regexes on names).
@@ -223,6 +226,7 @@ func mergeDefaults(t, d *Target) {
 	bp(&c.Perf, dc.Perf)
 	bp(&c.VSAN, dc.VSAN)
 	bp(&c.Appliance, dc.Appliance)
+	bp(&c.Pryorda, dc.Pryorda)
 	f, df := &t.Filters, &d.Filters
 	str(&f.VMExclude, df.VMExclude)
 	str(&f.VMInclude, df.VMInclude)
@@ -382,6 +386,7 @@ func (t *Target) finalize() error {
 	on(&c.Perf, true)
 	on(&c.VSAN, true)
 	on(&c.Appliance, true)
+	on(&c.Pryorda, false)
 	on(&t.Filters.ExcludeSystemVMs, false)
 	on(&t.Filters.IncludeTemplates, false)
 	on(&t.Host.StoragePaths, true)

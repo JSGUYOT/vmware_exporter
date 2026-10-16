@@ -65,6 +65,7 @@ var collectors = []collectorFunc{
 	{"vsan", func(c *config.Collectors) bool { return *c.VSAN }, collectVSAN, 1},
 	{"appliance", func(c *config.Collectors) bool { return *c.Appliance }, collectAppliance, 1},
 	{"perf", func(c *config.Collectors) bool { return *c.Perf }, collectPerf, 2},
+	{"pryorda", func(c *config.Collectors) bool { return *c.Pryorda }, collectPryorda, 1},
 }
 
 // Target periodically collects one vCenter and caches the latest result.

@@ -85,13 +85,13 @@ stat("vCenters reachable", 'sum(vmware_up{vcenter=~"$vcenter"}) / count(vmware_u
      thresholds=[{"color": "red", "value": None}, {"color": "green", "value": 1}])
 stat("Red alarms", 'count(vmware_alarm_triggered{' + SEL + ', status="red"}) or vector(0)', 4, y, thresholds=RED)
 stat("Yellow alarms", 'count(vmware_alarm_triggered{' + SEL + ', status="yellow"}) or vector(0)', 8, y, thresholds=ORANGE)
-stat("Hosts connected", 'count(vmware_host_connection_state{' + SELC + '} == 1) or vector(0)', 12, y, color_mode="value")
-stat("Hosts not connected", 'count(vmware_host_connection_state{' + SELC + '} != 1) or vector(0)', 16, y, thresholds=RED)
-stat("VMs powered on", 'count((vmware_vm_power_state{' + SEL + '} == 1)' + VMF + ') or vector(0)', 20, y, color_mode="value")
+stat("Hosts connected", 'count(vmware_host_connection_status{' + SELC + '} == 1) or vector(0)', 12, y, color_mode="value")
+stat("Hosts not connected", 'count(vmware_host_connection_status{' + SELC + '} != 1) or vector(0)', 16, y, thresholds=RED)
+stat("VMs powered on", 'count((vmware_vm_power_status{' + SEL + '} == 1)' + VMF + ') or vector(0)', 20, y, color_mode="value")
 y += 4
 stat("Datastores > 85%", 'count((1 - vmware_datastore_free_bytes{' + SEL + '} / vmware_datastore_capacity_bytes{' + SEL + '}) > 0.85) or vector(0)', 0, y, thresholds=ORANGE)
 stat("Snapshots > 3 days", 'count((vmware_vm_snapshot_oldest_age_seconds{' + SEL + '} > 259200)' + VMF + ') or vector(0)', 4, y, thresholds=ORANGE)
-stat("VMs without Tools", 'count((vmware_vm_tools_running{' + SEL + '} == 0) and on(vcenter, vm_moid) (vmware_vm_power_state == 1)' + VMF + ') or vector(0)', 8, y, thresholds=ORANGE)
+stat("VMs without Tools", 'count((vmware_vm_tools_running{' + SEL + '} == 0) and on(vcenter, vm_moid) (vmware_vm_power_status == 1)' + VMF + ') or vector(0)', 8, y, thresholds=ORANGE)
 stat("Dead storage paths", 'sum(vmware_host_storage_paths{' + SELC + ', state="dead"}) or vector(0)', 12, y, thresholds=RED)
 stat("vSAN health (worst)", 'max(vmware_vsan_cluster_health{' + SELC + '}) or vector(0)', 16, y,
      thresholds=[{"color": "text", "value": None}, {"color": "green", "value": 1}, {"color": "orange", "value": 2}, {"color": "red", "value": 3}],

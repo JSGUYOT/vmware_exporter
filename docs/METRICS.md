@@ -107,10 +107,10 @@ Real-time performance counters: `vmware_<host|vm>_perf_<group>_<counter>_<rollup
 
 | Metric | Type | Labels | Description |
 |---|---|---|---|
-| `vmware_host_boot_timestamp_seconds` | gauge | cluster, datacenter, host | Timestamp of the last ESX boot. |
+| `vmware_host_boot_time_seconds` | gauge | cluster, datacenter, host | Timestamp of the last ESX boot. |
 | `vmware_host_certificate_expiry_timestamp_seconds` | gauge | cluster, datacenter, host | Expiry date of the ESX certificate (epoch). |
 | `vmware_host_config_issues` | gauge | cluster, datacenter, host | Number of configuration issues reported on the ESX host. |
-| `vmware_host_connection_state` | gauge | cluster, datacenter, host | ESX connection state to vCenter (0=disconnected, 1=connected, 2=notResponding). |
+| `vmware_host_connection_status` | gauge | cluster, datacenter, host | ESX connection state to vCenter (0=disconnected, 1=connected, 2=notResponding). |
 | `vmware_host_cpu_cores` | gauge | cluster, datacenter, host | Number of physical cores. |
 | `vmware_host_cpu_threads` | gauge | cluster, datacenter, host | Number of physical threads. |
 | `vmware_host_cpu_total_mhz` | gauge | cluster, datacenter, host | Total CPU capacity (MHz). |
@@ -118,13 +118,13 @@ Real-time performance counters: `vmware_<host|vm>_perf_<group>_<counter>_<rollup
 | `vmware_host_datastores` | gauge | cluster, datacenter, host | Number of datastores mounted on the ESX host. |
 | `vmware_host_hardware_status` | gauge | cluster, component, datacenter, host, name | Status of a hardware component (memory, cpu, storage) (0=gray/unknown, 1=green, 2=yellow, 3=red). |
 | `vmware_host_info` | gauge | bios_version, build, cluster, cpu_model, datacenter, host, model, product, vendor, version | ESX host information (value always 1). |
-| `vmware_host_maintenance_mode` | gauge | cluster, datacenter, host | 1 if the ESX host is in maintenance mode. |
+| `vmware_host_in_maintenance` | gauge | cluster, datacenter, host | 1 if the ESX host is in maintenance mode. |
 | `vmware_host_memory_total_bytes` | gauge | cluster, datacenter, host | Total physical memory. |
 | `vmware_host_memory_usage_bytes` | gauge | cluster, datacenter, host | Memory used. |
 | `vmware_host_overall_status` | gauge | cluster, datacenter, host | Overall ESX status (0=gray/unknown, 1=green, 2=yellow, 3=red). |
 | `vmware_host_pnic_link_up` | gauge | cluster, datacenter, driver, host, nic, used | 1 if the physical NIC link is up. used=true if it is an uplink of a vSwitch/vDS. |
 | `vmware_host_pnic_speed_mbps` | gauge | cluster, datacenter, driver, host, nic, used | Negotiated physical NIC speed (Mb/s, 0 if link is down). |
-| `vmware_host_power_state` | gauge | cluster, datacenter, host | ESX power state (0=poweredOff, 1=poweredOn, 2=suspended/standBy, 3=unknown). |
+| `vmware_host_power_status` | gauge | cluster, datacenter, host | ESX power state (0=poweredOff, 1=poweredOn, 2=suspended/standBy, 3=unknown). |
 | `vmware_host_quarantine_mode` | gauge | cluster, datacenter, host | 1 if the ESX host is in quarantine mode (Proactive HA). |
 | `vmware_host_reboot_required` | gauge | cluster, datacenter, host | 1 if an ESX reboot is required. |
 | `vmware_host_sensor_health` | gauge | cluster, datacenter, host, sensor, type | Health of an IPMI/CIM hardware sensor (0=gray/unknown, 1=green, 2=yellow, 3=red). |
@@ -158,9 +158,9 @@ Real-time performance counters: `vmware_<host|vm>_perf_<group>_<counter>_<rollup
 | `vmware_vm_memory_swapped_bytes` | gauge | datacenter, vm, vm_moid | Memory swapped by the hypervisor. |
 | `vmware_vm_nics` | gauge | datacenter, vm, vm_moid | Number of virtual NICs. |
 | `vmware_vm_overall_status` | gauge | datacenter, vm, vm_moid | Overall VM status (0=gray/unknown, 1=green, 2=yellow, 3=red). |
-| `vmware_vm_power_state` | gauge | datacenter, vm, vm_moid | VM power state (0=poweredOff, 1=poweredOn, 2=suspended/standBy, 3=unknown). |
+| `vmware_vm_power_status` | gauge | datacenter, vm, vm_moid | VM power state (0=poweredOff, 1=poweredOn, 2=suspended/standBy, 3=unknown). |
 | `vmware_vm_question_pending` | gauge | datacenter, vm, vm_moid | 1 if the VM is blocked on a question awaiting an answer. |
-| `vmware_vm_snapshots` | gauge | datacenter, vm, vm_moid | Number of VM snapshots. |
+| `vmware_vm_snapshots_existing` | gauge | datacenter, vm, vm_moid | Number of VM snapshots. |
 | `vmware_vm_storage_committed_bytes` | gauge | datacenter, vm, vm_moid | Storage actually consumed on datastores. |
 | `vmware_vm_storage_uncommitted_bytes` | gauge | datacenter, vm, vm_moid | Provisioned storage not yet consumed (thin). |
 | `vmware_vm_tools_running` | gauge | datacenter, vm, vm_moid | 1 if VMware Tools is running in the guest. |
@@ -171,7 +171,7 @@ Real-time performance counters: `vmware_<host|vm>_perf_<group>_<counter>_<rollup
 | `vmware_vms_powered_on` | gauge |  | Number of monitored VMs that are powered on. |
 | `vmware_vms_system_managed` | gauge |  | Number of VMs managed by a solution (vCLS, Supervisor, agents...). |
 | `vmware_vms_templates` | gauge |  | Number of templates in the inventory. |
-| `vmware_vm_boot_timestamp_seconds` (*) | gauge | datacenter, vm, vm_moid | Timestamp of the last VM boot. |
+| `vmware_vm_boot_time_seconds` (*) | gauge | datacenter, vm, vm_moid | Timestamp of the last VM boot. |
 | `vmware_vm_guest_disk_capacity_bytes` (*) | gauge | datacenter, vm, vm_moid, disk_path | Capacity of a guest file system (via VMware Tools). |
 | `vmware_vm_guest_disk_free_bytes` (*) | gauge | datacenter, vm, vm_moid, disk_path | Free space on a guest file system (via VMware Tools). |
 | `vmware_vm_ha_protected` (*) | gauge | datacenter, vm, vm_moid | 1 if the VM is protected by vSphere HA. |
@@ -182,7 +182,7 @@ Real-time performance counters: `vmware_<host|vm>_perf_<group>_<counter>_<rollup
 
 | Metric | Type | Labels | Description |
 |---|---|---|---|
-| `vmware_datastore_accessible` | gauge | datacenter, datastore, datastore_moid | 1 if the datastore is accessible. |
+| `vmware_datastore_is_accessible` | gauge | datacenter, datastore, datastore_moid | 1 if the datastore is accessible. |
 | `vmware_datastore_capacity_bytes` | gauge | datacenter, datastore, datastore_moid | Datastore capacity. |
 | `vmware_datastore_cluster_capacity_bytes` | gauge | datacenter, datastore_cluster | Datastore cluster capacity. |
 | `vmware_datastore_cluster_datastores` | gauge | datacenter, datastore_cluster | Number of datastores in the datastore cluster. |
@@ -192,11 +192,11 @@ Real-time performance counters: `vmware_<host|vm>_perf_<group>_<counter>_<rollup
 | `vmware_datastore_hosts_inaccessible` | gauge | datacenter, datastore, datastore_moid | Number of ESX hosts for which the datastore is inaccessible (APD/PDL...). |
 | `vmware_datastore_hosts_mounted` | gauge | datacenter, datastore, datastore_moid | Number of ESX hosts mounting the datastore. |
 | `vmware_datastore_info` | gauge | datacenter, datastore, datastore_cluster, datastore_moid, shared, type, url | Datastore information (value always 1). |
-| `vmware_datastore_maintenance_mode` | gauge | datacenter, datastore, datastore_moid | 1 if the datastore is in (or entering) maintenance mode. |
+| `vmware_datastore_in_maintenance` | gauge | datacenter, datastore, datastore_moid | 1 if the datastore is in (or entering) maintenance mode. |
 | `vmware_datastore_overall_status` | gauge | datacenter, datastore, datastore_moid | Overall datastore status (0=gray/unknown, 1=green, 2=yellow, 3=red). |
 | `vmware_datastore_provisioned_bytes` | gauge | datacenter, datastore, datastore_moid | Total provisioned space (used + unconsumed thin). |
 | `vmware_datastore_uncommitted_bytes` | gauge | datacenter, datastore, datastore_moid | Provisioned but unconsumed space (thin) on the datastore. |
-| `vmware_datastore_vms` | gauge | datacenter, datastore, datastore_moid | Number of VMs with files on the datastore. |
+| `vmware_datastore_vms_hosted` | gauge | datacenter, datastore, datastore_moid | Number of VMs with files on the datastore. |
 
 ## vSphere Distributed Switch
 
@@ -243,3 +243,44 @@ Real-time performance counters: `vmware_<host|vm>_perf_<group>_<counter>_<rollup
 | `vmware_vsan_health_query_success` (*) | gauge | datacenter, cluster | 1 if the vSAN health summary could be read for the cluster. |
 | `vmware_vsan_health_test` (*) | gauge | datacenter, cluster, group, test | Result of a vSAN health test (0=gray/unknown, 1=green, 2=yellow, 3=red). |
 | `vmware_vsan_health_timestamp_seconds` (*) | gauge | datacenter, cluster | Timestamp of the last vSAN health test. |
+
+## pryorda/vmware_exporter compatibility (optional)
+
+Only with `collectors: {pryorda: true}`; see [Migrating from pryorda/vmware_exporter](../README.md#migrating-from-pryordavmware_exporter).
+All gauges; names, labels, units and values identical to pryorda/vmware_exporter 0.18.
+Base labels (in addition to `vcenter` / `extra_labels`):
+VM = `vm_name, ds_name, host_name, dc_name, cluster_name`; host = `host_name, dc_name, cluster_name`; datastore = `ds_name, dc_name, ds_cluster`.
+
+| Metric | Extra labels | Description |
+|---|---|---|
+| `vmware_vm_power_state` | | 1 = poweredOn, 0 otherwise |
+| `vmware_vm_boot_timestamp_seconds` | | boot time (powered-on VMs) |
+| `vmware_vm_num_cpu` | | vCPUs |
+| `vmware_vm_memory_max` | | configured memory (MB) |
+| `vmware_vm_max_cpu_usage` | | maximum usable CPU (MHz) |
+| `vmware_vm_template` | | 1 if template |
+| `vmware_vm_guest_disk_free` / `_capacity` | `partition` | guest filesystem free / capacity (bytes) |
+| `vmware_vm_guest_tools_running_status` | `tools_status` | always 1 |
+| `vmware_vm_guest_tools_version` | `tools_version` | always 1 |
+| `vmware_vm_guest_tools_version_status` | `tools_version_status` | always 1 |
+| `vmware_vm_snapshots` (*) | | number of snapshots (absent when none) |
+| `vmware_vm_snapshot_timestamp_seconds` (*) | `vm_snapshot_name` | snapshot creation time |
+| `vmware_host_power_state` | | 1 = poweredOn |
+| `vmware_host_standby_mode` | `standby_mode_state` | 1 if in standby |
+| `vmware_host_connection_state` | `state` | always 1 |
+| `vmware_host_maintenance_mode` | | 1 if in maintenance |
+| `vmware_host_boot_timestamp_seconds` | | boot time (powered-on hosts, as all below) |
+| `vmware_host_cpu_usage` / `_cpu_max` | | MHz |
+| `vmware_host_num_cpu` | | physical cores |
+| `vmware_host_memory_usage` / `_memory_max` | | MB |
+| `vmware_host_product_info` | `version, build` | always 1 |
+| `vmware_host_hardware_info` | `hardware_model, hardware_cpu_model` | always 1 |
+| `vmware_host_sensor_state` | `name, type` | 0=red, 1=yellow, 2=green, 3=unknown |
+| `vmware_host_sensor_fan` / `_temperature` / `_power_voltage` / `_power_current` / `_power_watt` / `_redundancy` | `name` | sensor reading |
+| `vmware_datastore_capacity_size` / `_freespace_size` / `_uncommited_size` / `_provisoned_size` | | bytes |
+| `vmware_datastore_hosts` / `_vms` | | mounting hosts / VMs |
+| `vmware_datastore_maintenance_mode` | `mode` | always 1 |
+| `vmware_datastore_type` | `ds_type` | always 1 |
+| `vmware_datastore_accessible` | | 1 if accessible |
+| `vmware_vm_<group>_<counter>_<rollup>` | | 24 real-time counters, raw vSphere units: cpu ready/maxlimited/usage/usagemhz/costop/idle/demand, mem usage/consumed/active/swapped/vmmemctl, disk maxTotalLatency/usage/read/write, net received/transmitted/multicastRx/multicastTx/broadcastRx/broadcastTx/droppedRx/droppedTx |
+| `vmware_host_<group>_<counter>_<rollup>` | | 24 real-time counters, raw vSphere units: cpu costop/demand/idle/ready/swapwait/usage/usagemhz/used, disk read/write, mem active/latency/swapin/swapinRate/swapout/swapoutRate/vmmemctl, net bytesRx/bytesTx/droppedRx/droppedTx/errorsRx/errorsTx/usage |

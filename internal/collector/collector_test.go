@@ -217,9 +217,9 @@ func TestCompatibilityMatrix(t *testing.T) {
 			}
 			mustHave := []string{
 				"vmware_cluster_overall_status", "vmware_cluster_cpu_total_mhz", "vmware_cluster_ha_enabled",
-				"vmware_host_connection_state", "vmware_host_info", "vmware_host_memory_usage_bytes",
-				"vmware_vm_power_state", "vmware_vm_info", "vmware_vm_snapshots", "vmware_vm_storage_committed_bytes",
-				"vmware_datastore_capacity_bytes", "vmware_datastore_accessible", "vmware_datastore_cluster_overall_status",
+				"vmware_host_connection_status", "vmware_host_info", "vmware_host_memory_usage_bytes",
+				"vmware_vm_power_status", "vmware_vm_info", "vmware_vm_snapshots_existing", "vmware_vm_storage_committed_bytes",
+				"vmware_datastore_capacity_bytes", "vmware_datastore_is_accessible", "vmware_datastore_cluster_overall_status",
 				"vmware_dvs_overall_status", "vmware_network_overall_status", "vmware_resourcepool_overall_status",
 				"vmware_datacenter_overall_status", "vmware_inventory_objects",
 				"vmware_host_perf_cpu_usage_average_percent", "vmware_vm_perf_cpu_ready_summation_seconds",
@@ -229,7 +229,7 @@ func TestCompatibilityMatrix(t *testing.T) {
 					t.Errorf("metric %s missing", name)
 				}
 			}
-			vm := g.find("vmware_vm_power_state", map[string]string{"vm": "DC0_C0_RP0_VM0"})
+			vm := g.find("vmware_vm_power_status", map[string]string{"vm": "DC0_C0_RP0_VM0"})
 			if len(vm) != 1 || label(vm[0], "datacenter") != "DC0" || label(vm[0], "host") != "" || label(vm[0], "cluster") != "" {
 				t.Errorf("expected stable VM labels (no host/cluster): %v", vm)
 			}
@@ -237,7 +237,7 @@ func TestCompatibilityMatrix(t *testing.T) {
 			if len(vi) != 1 || label(vi[0], "cluster") != "DC0_C0" || label(vi[0], "host") == "" {
 				t.Errorf("vmware_vm_info must carry cluster/host: %v", vi)
 			}
-			h := g.find("vmware_host_connection_state", map[string]string{"cluster": ""})
+			h := g.find("vmware_host_connection_status", map[string]string{"cluster": ""})
 			if len(h) == 0 {
 				t.Errorf("standalone host (no cluster) not reported")
 			}
@@ -474,5 +474,100 @@ func TestLookup(t *testing.T) {
 		if got != want {
 			t.Errorf("Lookup(%q) = %q, want %q", s, got, want)
 		}
+	}
+}
+
+// TestPryordaCompat checks the pryorda/vmware_exporter compatible series:
+// names, exact label sets, value semantics, and coexistence with the native
+// families (the pedantic registry rejects inconsistent help texts).
+func TestPryordaCompat(t *testing.T) {
+	for _, v := range []struct{ version, api string }{{"8.0.3", "8.0.3.0"}, {"9.0.0", "9.0.0.0"}} {
+		t.Run(v.version, func(t *testing.T) {
+			_, s := newModel(t, v.version, v.api)
+			cfg := targetFor(t, s, func(c *config.Target) { on := true; c.Collectors.Pryorda = &on })
+			tg := NewTarget(cfg, testLogger())
+			tg.collectOnce(context.Background())
+			g := gather(t, tg)
+
+			base := []string{"vcenter", "site"}
+			vmL := append(append([]string{}, base...), "vm_name", "ds_name", "host_name", "dc_name", "cluster_name")
+			hostL := append(append([]string{}, base...), "host_name", "dc_name", "cluster_name")
+			dsL := append(append([]string{}, base...), "ds_name", "dc_name", "ds_cluster")
+			want := map[string][]string{
+				"vmware_vm_power_state":                vmL,
+				"vmware_vm_num_cpu":                    vmL,
+				"vmware_vm_memory_max":                 vmL,
+				"vmware_vm_max_cpu_usage":              vmL,
+				"vmware_vm_template":                   vmL,
+				"vmware_vm_guest_tools_running_status": append(append([]string{}, vmL...), "tools_status"),
+				"vmware_vm_cpu_usage_average":          vmL,
+				"vmware_host_power_state":              hostL,
+				"vmware_host_maintenance_mode":         hostL,
+				"vmware_host_connection_state":         append(append([]string{}, hostL...), "state"),
+				"vmware_host_standby_mode":             append(append([]string{}, hostL...), "standby_mode_state"),
+				"vmware_host_cpu_usage":                hostL,
+				"vmware_host_cpu_max":                  hostL,
+				"vmware_host_num_cpu":                  hostL,
+				"vmware_host_memory_usage":             hostL,
+				"vmware_host_memory_max":               hostL,
+				"vmware_host_product_info":             append(append([]string{}, hostL...), "version", "build"),
+				"vmware_host_hardware_info":            append(append([]string{}, hostL...), "hardware_model", "hardware_cpu_model"),
+				"vmware_host_cpu_usage_average":        hostL,
+				"vmware_datastore_capacity_size":       dsL,
+				"vmware_datastore_freespace_size":      dsL,
+				"vmware_datastore_uncommited_size":     dsL,
+				"vmware_datastore_provisoned_size":     dsL,
+				"vmware_datastore_hosts":               dsL,
+				"vmware_datastore_vms":                 dsL,
+				"vmware_datastore_accessible":          dsL,
+				"vmware_datastore_maintenance_mode":    append(append([]string{}, dsL...), "mode"),
+				"vmware_datastore_type":                append(append([]string{}, dsL...), "ds_type"),
+			}
+			for name, labels := range want {
+				f, ok := g.fams[name]
+				if !ok || len(f.Metric) == 0 {
+					t.Errorf("%s: missing", name)
+					continue
+				}
+				got := map[string]bool{}
+				for _, lp := range f.Metric[0].Label {
+					got[lp.GetName()] = true
+				}
+				for _, l := range labels {
+					if !got[l] {
+						t.Errorf("%s: label %q missing", name, l)
+					}
+				}
+				if len(got) != len(labels) {
+					t.Errorf("%s: got %d labels, want %d (%v)", name, len(got), len(labels), labels)
+				}
+			}
+
+			vm := g.find("vmware_vm_power_state", map[string]string{"vm_name": "DC0_C0_RP0_VM0", "dc_name": "DC0", "cluster_name": "DC0_C0"})
+			if len(vm) != 1 || value(vm[0]) != 1 || label(vm[0], "ds_name") == "" || label(vm[0], "host_name") == "" {
+				t.Errorf("vmware_vm_power_state for DC0_C0_RP0_VM0: %v", vm)
+			}
+			if m := g.find("vmware_vm_memory_max", map[string]string{"vm_name": "DC0_C0_RP0_VM0"}); len(m) != 1 || value(m[0]) < 32 {
+				t.Errorf("vmware_vm_memory_max should be in MB: %v", m)
+			}
+			if _, ok := g.fams["vmware_vm_snapshots"]; ok {
+				t.Error("vmware_vm_snapshots must be absent for VMs without snapshots")
+			}
+			for _, m := range g.fams["vmware_datastore_provisoned_size"].Metric {
+				ds := label(m, "ds_name")
+				c := g.find("vmware_datastore_capacity_size", map[string]string{"ds_name": ds})
+				f := g.find("vmware_datastore_freespace_size", map[string]string{"ds_name": ds})
+				u := g.find("vmware_datastore_uncommited_size", map[string]string{"ds_name": ds})
+				if value(m) != value(c[0])-value(f[0])+value(u[0]) {
+					t.Errorf("provisoned_size of %s is not capacity - free + uncommitted", ds)
+				}
+			}
+			// Native families keep their own names next to the pryorda ones.
+			for _, name := range []string{"vmware_vm_power_status", "vmware_host_connection_status", "vmware_datastore_is_accessible"} {
+				if _, ok := g.fams[name]; !ok {
+					t.Errorf("native %s missing in pryorda mode", name)
+				}
+			}
+		})
 	}
 }

@@ -295,7 +295,7 @@
    "targets": [
     {
      "refId": "A",
-     "expr": "count(vmware_host_connection_state{vcenter=~\"$vcenter\", datacenter=~\"$datacenter\", cluster=~\"$cluster\"} == 1) or vector(0)",
+     "expr": "count(vmware_host_connection_status{vcenter=~\"$vcenter\", datacenter=~\"$datacenter\", cluster=~\"$cluster\"} == 1) or vector(0)",
      "datasource": {
       "type": "prometheus",
       "uid": "${datasource}"
@@ -346,7 +346,7 @@
    "targets": [
     {
      "refId": "A",
-     "expr": "count(vmware_host_connection_state{vcenter=~\"$vcenter\", datacenter=~\"$datacenter\", cluster=~\"$cluster\"} != 1) or vector(0)",
+     "expr": "count(vmware_host_connection_status{vcenter=~\"$vcenter\", datacenter=~\"$datacenter\", cluster=~\"$cluster\"} != 1) or vector(0)",
      "datasource": {
       "type": "prometheus",
       "uid": "${datasource}"
@@ -401,7 +401,7 @@
    "targets": [
     {
      "refId": "A",
-     "expr": "count((vmware_vm_power_state{vcenter=~\"$vcenter\", datacenter=~\"$datacenter\"} == 1) and on(vcenter, vm_moid) vmware_vm_info{vcenter=~\"$vcenter\", datacenter=~\"$datacenter\", cluster=~\"$cluster\"}) or vector(0)",
+     "expr": "count((vmware_vm_power_status{vcenter=~\"$vcenter\", datacenter=~\"$datacenter\"} == 1) and on(vcenter, vm_moid) vmware_vm_info{vcenter=~\"$vcenter\", datacenter=~\"$datacenter\", cluster=~\"$cluster\"}) or vector(0)",
      "datasource": {
       "type": "prometheus",
       "uid": "${datasource}"
@@ -562,7 +562,7 @@
    "targets": [
     {
      "refId": "A",
-     "expr": "count((vmware_vm_tools_running{vcenter=~\"$vcenter\", datacenter=~\"$datacenter\"} == 0) and on(vcenter, vm_moid) (vmware_vm_power_state == 1) and on(vcenter, vm_moid) vmware_vm_info{vcenter=~\"$vcenter\", datacenter=~\"$datacenter\", cluster=~\"$cluster\"}) or vector(0)",
+     "expr": "count((vmware_vm_tools_running{vcenter=~\"$vcenter\", datacenter=~\"$datacenter\"} == 0) and on(vcenter, vm_moid) (vmware_vm_power_status == 1) and on(vcenter, vm_moid) vmware_vm_info{vcenter=~\"$vcenter\", datacenter=~\"$datacenter\", cluster=~\"$cluster\"}) or vector(0)",
      "datasource": {
       "type": "prometheus",
       "uid": "${datasource}"

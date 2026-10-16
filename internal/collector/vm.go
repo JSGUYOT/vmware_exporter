@@ -95,7 +95,7 @@ func collectVMs(ctx context.Context, r *Run) error {
 			"cluster", cl, "host", hostName, "guest_os", guestOS, "hw_version", hw, "tools_version", toolsVer,
 			"ip_address", ip, "guest_hostname", gh, "managed_by", managedBy, "template", boolStr(isTemplate)))
 
-		s.Gauge(n("vm_power_state"), "VM power state"+powerHelp+".", vmPower(vm.Runtime.PowerState), l)
+		s.Gauge(n("vm_power_status"), "VM power state"+powerHelp+".", vmPower(vm.Runtime.PowerState), l)
 		s.Gauge(n("vm_connection_state"), "VM connection state"+vmConnHelp+".", vmConn(vm.Runtime.ConnectionState), l)
 		s.Gauge(n("vm_overall_status"), "Overall status of the VM"+statusHelp+".", statusValue(vm.OverallStatus), l)
 		s.Gauge(n("vm_guest_heartbeat_status"), "VMware Tools heartbeat of the guest OS"+statusHelp+".", statusValue(vm.GuestHeartbeatStatus), l)
@@ -105,7 +105,7 @@ func collectVMs(ctx context.Context, r *Run) error {
 			s.Gauge(n("vm_ha_protected"), "1 if the VM is protected by vSphere HA.", b2f(vm.Runtime.DasVmProtection.DasProtected), l)
 		}
 		if vm.Runtime.BootTime != nil {
-			s.Gauge(n("vm_boot_timestamp_seconds"), "Time of the last VM boot.", float64(vm.Runtime.BootTime.Unix()), l)
+			s.Gauge(n("vm_boot_time_seconds"), "Time of the last VM boot.", float64(vm.Runtime.BootTime.Unix()), l)
 		}
 
 		s.Gauge(n("vm_vcpus"), "Number of vCPUs.", float64(sc.NumCpu), l)
@@ -152,7 +152,7 @@ func collectVMs(ctx context.Context, r *Run) error {
 				}
 			})
 		}
-		s.Gauge(n("vm_snapshots"), "Number of VM snapshots.", float64(count), l)
+		s.Gauge(n("vm_snapshots_existing"), "Number of VM snapshots.", float64(count), l)
 		if !oldest.IsZero() {
 			s.Gauge(n("vm_snapshot_oldest_age_seconds"), "Age of the oldest VM snapshot.", now.Sub(oldest).Seconds(), l)
 			s.Gauge(n("vm_snapshot_oldest_timestamp_seconds"), "Creation time of the oldest snapshot.", float64(oldest.Unix()), l)

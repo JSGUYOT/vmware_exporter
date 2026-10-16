@@ -41,11 +41,11 @@ tests:
     input_series:
       - series: 'vmware_vm_guest_heartbeat_status{vcenter="vc1",datacenter="DC1",vm="app01",vm_moid="vm-1"}'
         values: '3x10'
-      - series: 'vmware_vm_power_state{vcenter="vc1",datacenter="DC1",vm="app01",vm_moid="vm-1"}'
+      - series: 'vmware_vm_power_status{vcenter="vc1",datacenter="DC1",vm="app01",vm_moid="vm-1"}'
         values: '1x10'
       - series: 'vmware_vm_guest_heartbeat_status{vcenter="vc1",datacenter="DC1",vm="off01",vm_moid="vm-3"}'
         values: '3x10'
-      - series: 'vmware_vm_power_state{vcenter="vc1",datacenter="DC1",vm="off01",vm_moid="vm-3"}'
+      - series: 'vmware_vm_power_status{vcenter="vc1",datacenter="DC1",vm="off01",vm_moid="vm-3"}'
         values: '0x10'
     alert_rule_test:
       - eval_time: 6m
@@ -60,17 +60,17 @@ tests:
     input_series:
       - series: 'vmware_host_ha_state{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx01",state="networkIsolated"}'
         values: '1x20'
-      - series: 'vmware_host_maintenance_mode{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx01"}'
+      - series: 'vmware_host_in_maintenance{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx01"}'
         values: '0x20'
       - series: 'vmware_host_ha_state{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx02",state="connectedToMaster"}'
         values: '1x20'
-      - series: 'vmware_host_maintenance_mode{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx02"}'
+      - series: 'vmware_host_in_maintenance{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx02"}'
         values: '0x20'
       - series: 'vmware_host_pnic_link_up{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx02",nic="vmnic1",used="true",driver="i40en"}'
         values: '0x20'
       - series: 'vmware_host_pnic_link_up{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx02",nic="vmnic3",used="false",driver="i40en"}'
         values: '0x20'
-      - series: 'vmware_host_connection_state{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx02"}'
+      - series: 'vmware_host_connection_status{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx02"}'
         values: '1x20'
     alert_rule_test:
       - eval_time: 15m

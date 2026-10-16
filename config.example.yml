@@ -52,6 +52,7 @@ defaults:
     perf: true           # real-time counters (CPU ready, latencies, network...)
     vsan: true           # vSAN health (cached health service results)
     appliance: true      # VAMI health, vCenter services, backups (REST API /api)
+    pryorda: false       # also emit pryorda/vmware_exporter metric names/labels (existing dashboards)
 
   filters:
     # vm_exclude: "^(vCLS|SupervisorControlPlaneVM)"

@@ -1,0 +1,52 @@
+# Alerting rules of pryorda/vmware_exporter (alerts/vmware.rules.yml), unchanged,
+# for teams migrating from it. They use the pryorda-compatible series, so the
+# exporter must run with `collectors: {pryorda: true}`.
+#
+# Copyright (c) 2017, Remi Verchere. BSD 3-Clause License:
+# https://github.com/pryorda/vmware_exporter/blob/master/LICENSE
+#
+# Note: {{ $labels.instance }} is the vCenter only when scraping with
+# ?target= and relabeling __param_target to instance (see prometheus-scrape.yml);
+# {{ $labels.vm_name }} identifies the VM in either case.
+groups:
+- name: vmware.rules
+  rules:
+  - alert: VMWarnMemoryUsage
+    expr: ((vmware_vm_mem_usage_average / 100) >= 90) and ((vmware_vm_mem_usage_average
+      / 100) < 95)
+    for: 30m
+    labels:
+      severity: warning
+    annotations:
+      title: 'High memory usage on {{ $labels.instance }}: {{ $value | printf "%.2f"
+        }}%'
+  - alert: VMCritMemoryUsage
+    expr: ((vmware_vm_mem_usage_average / 100) >= 95)
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      title: 'Very High memory usage on {{ $labels.instance }}: {{ $value | printf
+        "%.2f" }}%'
+  - alert: VMWarnNumberSnapshots
+    expr: (vmware_vm_snapshots < 3)
+    for: 30m
+    labels:
+      severity: warning
+    annotations:
+      title: 'High snapshots number on {{ $labels.instance }}: {{ $value }}'
+  - alert: VMCritNumberSnapshots
+    expr: (vmware_vm_snapshots >= 3)
+    for: 30m
+    labels:
+      severity: critical
+    annotations:
+      title: 'Very high snapshot number on {{ $labels.instance }}: {{ $value }}'
+  - alert: VMWarnAgeSnapshots
+    expr: ((time() - vmware_vm_snapshot_timestamp_seconds) / (60 * 60 * 24) >= 7)
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      title: 'Outdated snapshot on {{ $labels.instance }}: {{ $value | printf "%.0f"
+        }} days'
