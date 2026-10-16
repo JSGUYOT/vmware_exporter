@@ -1,0 +1,11 @@
+vmware_exporter
+Copyright 2026 The vmware_exporter authors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+deploy/prometheus/pryorda-alerts.yml contains the alerting rules of
+pryorda/vmware_exporter (https://github.com/pryorda/vmware_exporter),
+Copyright (c) 2017, Remi Verchere, distributed under the BSD 3-Clause License.
+
+Third-party Go modules in vendor/ are distributed under their own licenses,
+included in their respective directories.

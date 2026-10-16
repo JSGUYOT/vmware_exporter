@@ -21,8 +21,13 @@ var vmProps = []string{
 }
 
 func collectVMs(ctx context.Context, r *Run) error {
+	pry := *r.Cfg.Collectors.Pryorda
+	props := vmProps
+	if pry {
+		props = append(append([]string{}, vmProps...), pryordaVMExtraProps...)
+	}
 	var vms []mo.VirtualMachine
-	if err := r.retrieve(ctx, []string{"VirtualMachine"}, vmProps, &vms); err != nil {
+	if err := r.retrieve(ctx, []string{"VirtualMachine"}, props, &vms); err != nil {
 		return err
 	}
 	emit := *r.Cfg.Collectors.VM
@@ -31,6 +36,11 @@ func collectVMs(ctx context.Context, r *Run) error {
 	var total, on, templates, system int
 	for i := range vms {
 		vm := &vms[i]
+		// pryorda keeps templates, unlike the native series: decide first.
+		var pv *pryordaVM
+		if pry {
+			pv = r.addPryordaVM(vm)
+		}
 		isTemplate := vm.Summary.Config.Template || (vm.Config != nil && vm.Config.Template)
 		if isTemplate {
 			templates++
@@ -72,7 +82,7 @@ func collectVMs(ctx context.Context, r *Run) error {
 		powered := vm.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn
 		if powered {
 			on++
-			r.addPerfVM(perfEntity{ref: vm.Self, labels: l})
+			r.addPerfVM(perfEntity{ref: vm.Self, labels: l, pryVM: pv})
 		}
 		if !emit {
 			continue

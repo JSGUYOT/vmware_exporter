@@ -16,7 +16,7 @@ $(error DEPS must be "vendor" or "online", got "$(DEPS)")
 endif
 GOFLAGS := $(MODFLAG) -trimpath
 
-.PHONY: build build-windows promu promu-tarball test lint check-rules test-rules sim vendor clean
+.PHONY: build build-windows promu promu-tarball release-tarballs test lint check-rules test-rules sim vendor clean
 
 build:
 	CGO_ENABLED=0 go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o dist/$(BINARY) ./cmd/vmware-exporter
@@ -32,6 +32,17 @@ promu:
 # Release tarball (binary + README + example config + deploy/) in dist/
 promu-tarball: promu
 	promu tarball --prefix dist .
+
+# Release archives for several platforms (promu, no Docker needed) + checksums in .tarballs/
+PLATFORMS ?= linux/amd64 linux/arm64 windows/amd64
+release-tarballs:
+	rm -rf .build .tarballs
+	for p in $(PLATFORMS); do \
+		os=$${p%/*}; arch=$${p#*/}; \
+		GOOS=$$os GOARCH=$$arch GOFLAGS=$(MODFLAG) promu build --prefix .build/$$os-$$arch || exit 1; \
+		GOOS=$$os GOARCH=$$arch promu tarball --prefix .tarballs .build/$$os-$$arch || exit 1; \
+	done
+	cd .tarballs && sha256sum * > sha256sums.txt
 
 test:
 	go test $(GOFLAGS) ./...
@@ -59,4 +70,4 @@ vendor:
 	go mod vendor
 
 clean:
-	rm -rf dist vmware-exporter
+	rm -rf dist vmware-exporter .build .tarballs

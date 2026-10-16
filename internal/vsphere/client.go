@@ -19,7 +19,7 @@ import (
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 
-	"github.com/example/vmware-exporter/internal/config"
+	"github.com/JSGUYOT/vmware_exporter/internal/config"
 )
 
 // Client wraps a vim25 session that is reused across collections.

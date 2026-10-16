@@ -14,8 +14,8 @@ import (
 	"github.com/vmware/govmomi/view"
 	"github.com/vmware/govmomi/vim25"
 
-	"github.com/example/vmware-exporter/internal/config"
-	"github.com/example/vmware-exporter/internal/vsphere"
+	"github.com/JSGUYOT/vmware_exporter/internal/config"
+	"github.com/JSGUYOT/vmware_exporter/internal/vsphere"
 )
 
 // Run holds the context of one collection.
@@ -32,8 +32,10 @@ type Run struct {
 	mu        sync.Mutex
 	hostsPerf []perfEntity
 	vmsPerf   []perfEntity
-	// Filled by the pryorda collector (phase 1), read by pryorda_perf (phase 2).
-	pryordaHosts, pryordaVMs []perfEntity
+	// pryorda compatibility: host labels by moid and VMs to emit, filled by the
+	// host and vm collectors (phase 1), read by pryorda and perf (phase 2).
+	pryHosts map[string]L
+	pryVMs   []*pryordaVM
 
 	vmExclude, vmInclude, hostExclude, dsExclude *regexp.Regexp
 	unsupported, missing                         atomic.Int64
@@ -59,16 +61,15 @@ var collectors = []collectorFunc{
 	{"alarms", func(c *config.Collectors) bool { return *c.Alarms }, collectAlarms, 1},
 	{"datacenter", func(c *config.Collectors) bool { return *c.Datacenter }, collectDatacenters, 1},
 	{"cluster", func(c *config.Collectors) bool { return *c.Cluster }, collectClusters, 1},
-	{"host", func(c *config.Collectors) bool { return *c.Host || *c.Perf }, collectHosts, 1},
-	{"vm", func(c *config.Collectors) bool { return *c.VM || *c.Perf }, collectVMs, 1},
-	{"datastore", func(c *config.Collectors) bool { return *c.Datastore }, collectDatastores, 1},
+	{"host", func(c *config.Collectors) bool { return *c.Host || *c.Perf || *c.Pryorda }, collectHosts, 1},
+	{"vm", func(c *config.Collectors) bool { return *c.VM || *c.Perf || *c.Pryorda }, collectVMs, 1},
+	{"datastore", func(c *config.Collectors) bool { return *c.Datastore || *c.Pryorda }, collectDatastores, 1},
 	{"network", func(c *config.Collectors) bool { return *c.Network }, collectNetwork, 1},
 	{"resourcepool", func(c *config.Collectors) bool { return *c.ResourcePool }, collectResourcePools, 1},
 	{"vsan", func(c *config.Collectors) bool { return *c.VSAN }, collectVSAN, 1},
 	{"appliance", func(c *config.Collectors) bool { return *c.Appliance }, collectAppliance, 1},
 	{"perf", func(c *config.Collectors) bool { return *c.Perf }, collectPerf, 2},
-	{"pryorda", func(c *config.Collectors) bool { return *c.Pryorda }, collectPryorda, 1},
-	{"pryorda_perf", func(c *config.Collectors) bool { return *c.Pryorda && *c.Perf }, collectPryordaPerf, 2},
+	{"pryorda", func(c *config.Collectors) bool { return *c.Pryorda }, collectPryorda, 2},
 }
 
 // Target periodically collects one vCenter and caches the latest result.

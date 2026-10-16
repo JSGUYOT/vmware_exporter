@@ -1,0 +1,13 @@
+# Prometheus web configuration file (exporter-toolkit format), referenced by
+# web_config_file in the exporter configuration. Without it, the endpoints are public.
+# Full reference: https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md
+
+# HTTPS (optional)
+# tls_server_config:
+#   cert_file: /etc/vmware-exporter/tls/exporter.crt
+#   key_file: /etc/vmware-exporter/tls/exporter.key
+
+# Basic authentication: user -> bcrypt hash of the password, e.g.
+#   htpasswd -nBC 10 "" | tr -d ':\n'
+basic_auth_users:
+  prometheus: $2y$10$REPLACE_WITH_A_BCRYPT_HASH

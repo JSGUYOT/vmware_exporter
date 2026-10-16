@@ -5,7 +5,7 @@ import (
 
 	"github.com/vmware/govmomi/vim25/mo"
 
-	"github.com/example/vmware-exporter/internal/vsphere"
+	"github.com/JSGUYOT/vmware_exporter/internal/vsphere"
 )
 
 func collectVCenter(ctx context.Context, r *Run) error {

@@ -14,6 +14,10 @@ import (
 type perfEntity struct {
 	ref    types.ManagedObjectReference
 	labels L
+	// pryorda compatibility (nil when disabled): host labels, or the VM whose
+	// labels are resolved in phase 2.
+	pryHost L
+	pryVM   *pryordaVM
 }
 
 type unitConv struct {
@@ -109,23 +113,54 @@ func collectPerf(ctx context.Context, r *Run) error {
 		return out
 	}
 
-	run := func(kind string, ents []perfEntity, wanted []wantedCounter) error {
-		if len(ents) == 0 || len(wanted) == 0 {
+	// pryorda counters (aggregate instance) share the same QueryPerf: name by counter key.
+	pryorda := func(kind string, names []string) map[int32]string {
+		if !*r.Cfg.Collectors.Pryorda {
+			return nil
+		}
+		out := map[int32]string{}
+		for _, c := range names {
+			if info, ok := byName[c]; ok {
+				out[info.Key] = "vmware_" + kind + "_" + strings.ReplaceAll(c, ".", "_")
+			}
+		}
+		return out
+	}
+
+	run := func(kind string, ents []perfEntity, wanted []wantedCounter, pry map[int32]string) error {
+		if len(ents) == 0 || len(wanted)+len(pry) == 0 {
 			return nil
 		}
 		byID := map[int32]wantedCounter{}
 		var ids []types.PerfMetricId
+		seen := map[types.PerfMetricId]bool{}
+		addID := func(id types.PerfMetricId) {
+			if !seen[id] {
+				seen[id] = true
+				ids = append(ids, id)
+			}
+		}
 		for _, w := range wanted {
 			inst := ""
 			if w.allInst {
 				inst = "*"
 			}
 			byID[w.info.Key] = w
-			ids = append(ids, types.PerfMetricId{CounterId: w.info.Key, Instance: inst})
+			addID(types.PerfMetricId{CounterId: w.info.Key, Instance: inst})
+		}
+		for key := range pry {
+			addID(types.PerfMetricId{CounterId: key, Instance: ""})
 		}
 		labelsOf := map[string]L{}
+		pryLabelsOf := map[string]L{}
 		for _, e := range ents {
 			labelsOf[e.ref.Value] = e.labels
+			switch {
+			case e.pryHost != nil:
+				pryLabelsOf[e.ref.Value] = e.pryHost
+			case e.pryVM != nil:
+				pryLabelsOf[e.ref.Value] = r.pryordaVMLabels(e.pryVM)
+			}
 		}
 		bs := r.Cfg.Perf.BatchSize
 		sem := make(chan struct{}, r.Cfg.Perf.MaxConcurrency)
@@ -184,10 +219,16 @@ func collectPerf(ctx context.Context, r *Run) error {
 						continue
 					}
 					l := labelsOf[em.Entity.Value]
+					pl := pryLabelsOf[em.Entity.Value]
 					for _, sb := range em.Value {
 						series, ok := sb.(*types.PerfMetricIntSeries)
 						if !ok {
 							continue
+						}
+						if name, ok := pry[series.Id.CounterId]; ok && pl != nil && series.Id.Instance == "" {
+							if v, ok := latest(series.Value); ok {
+								r.Sink.Gauge(name, name, v, pl)
+							}
 						}
 						w, ok := byID[series.Id.CounterId]
 						if !ok {
@@ -210,12 +251,26 @@ func collectPerf(ctx context.Context, r *Run) error {
 	r.mu.Lock()
 	hosts, vms := r.hostsPerf, r.vmsPerf
 	r.mu.Unlock()
-	errH := run("host", hosts, resolve("host", r.Cfg.Perf.HostCounters))
-	errV := run("vm", vms, resolve("vm", r.Cfg.Perf.VMCounters))
+	errH := run("host", hosts, resolve("host", r.Cfg.Perf.HostCounters), pryorda("host", pryordaHostCounters))
+	errV := run("vm", vms, resolve("vm", r.Cfg.Perf.VMCounters), pryorda("vm", pryordaVMCounters))
 	if errH != nil {
 		return errH
 	}
 	return errV
+}
+
+// latest returns the most recent valid sample, as pryorda reads it (maxSample=1);
+// an empty series gives 0, like pryorda's float(sum([])).
+func latest(vals []int64) (float64, bool) {
+	if len(vals) == 0 {
+		return 0, true
+	}
+	for i := len(vals) - 1; i >= 0; i-- {
+		if vals[i] >= 0 {
+			return float64(vals[i]), true
+		}
+	}
+	return 0, false
 }
 
 // aggregate summarises the 20s samples according to the counter's rollup type:

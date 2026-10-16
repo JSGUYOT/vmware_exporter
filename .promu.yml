@@ -7,7 +7,7 @@ go:
   version: 1.25
   cgo: false
 repository:
-  path: github.com/example/vmware-exporter
+  path: github.com/JSGUYOT/vmware_exporter
 build:
   binaries:
     - name: vmware-exporter
@@ -19,6 +19,8 @@ build:
     -X main.commit={{.Revision}}
 tarball:
   files:
+    - LICENSE
+    - NOTICE
     - README.md
     - config.example.yml
     - deploy

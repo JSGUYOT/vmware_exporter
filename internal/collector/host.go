@@ -28,6 +28,10 @@ func collectHosts(ctx context.Context, r *Run) error {
 	if *r.Cfg.Host.StoragePaths {
 		props = append(props, "config.storageDevice.multipathInfo")
 	}
+	pry := *r.Cfg.Collectors.Pryorda
+	if pry {
+		props = append(props, pryordaHostExtraProps...)
+	}
 	var hosts []mo.HostSystem
 	if err := r.retrieve(ctx, []string{"HostSystem"}, props, &hosts); err != nil {
 		return err
@@ -47,8 +51,14 @@ func collectHosts(ctx context.Context, r *Run) error {
 		cl := r.Topo.ClusterOfHost(h.Self.Value)
 		l := L{"datacenter", dc, "cluster", cl, "host", h.Name}
 
+		var pl L
+		if pry {
+			pl = r.pryordaHostLabels(h)
+			r.setPryordaHost(h.Self.Value, pl)
+			pryordaHost(r, h, pl)
+		}
 		if h.Runtime.ConnectionState == types.HostSystemConnectionStateConnected && h.Runtime.PowerState == types.HostSystemPowerStatePoweredOn {
-			r.addPerfHost(perfEntity{ref: h.Self, labels: l})
+			r.addPerfHost(perfEntity{ref: h.Self, labels: l, pryHost: pl})
 		}
 		if !emit {
 			continue

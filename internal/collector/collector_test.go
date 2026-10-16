@@ -26,8 +26,8 @@ import (
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 
-	"github.com/example/vmware-exporter/internal/config"
-	"github.com/example/vmware-exporter/internal/vsphere"
+	"github.com/JSGUYOT/vmware_exporter/internal/config"
+	"github.com/JSGUYOT/vmware_exporter/internal/vsphere"
 )
 
 func testLogger() *slog.Logger {
@@ -569,5 +569,30 @@ func TestPryordaCompat(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestPryordaOnly: the pryorda series are complete even when the native host,
+// vm and datastore families are disabled (they share the same reads).
+func TestPryordaOnly(t *testing.T) {
+	_, s := newModel(t, "9.0.0", "9.0.0.0")
+	cfg := targetFor(t, s, func(c *config.Target) {
+		on, off := true, false
+		c.Collectors.Pryorda = &on
+		c.Collectors.Host, c.Collectors.VM, c.Collectors.Datastore = &off, &off, &off
+	})
+	tg := NewTarget(cfg, testLogger())
+	tg.collectOnce(context.Background())
+	g := gather(t, tg)
+	for _, name := range []string{"vmware_vm_power_state", "vmware_vm_cpu_ready_summation", "vmware_host_power_state",
+		"vmware_host_cpu_usage_average", "vmware_datastore_capacity_size"} {
+		if len(g.fams[name].GetMetric()) == 0 {
+			t.Errorf("%s missing in pryorda-only mode", name)
+		}
+	}
+	for _, name := range []string{"vmware_vm_info", "vmware_host_info", "vmware_datastore_info"} {
+		if _, ok := g.fams[name]; ok {
+			t.Errorf("native %s emitted although its collector is disabled", name)
+		}
 	}
 }

@@ -1,0 +1,33 @@
+name: Release
+
+# Push a tag matching the VERSION file to publish a release, e.g.:
+#   git tag v1.0.0 && git push origin v1.0.0
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  PROMU_VERSION: "v0.20.0"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Tag matches the VERSION file
+        run: |
+          test "${GITHUB_REF_NAME}" = "v$(cat VERSION)" || {
+            echo "tag ${GITHUB_REF_NAME} does not match VERSION $(cat VERSION)"; exit 1; }
+      - run: make test
+      - run: go install github.com/prometheus/promu@${PROMU_VERSION}
+      - run: make release-tarballs
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" .tarballs/* --verify-tag --generate-notes --title "${GITHUB_REF_NAME}"
