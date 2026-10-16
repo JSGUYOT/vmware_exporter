@@ -198,7 +198,7 @@ Example: CPU ready in % per vCPU = `vmware_vm_perf_cpu_ready_summation_seconds{p
 | `/metrics/<name\|host>` | one endpoint per vCenter, e.g. `/metrics/vc8-site-a` (configured `name` or host name of its `url`) |
 | `/metrics?target=<name\|host>` | only the given vCenter(s): configured `name` or host name of its `url`; repeatable or comma-separated |
 | `/metrics?vsphere_host=<host>` | same, with the parameter name used by pryorda/vmware_exporter |
-| `/healthz` | process liveness |
+| `/healthz` | process liveness (protected too when `web_config_file` is set) |
 | `/` | landing page (list of targets, with a link to each vCenter endpoint) |
 
 ### Scraping a single vCenter
@@ -238,6 +238,44 @@ With `?target=`, one job covers several vCenters through relabeling:
 
 Do not combine this with an unfiltered job on the same exporter, or every series is
 ingested twice. Full snippet: [deploy/prometheus/prometheus-scrape.yml](deploy/prometheus/prometheus-scrape.yml).
+
+## Securing the endpoints
+
+By default the HTTP endpoints are public: anyone reaching port 9272 can read the inventory
+(VM and host names, versions, alarms), and the exporter logs a warning at startup. To protect
+them, set `web_config_file` in the configuration. It points to a standard Prometheus web
+configuration file ([exporter-toolkit](https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md)
+format, as for node_exporter), which enables basic authentication and/or HTTPS:
+
+```yaml
+# /etc/vmware-exporter/config.yml
+web_config_file: /etc/vmware-exporter/web-config.yml
+```
+
+```yaml
+# /etc/vmware-exporter/web-config.yml  (example: deploy/web-config.example.yml)
+tls_server_config:                     # optional
+  cert_file: /etc/vmware-exporter/tls/exporter.crt
+  key_file: /etc/vmware-exporter/tls/exporter.key
+basic_auth_users:
+  prometheus: $2y$10$...               # bcrypt hash: htpasswd -nBC 10 "" | tr -d ':\n'
+```
+
+- Every endpoint is then protected, `/healthz` included.
+- The file is validated by `-config.check` and at startup.
+- `web_tls` (HTTPS without authentication) remains available; it cannot be combined with
+  `web_config_file`.
+
+On the Prometheus side, add the credentials to the scrape job:
+
+```yaml
+- job_name: vmware
+  basic_auth:
+    username: prometheus
+    password_file: /etc/prometheus/vmware-exporter.pass
+  static_configs:
+    - targets: ['exporter-host.example.local:9272']
+```
 
 ## Alerting
 
@@ -362,6 +400,7 @@ internal/collector/      collectors (vcenter, alarms, cluster, host, vm, datasto
 deploy/prometheus/       alerting rules (native + pryorda-compatible), promtool tests, scrape snippet
 deploy/grafana/          dashboard (JSON + generator)
 deploy/systemd/          hardened systemd unit
+deploy/web-config.example.yml  optional authentication / HTTPS for the endpoints
 hack/vcsim/              simulated vCenter (8.x / 9.x) for testing
 docs/METRICS.md          metrics reference
 vendor/                  dependencies (offline build, make build; DEPS=online ignores it)

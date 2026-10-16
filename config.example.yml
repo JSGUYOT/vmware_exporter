@@ -13,7 +13,13 @@ telemetry_path: /metrics
 log_level: info                # debug | info | warn | error
 log_format: text               # text | json
 
-# Optional: serve /metrics over HTTPS
+# Access to the HTTP endpoints. Without web_config_file they are public.
+# To require a password (and/or HTTPS), point to a Prometheus web configuration
+# file (see deploy/web-config.example.yml):
+# web_config_file: /etc/vmware-exporter/web-config.yml
+
+# Alternative without authentication: serve over HTTPS only
+# (mutually exclusive with web_config_file, which can also set up TLS)
 # web_tls:
 #   cert_file: /etc/vmware-exporter/tls/exporter.crt
 #   key_file:  /etc/vmware-exporter/tls/exporter.key

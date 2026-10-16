@@ -18,11 +18,14 @@ import (
 
 // Config is the root of the configuration file.
 type Config struct {
-	ListenAddress string   `yaml:"listen_address"`
-	TelemetryPath string   `yaml:"telemetry_path"`
-	LogLevel      string   `yaml:"log_level"`
-	LogFormat     string   `yaml:"log_format"`
-	TLSServer     *TLSSrv  `yaml:"web_tls"`
+	ListenAddress string  `yaml:"listen_address"`
+	TelemetryPath string  `yaml:"telemetry_path"`
+	LogLevel      string  `yaml:"log_level"`
+	LogFormat     string  `yaml:"log_format"`
+	TLSServer     *TLSSrv `yaml:"web_tls"`
+	// WebConfigFile protects the HTTP endpoints (TLS, basic authentication)
+	// with a Prometheus web configuration file; empty = public endpoints.
+	WebConfigFile string   `yaml:"web_config_file"`
 	Defaults      Target   `yaml:"defaults"`
 	Targets       []Target `yaml:"targets"`
 }
@@ -142,6 +145,9 @@ func Parse(raw []byte) (*Config, error) {
 	}
 	if cfg.LogLevel == "" {
 		cfg.LogLevel = "info"
+	}
+	if cfg.WebConfigFile != "" && cfg.TLSServer != nil && cfg.TLSServer.CertFile != "" {
+		return nil, fmt.Errorf("web_tls and web_config_file are mutually exclusive: set tls_server_config in the web configuration file")
 	}
 	if len(cfg.Targets) == 0 {
 		return nil, fmt.Errorf("no targets defined")

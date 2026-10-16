@@ -19,6 +19,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/exporter-toolkit/web"
 	"github.com/vmware/govmomi/vim25"
 
 	"github.com/JSGUYOT/vmware_exporter/internal/collector"
@@ -45,6 +46,12 @@ func main() {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "invalid configuration:", err)
 		os.Exit(1)
+	}
+	if cfg.WebConfigFile != "" {
+		if err := web.Validate(cfg.WebConfigFile); err != nil {
+			fmt.Fprintln(os.Stderr, "invalid web configuration file:", err)
+			os.Exit(1)
+		}
 	}
 	if *check {
 		fmt.Printf("configuration OK: %d vCenter(s)\n", len(cfg.Targets))
@@ -133,9 +140,20 @@ func main() {
 		defer cancel()
 		_ = srv.Shutdown(sctx)
 	}()
-	if cfg.TLSServer != nil && cfg.TLSServer.CertFile != "" {
+	switch {
+	case cfg.WebConfigFile != "":
+		log.Info("HTTP endpoints protected by the web configuration file", "web_config_file", cfg.WebConfigFile)
+		noSystemd := false
+		err = web.ListenAndServe(srv, &web.FlagConfig{
+			WebListenAddresses: &[]string{cfg.ListenAddress},
+			WebSystemdSocket:   &noSystemd,
+			WebConfigFile:      &cfg.WebConfigFile,
+		}, log)
+	case cfg.TLSServer != nil && cfg.TLSServer.CertFile != "":
+		log.Warn("HTTP endpoints are public (HTTPS without authentication): set web_config_file to protect them")
 		err = srv.ListenAndServeTLS(cfg.TLSServer.CertFile, cfg.TLSServer.KeyFile)
-	} else {
+	default:
+		log.Warn("HTTP endpoints are public: set web_config_file to protect them")
 		err = srv.ListenAndServe()
 	}
 	if err != nil && err != http.ErrServerClosed {
