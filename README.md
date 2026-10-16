@@ -319,8 +319,10 @@ To avoid any clash, the native metrics that had the same name as a pryorda metri
 | `vmware_datastore_maintenance_mode` | `vmware_datastore_in_maintenance` |
 | `vmware_datastore_vms` | `vmware_datastore_vms_hosted` |
 
-The pryorda series roughly double the number of series for VMs, hosts and datastores, and add
-one property read per collection: enable the collector only where pryorda dashboards are used.
+The pryorda series are built from the same vCenter reads and the same performance queries as
+the native ones, so enabling them adds no load on vCenter; they do roughly double the number of
+series for VMs, hosts and datastores in Prometheus. Enable the collector only where pryorda
+dashboards are used.
 
 ## Tests
 

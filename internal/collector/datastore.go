@@ -12,7 +12,9 @@ func collectDatastores(ctx context.Context, r *Run) error {
 		return err
 	}
 	s := r.Sink
-	for _, ds := range dss {
+	emit, pry := *r.Cfg.Collectors.Datastore, *r.Cfg.Collectors.Pryorda
+	for i := range dss {
+		ds := &dss[i]
 		if r.dsExclude != nil && r.dsExclude.MatchString(ds.Name) {
 			continue
 		}
@@ -22,6 +24,12 @@ func collectDatastores(ctx context.Context, r *Run) error {
 			if ds.Parent.Type == "StoragePod" {
 				pod = r.Topo.Name[ds.Parent.Value]
 			}
+		}
+		if pry {
+			pryordaDatastore(r, ds, dc, pod)
+		}
+		if !emit {
+			continue
 		}
 		sm := ds.Summary
 		l := L{"datacenter", dc, "datastore", ds.Name, "datastore_moid", ds.Self.Value}
@@ -48,6 +56,9 @@ func collectDatastores(ctx context.Context, r *Run) error {
 		s.Gauge(n("datastore_hosts_inaccessible"), "Number of hosts on which the datastore is inaccessible (APD/PDL...).", float64(inaccessible), l)
 	}
 
+	if !emit {
+		return nil
+	}
 	var pods []mo.StoragePod
 	if err := r.retrieve(ctx, []string{"StoragePod"}, []string{"name", "summary", "overallStatus", "childEntity"}, &pods); err != nil {
 		return err

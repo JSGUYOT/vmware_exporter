@@ -4,10 +4,8 @@ import (
 	"context"
 	"math"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/vmware/govmomi/performance"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 )
@@ -39,101 +37,79 @@ var (
 	}
 )
 
-var pryordaHostProps = []string{
-	"name", "summary.config.name", "summary.config.product", "summary.hardware", "summary.quickStats",
-	"runtime.powerState", "runtime.standbyMode", "runtime.connectionState", "runtime.inMaintenanceMode", "runtime.bootTime",
+// The pryorda series are built from the objects already read by the native
+// collectors (one property read and one QueryPerf per entity for both
+// families): host.go, vm.go and datastore.go add the few extra properties
+// below and call the pryorda* emitters; perf.go adds the pryorda counters to
+// its own query.
+var (
+	pryordaHostExtraProps = []string{"summary.config.name", "runtime.standbyMode"}
+	pryordaVMExtraProps   = []string{"guest.toolsStatus"}
+)
+
+// pryordaVM is a VM kept for the pryorda emitter (phase 2: its labels come
+// from its host, collected in parallel in phase 1).
+type pryordaVM struct {
+	vm *mo.VirtualMachine
+	ds string
 }
 
-var pryordaVMProps = []string{
-	"name", "config.managedBy", "summary.config", "runtime.host", "runtime.powerState", "runtime.bootTime", "runtime.maxCpuUsage",
-	"guest.disk", "guest.toolsStatus", "guest.toolsVersion", "guest.toolsVersionStatus2", "snapshot",
+// pryordaHostLabels returns host_name / dc_name / cluster_name of a host.
+func (r *Run) pryordaHostLabels(h *mo.HostSystem) L {
+	name := strings.TrimRight(h.Summary.Config.Name, ".")
+	if name == "" {
+		name = h.Name
+	}
+	return L{"host_name", name, "dc_name", r.Topo.Datacenter(h.Self.Value), "cluster_name", r.Topo.ClusterOfHost(h.Self.Value)}
 }
 
-func collectPryorda(ctx context.Context, r *Run) error {
-	// Datastores do not depend on the rest: read them in parallel.
-	dsErr := make(chan error, 1)
-	go func() { dsErr <- pryordaDatastores(ctx, r) }()
+func (r *Run) setPryordaHost(moid string, l L) {
+	r.mu.Lock()
+	if r.pryHosts == nil {
+		r.pryHosts = map[string]L{}
+	}
+	r.pryHosts[moid] = l
+	r.mu.Unlock()
+}
 
-	// Hosts first: VMs inherit host_name / dc_name / cluster_name from their host.
-	props := append([]string{}, pryordaHostProps...)
-	if *r.Cfg.Host.Sensors {
-		props = append(props, "runtime.healthSystemRuntime")
+// addPryordaVM keeps a VM for collectPryorda; nil if pryorda skips it.
+func (r *Run) addPryordaVM(vm *mo.VirtualMachine) *pryordaVM {
+	if vm.Runtime.Host == nil || r.skipVM(vm) {
+		return nil
 	}
-	var hosts []mo.HostSystem
-	if err := r.retrieve(ctx, []string{"HostSystem"}, props, &hosts); err != nil {
-		<-dsErr
-		return err
-	}
-	hostLabels := map[string]L{}
-	var perfHosts []perfEntity
-	for i := range hosts {
-		h := &hosts[i]
-		if r.hostExclude != nil && r.hostExclude.MatchString(h.Name) {
-			continue
-		}
-		name := strings.TrimRight(h.Summary.Config.Name, ".")
-		if name == "" {
-			name = h.Name
-		}
-		l := L{"host_name", name, "dc_name", r.Topo.Datacenter(h.Self.Value), "cluster_name", r.Topo.ClusterOfHost(h.Self.Value)}
-		hostLabels[h.Self.Value] = l
-		pryordaHost(r, h, l)
-		if h.Runtime.PowerState == types.HostSystemPowerStatePoweredOn {
-			perfHosts = append(perfHosts, perfEntity{ref: h.Self, labels: l})
-		}
-	}
-
-	var vms []mo.VirtualMachine
-	if err := r.retrieve(ctx, []string{"VirtualMachine"}, pryordaVMProps, &vms); err != nil {
-		<-dsErr
-		return err
-	}
-	var perfVMs []perfEntity
-	for i := range vms {
-		vm := &vms[i]
-		if vm.Runtime.Host == nil || r.skipVM(vm) {
-			continue
-		}
-		ds := "n/a"
-		if p := vm.Summary.Config.VmPathName; p != "" {
-			ds = p
-			if strings.HasPrefix(p, "[") {
-				if end := strings.Index(p, "]"); end > 0 {
-					ds = p[1:end]
-				}
+	ds := "n/a"
+	if p := vm.Summary.Config.VmPathName; p != "" {
+		ds = p
+		if strings.HasPrefix(p, "[") {
+			if end := strings.Index(p, "]"); end > 0 {
+				ds = p[1:end]
 			}
 		}
-		hl, ok := hostLabels[vm.Runtime.Host.Value]
-		if !ok {
-			hl = L{"host_name", "n/a", "dc_name", "n/a", "cluster_name", "n/a"}
-		}
-		l := append(L{"vm_name", vm.Name, "ds_name", ds}, hl...)
-		pryordaVM(r, vm, l)
-		if vm.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
-			perfVMs = append(perfVMs, perfEntity{ref: vm.Self, labels: l})
-		}
 	}
-
-	// Performance counters are queried in phase 2 (collectPryordaPerf), in
-	// parallel with the native perf collector instead of delaying it.
-	r.pryordaHosts, r.pryordaVMs = perfHosts, perfVMs
-	return <-dsErr
+	pv := &pryordaVM{vm: vm, ds: ds}
+	r.mu.Lock()
+	r.pryVMs = append(r.pryVMs, pv)
+	r.mu.Unlock()
+	return pv
 }
 
-// collectPryordaPerf queries the pryorda performance counters of the powered-on
-// hosts and VMs found by collectPryorda.
-func collectPryordaPerf(ctx context.Context, r *Run) error {
-	pm := performance.NewManager(r.Vim)
-	byName, err := pm.CounterInfoByName(ctx)
-	if err != nil {
-		return err
+// labels of a VM: vm_name, ds_name, then its host's labels (n/a if unknown).
+// Only valid in phase 2, once every host has been seen.
+func (r *Run) pryordaVMLabels(pv *pryordaVM) L {
+	hl, ok := r.pryHosts[pv.vm.Runtime.Host.Value]
+	if !ok {
+		hl = L{"host_name", "n/a", "dc_name", "n/a", "cluster_name", "n/a"}
 	}
-	errH := pryordaPerf(ctx, r, pm, byName, "host", r.pryordaHosts, pryordaHostCounters)
-	errV := pryordaPerf(ctx, r, pm, byName, "vm", r.pryordaVMs, pryordaVMCounters)
-	if errH != nil {
-		return errH
+	return append(L{"vm_name", pv.vm.Name, "ds_name", pv.ds}, hl...)
+}
+
+// collectPryorda emits the VM series (phase 2). Host and datastore series are
+// emitted directly by the host and datastore collectors.
+func collectPryorda(_ context.Context, r *Run) error {
+	for _, pv := range r.pryVMs {
+		pryordaVMSeries(r, pv.vm, r.pryordaVMLabels(pv))
 	}
-	return errV
+	return nil
 }
 
 // skipVM applies the name filters and exclude_system_vms. Templates are kept:
@@ -248,7 +224,7 @@ func pryordaHost(r *Run, h *mo.HostSystem, l L) {
 	}
 }
 
-func pryordaVM(r *Run, vm *mo.VirtualMachine, l L) {
+func pryordaVMSeries(r *Run, vm *mo.VirtualMachine, l L) {
 	s := r.Sink
 	with := func(kv ...string) L { return append(append(L{}, l...), kv...) }
 	sc := vm.Summary.Config
@@ -297,138 +273,24 @@ func pryordaVM(r *Run, vm *mo.VirtualMachine, l L) {
 	}
 }
 
-func pryordaDatastores(ctx context.Context, r *Run) error {
-	var dss []mo.Datastore
-	if err := r.retrieve(ctx, []string{"Datastore"}, []string{"name", "parent", "summary", "host", "vm"}, &dss); err != nil {
-		return err
-	}
+// pryordaDatastore emits the series of one datastore (called by collectDatastores).
+func pryordaDatastore(r *Run, ds *mo.Datastore, dc, pod string) {
 	s := r.Sink
-	for _, ds := range dss {
-		if r.dsExclude != nil && r.dsExclude.MatchString(ds.Name) {
-			continue
-		}
-		dc, pod := "", ""
-		if ds.Parent != nil {
-			dc = r.Topo.Datacenter(ds.Parent.Value)
-			if ds.Parent.Type == "StoragePod" {
-				pod = r.Topo.Name[ds.Parent.Value]
-			}
-		}
-		l := L{"ds_name", ds.Name, "dc_name", dc, "ds_cluster", pod}
-		sm := ds.Summary
-		s.Gauge("vmware_datastore_capacity_size", "VMWare Datasore capacity in bytes", float64(sm.Capacity), l)
-		s.Gauge("vmware_datastore_freespace_size", "VMWare Datastore freespace in bytes", float64(sm.FreeSpace), l)
-		s.Gauge("vmware_datastore_uncommited_size", "VMWare Datastore uncommitted in bytes", float64(sm.Uncommitted), l)
-		s.Gauge("vmware_datastore_provisoned_size", "VMWare Datastore provisoned in bytes", float64(sm.Capacity-sm.FreeSpace+sm.Uncommitted), l)
-		s.Gauge("vmware_datastore_hosts", "VMWare Hosts number using this datastore", float64(len(ds.Host)), l)
-		s.Gauge("vmware_datastore_vms", "VMWare Virtual Machines count per datastore", float64(len(ds.Vm)), l)
-		s.Gauge("vmware_datastore_maintenance_mode", "VMWare datastore maintenance mode (normal / inMaintenance / enteringMaintenance)",
-			1, append(append(L{}, l...), "mode", orUnknown(sm.MaintenanceMode)))
-		typ := sm.Type
-		if typ == "" {
-			typ = "normal"
-		}
-		s.Gauge("vmware_datastore_type", "VMWare datastore type (VMFS, NetworkFileSystem, NetworkFileSystem41, CIFS, VFAT, VSAN, VFFS)",
-			1, append(append(L{}, l...), "ds_type", typ))
-		s.Gauge("vmware_datastore_accessible", "VMWare datastore accessible (true / false)", b2f(sm.Accessible), l)
+	l := L{"ds_name", ds.Name, "dc_name", dc, "ds_cluster", pod}
+	sm := ds.Summary
+	s.Gauge("vmware_datastore_capacity_size", "VMWare Datasore capacity in bytes", float64(sm.Capacity), l)
+	s.Gauge("vmware_datastore_freespace_size", "VMWare Datastore freespace in bytes", float64(sm.FreeSpace), l)
+	s.Gauge("vmware_datastore_uncommited_size", "VMWare Datastore uncommitted in bytes", float64(sm.Uncommitted), l)
+	s.Gauge("vmware_datastore_provisoned_size", "VMWare Datastore provisoned in bytes", float64(sm.Capacity-sm.FreeSpace+sm.Uncommitted), l)
+	s.Gauge("vmware_datastore_hosts", "VMWare Hosts number using this datastore", float64(len(ds.Host)), l)
+	s.Gauge("vmware_datastore_vms", "VMWare Virtual Machines count per datastore", float64(len(ds.Vm)), l)
+	s.Gauge("vmware_datastore_maintenance_mode", "VMWare datastore maintenance mode (normal / inMaintenance / enteringMaintenance)",
+		1, append(append(L{}, l...), "mode", orUnknown(sm.MaintenanceMode)))
+	typ := sm.Type
+	if typ == "" {
+		typ = "normal"
 	}
-	return nil
-}
-
-// pryordaPerf queries the latest real-time sample (aggregate instance) of each
-// counter, without unit conversion, as vmware_<kind>_<group>_<name>_<rollup>.
-func pryordaPerf(ctx context.Context, r *Run, pm *performance.Manager, byName map[string]*types.PerfCounterInfo,
-	kind string, ents []perfEntity, counters []string) error {
-	if len(ents) == 0 {
-		return nil
-	}
-	metricOf := map[int32]string{}
-	var ids []types.PerfMetricId
-	for _, c := range counters {
-		info, ok := byName[c]
-		if !ok {
-			r.Log.Debug("performance counter unknown on this vCenter, skipped", "counter", c)
-			continue
-		}
-		metricOf[info.Key] = "vmware_" + kind + "_" + strings.ReplaceAll(c, ".", "_")
-		ids = append(ids, types.PerfMetricId{CounterId: info.Key, Instance: ""})
-	}
-	if len(ids) == 0 {
-		return nil
-	}
-	labelsOf := map[string]L{}
-	for _, e := range ents {
-		labelsOf[e.ref.Value] = e.labels
-	}
-	spec := func(e perfEntity) types.PerfQuerySpec {
-		return types.PerfQuerySpec{Entity: e.ref, MetricId: ids, IntervalId: 20, MaxSample: 1, Format: string(types.PerfFormatNormal)}
-	}
-	// Batches run in parallel (perf.max_concurrency), like the native perf collector.
-	var (
-		wg       sync.WaitGroup
-		emu      sync.Mutex
-		firstErr error
-	)
-	sem := make(chan struct{}, r.Cfg.Perf.MaxConcurrency)
-	bs := r.Cfg.Perf.BatchSize
-	for i := 0; i < len(ents); i += bs {
-		batch := ents[i:min(i+bs, len(ents))]
-		specs := make([]types.PerfQuerySpec, 0, len(batch))
-		for _, e := range batch {
-			specs = append(specs, spec(e))
-		}
-		wg.Add(1)
-		sem <- struct{}{}
-		go func(specs []types.PerfQuerySpec) {
-			defer wg.Done()
-			defer func() { <-sem }()
-			res, err := pm.Query(ctx, specs)
-			if err != nil && len(specs) > 1 {
-				// An entity that vanished fails the whole batch: retry one at a time.
-				res, err = nil, nil
-				for _, sp := range specs {
-					one, e := pm.Query(ctx, []types.PerfQuerySpec{sp})
-					if e != nil {
-						err = e
-						continue
-					}
-					res = append(res, one...)
-				}
-			}
-			if err != nil {
-				emu.Lock()
-				if firstErr == nil {
-					firstErr = err
-				}
-				emu.Unlock()
-			}
-			for _, base := range res {
-				em, ok := base.(*types.PerfEntityMetric)
-				if !ok {
-					continue
-				}
-				for _, sb := range em.Value {
-					series, ok := sb.(*types.PerfMetricIntSeries)
-					if !ok || series.Id.Instance != "" {
-						continue
-					}
-					name, ok := metricOf[series.Id.CounterId]
-					if !ok {
-						continue
-					}
-					// pryorda reports float(sum(values)), 0 for an empty series;
-					// -1 (no sample) is skipped rather than summed.
-					sum := 0.0
-					for _, v := range series.Value {
-						if v >= 0 {
-							sum += float64(v)
-						}
-					}
-					r.Sink.Gauge(name, name, sum, labelsOf[em.Entity.Value])
-				}
-			}
-		}(specs)
-	}
-	wg.Wait()
-	return firstErr
+	s.Gauge("vmware_datastore_type", "VMWare datastore type (VMFS, NetworkFileSystem, NetworkFileSystem41, CIFS, VFAT, VSAN, VFFS)",
+		1, append(append(L{}, l...), "ds_type", typ))
+	s.Gauge("vmware_datastore_accessible", "VMWare datastore accessible (true / false)", b2f(sm.Accessible), l)
 }
