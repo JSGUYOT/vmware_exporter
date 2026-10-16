@@ -26,8 +26,8 @@ import (
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 
-	"github.com/example/vmware-exporter/internal/config"
-	"github.com/example/vmware-exporter/internal/vsphere"
+	"github.com/JSGUYOT/vmware_exporter/internal/config"
+	"github.com/JSGUYOT/vmware_exporter/internal/vsphere"
 )
 
 func testLogger() *slog.Logger {

@@ -1,4 +1,4 @@
-module github.com/example/vmware-exporter
+module github.com/JSGUYOT/vmware_exporter
 
 go 1.25.0
 

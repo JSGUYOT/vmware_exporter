@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/example/vmware-exporter/internal/config"
+	"github.com/JSGUYOT/vmware_exporter/internal/config"
 )
 
 // ErrNotFound reports an endpoint missing on this vCenter version.

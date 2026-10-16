@@ -21,8 +21,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vmware/govmomi/vim25"
 
-	"github.com/example/vmware-exporter/internal/collector"
-	"github.com/example/vmware-exporter/internal/config"
+	"github.com/JSGUYOT/vmware_exporter/internal/collector"
+	"github.com/JSGUYOT/vmware_exporter/internal/config"
 )
 
 var (

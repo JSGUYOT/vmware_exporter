@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/example/vmware-exporter/internal/vsphere"
+	"github.com/JSGUYOT/vmware_exporter/internal/vsphere"
 )
 
 // vCenter appliance (VAMI) health endpoints exposed via /api, available on 8.x and 9.x.

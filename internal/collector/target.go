@@ -14,8 +14,8 @@ import (
 	"github.com/vmware/govmomi/view"
 	"github.com/vmware/govmomi/vim25"
 
-	"github.com/example/vmware-exporter/internal/config"
-	"github.com/example/vmware-exporter/internal/vsphere"
+	"github.com/JSGUYOT/vmware_exporter/internal/config"
+	"github.com/JSGUYOT/vmware_exporter/internal/vsphere"
 )
 
 // Run holds the context of one collection.
