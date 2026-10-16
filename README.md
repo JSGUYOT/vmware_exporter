@@ -417,9 +417,11 @@ vendor/                  dependencies (offline build, make build; DEPS=online ig
   release archives, promtool rule checks and tests, dashboard generator sync, Docker image.
 - Dependabot ([.github/dependabot.yml](.github/dependabot.yml)) proposes weekly updates of the
   Go modules (with `vendor/` regenerated), GitHub Actions and the Docker base image, on `V1.0`.
-- Releases: set the version in `VERSION`, merge into `main`, then push the matching tag
+- Releases: set the version in `VERSION`, add its entry to [CHANGELOG.md](CHANGELOG.md)
+  (checked by `promu check changelog`), merge into `main`, then push the matching tag
   (`git tag v1.0.0 && git push origin v1.0.0`). The release workflow builds the archives
-  (Linux amd64/arm64, Windows amd64, SHA-256 checksums) and publishes the GitHub release.
+  (Linux amd64/arm64, Windows amd64, SHA-256 checksums) and publishes the GitHub release,
+  with the changelog entry as release notes.
   `make release-tarballs` builds the same archives locally (needs promu).
 
 ## License

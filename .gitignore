@@ -14,3 +14,4 @@ config.yml
 # Release builds (make release-tarballs)
 /.build/
 /.tarballs/
+/.release-notes.md
