@@ -32,6 +32,8 @@ type Run struct {
 	mu        sync.Mutex
 	hostsPerf []perfEntity
 	vmsPerf   []perfEntity
+	// Filled by the pryorda collector (phase 1), read by pryorda_perf (phase 2).
+	pryordaHosts, pryordaVMs []perfEntity
 
 	vmExclude, vmInclude, hostExclude, dsExclude *regexp.Regexp
 	unsupported, missing                         atomic.Int64
@@ -66,6 +68,7 @@ var collectors = []collectorFunc{
 	{"appliance", func(c *config.Collectors) bool { return *c.Appliance }, collectAppliance, 1},
 	{"perf", func(c *config.Collectors) bool { return *c.Perf }, collectPerf, 2},
 	{"pryorda", func(c *config.Collectors) bool { return *c.Pryorda }, collectPryorda, 1},
+	{"pryorda_perf", func(c *config.Collectors) bool { return *c.Pryorda && *c.Perf }, collectPryordaPerf, 2},
 }
 
 // Target periodically collects one vCenter and caches the latest result.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vmware/govmomi/performance"
@@ -49,6 +50,10 @@ var pryordaVMProps = []string{
 }
 
 func collectPryorda(ctx context.Context, r *Run) error {
+	// Datastores do not depend on the rest: read them in parallel.
+	dsErr := make(chan error, 1)
+	go func() { dsErr <- pryordaDatastores(ctx, r) }()
+
 	// Hosts first: VMs inherit host_name / dc_name / cluster_name from their host.
 	props := append([]string{}, pryordaHostProps...)
 	if *r.Cfg.Host.Sensors {
@@ -56,6 +61,7 @@ func collectPryorda(ctx context.Context, r *Run) error {
 	}
 	var hosts []mo.HostSystem
 	if err := r.retrieve(ctx, []string{"HostSystem"}, props, &hosts); err != nil {
+		<-dsErr
 		return err
 	}
 	hostLabels := map[string]L{}
@@ -79,6 +85,7 @@ func collectPryorda(ctx context.Context, r *Run) error {
 
 	var vms []mo.VirtualMachine
 	if err := r.retrieve(ctx, []string{"VirtualMachine"}, pryordaVMProps, &vms); err != nil {
+		<-dsErr
 		return err
 	}
 	var perfVMs []perfEntity
@@ -107,23 +114,25 @@ func collectPryorda(ctx context.Context, r *Run) error {
 		}
 	}
 
-	if err := pryordaDatastores(ctx, r); err != nil {
-		return err
-	}
-	if !*r.Cfg.Collectors.Perf {
-		return nil
-	}
+	// Performance counters are queried in phase 2 (collectPryordaPerf), in
+	// parallel with the native perf collector instead of delaying it.
+	r.pryordaHosts, r.pryordaVMs = perfHosts, perfVMs
+	return <-dsErr
+}
+
+// collectPryordaPerf queries the pryorda performance counters of the powered-on
+// hosts and VMs found by collectPryorda.
+func collectPryordaPerf(ctx context.Context, r *Run) error {
 	pm := performance.NewManager(r.Vim)
 	byName, err := pm.CounterInfoByName(ctx)
 	if err != nil {
 		return err
 	}
-	errH := pryordaPerf(ctx, r, pm, byName, "host", perfHosts, pryordaHostCounters)
-	errV := pryordaPerf(ctx, r, pm, byName, "vm", perfVMs, pryordaVMCounters)
+	errH := pryordaPerf(ctx, r, pm, byName, "host", r.pryordaHosts, pryordaHostCounters)
+	errV := pryordaPerf(ctx, r, pm, byName, "vm", r.pryordaVMs, pryordaVMCounters)
 	if errH != nil {
 		return errH
 	}
-	r.Log.Debug("pryorda compatibility metrics collected", "hosts", len(hostLabels), "powered_on_vms", len(perfVMs))
 	return errV
 }
 
@@ -354,7 +363,13 @@ func pryordaPerf(ctx context.Context, r *Run, pm *performance.Manager, byName ma
 	spec := func(e perfEntity) types.PerfQuerySpec {
 		return types.PerfQuerySpec{Entity: e.ref, MetricId: ids, IntervalId: 20, MaxSample: 1, Format: string(types.PerfFormatNormal)}
 	}
-	var firstErr error
+	// Batches run in parallel (perf.max_concurrency), like the native perf collector.
+	var (
+		wg       sync.WaitGroup
+		emu      sync.Mutex
+		firstErr error
+	)
+	sem := make(chan struct{}, r.Cfg.Perf.MaxConcurrency)
 	bs := r.Cfg.Perf.BatchSize
 	for i := 0; i < len(ents); i += bs {
 		batch := ents[i:min(i+bs, len(ents))]
@@ -362,47 +377,58 @@ func pryordaPerf(ctx context.Context, r *Run, pm *performance.Manager, byName ma
 		for _, e := range batch {
 			specs = append(specs, spec(e))
 		}
-		res, err := pm.Query(ctx, specs)
-		if err != nil && len(specs) > 1 {
-			// An entity that vanished fails the whole batch: retry one at a time.
-			res, err = nil, nil
-			for _, sp := range specs {
-				one, e := pm.Query(ctx, []types.PerfQuerySpec{sp})
-				if e != nil {
-					err = e
-					continue
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(specs []types.PerfQuerySpec) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			res, err := pm.Query(ctx, specs)
+			if err != nil && len(specs) > 1 {
+				// An entity that vanished fails the whole batch: retry one at a time.
+				res, err = nil, nil
+				for _, sp := range specs {
+					one, e := pm.Query(ctx, []types.PerfQuerySpec{sp})
+					if e != nil {
+						err = e
+						continue
+					}
+					res = append(res, one...)
 				}
-				res = append(res, one...)
 			}
-		}
-		if err != nil && firstErr == nil {
-			firstErr = err
-		}
-		for _, base := range res {
-			em, ok := base.(*types.PerfEntityMetric)
-			if !ok {
-				continue
-			}
-			for _, sb := range em.Value {
-				series, ok := sb.(*types.PerfMetricIntSeries)
-				if !ok || series.Id.Instance != "" {
-					continue
+			if err != nil {
+				emu.Lock()
+				if firstErr == nil {
+					firstErr = err
 				}
-				name, ok := metricOf[series.Id.CounterId]
+				emu.Unlock()
+			}
+			for _, base := range res {
+				em, ok := base.(*types.PerfEntityMetric)
 				if !ok {
 					continue
 				}
-				// pryorda reports float(sum(values)), 0 for an empty series;
-				// -1 (no sample) is skipped rather than summed.
-				sum := 0.0
-				for _, v := range series.Value {
-					if v >= 0 {
-						sum += float64(v)
+				for _, sb := range em.Value {
+					series, ok := sb.(*types.PerfMetricIntSeries)
+					if !ok || series.Id.Instance != "" {
+						continue
 					}
+					name, ok := metricOf[series.Id.CounterId]
+					if !ok {
+						continue
+					}
+					// pryorda reports float(sum(values)), 0 for an empty series;
+					// -1 (no sample) is skipped rather than summed.
+					sum := 0.0
+					for _, v := range series.Value {
+						if v >= 0 {
+							sum += float64(v)
+						}
+					}
+					r.Sink.Gauge(name, name, sum, labelsOf[em.Entity.Value])
 				}
-				r.Sink.Gauge(name, name, sum, labelsOf[em.Entity.Value])
 			}
-		}
+		}(specs)
 	}
+	wg.Wait()
 	return firstErr
 }
