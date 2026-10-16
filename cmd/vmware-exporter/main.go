@@ -75,19 +75,8 @@ func main() {
 
 	opts := promhttp.HandlerOpts{ErrorLog: slog.NewLogLogger(log.Handler(), slog.LevelError), ErrorHandling: promhttp.ContinueOnError}
 	all := promhttp.HandlerFor(reg, opts)
-	mux := http.NewServeMux()
-	mux.HandleFunc(cfg.TelemetryPath, func(w http.ResponseWriter, r *http.Request) {
-		// ?target=<name|host> (repeatable, comma-separated) or ?vsphere_host=<host>
-		// (pryorda/vmware_exporter compatible) restricts the response to some vCenters.
-		q := r.URL.Query()
-		var names []string
-		for _, v := range append(q["target"], q["vsphere_host"]...) {
-			for _, s := range strings.Split(v, ",") {
-				if s = strings.TrimSpace(s); s != "" {
-					names = append(names, s)
-				}
-			}
-		}
+	// serve answers with the given vCenters only (all of them when names is empty).
+	serve := func(w http.ResponseWriter, r *http.Request, names []string) {
 		if len(names) == 0 {
 			all.ServeHTTP(w, r)
 			return
@@ -104,14 +93,34 @@ func main() {
 		sreg := prometheus.NewRegistry()
 		sreg.MustRegister(sub)
 		promhttp.HandlerFor(sreg, opts).ServeHTTP(w, r)
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc(cfg.TelemetryPath, func(w http.ResponseWriter, r *http.Request) {
+		// ?target=<name|host> (repeatable, comma-separated) or ?vsphere_host=<host>
+		// (pryorda/vmware_exporter compatible) restricts the response to some vCenters.
+		q := r.URL.Query()
+		var names []string
+		for _, v := range append(q["target"], q["vsphere_host"]...) {
+			for _, s := range strings.Split(v, ",") {
+				if s = strings.TrimSpace(s); s != "" {
+					names = append(names, s)
+				}
+			}
+		}
+		serve(w, r, names)
+	})
+	// One endpoint per vCenter: <telemetry_path>/<name|host>, e.g. /metrics/vc8-site-a.
+	perTarget := strings.TrimSuffix(cfg.TelemetryPath, "/")
+	mux.HandleFunc(perTarget+"/{target}", func(w http.ResponseWriter, r *http.Request) {
+		serve(w, r, []string{r.PathValue("target")})
 	})
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok\n")) })
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		var b strings.Builder
 		for _, t := range cfg.Targets {
-			fmt.Fprintf(&b, `<li><a href="%s?target=%s">%s</a> (interval %s)</li>`,
-				cfg.TelemetryPath, url.QueryEscape(t.Name), html.EscapeString(t.Name), t.Interval)
+			fmt.Fprintf(&b, `<li><a href="%s/%s">%s</a> (interval %s)</li>`,
+				perTarget, url.PathEscape(t.Name), html.EscapeString(t.Name), t.Interval)
 		}
 		fmt.Fprintf(w, `<html><head><title>VMware Exporter</title></head><body><h1>VMware Exporter %s</h1>
 <p><a href="%s">Metrics (all vCenters)</a></p><ul>%s</ul></body></html>`, version, cfg.TelemetryPath, b.String())

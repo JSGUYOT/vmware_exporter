@@ -13,11 +13,17 @@ scrape_configs:
       - targets: ['exporter-host.example.local:9272']
     # Series already carry the "vcenter" label: honor_labels is not needed.
 
-  # Option 2: one scrape per vCenter, selected with ?target=<name|host>
+  # Option 2: one job per vCenter, using its own endpoint /metrics/<name|host>.
+  # - job_name: vmware-vc8-site-a
+  #   metrics_path: /metrics/vc8-site-a
+  #   static_configs:
+  #     - targets: ['exporter-host.example.local:9272']
+
+  # Option 3: one scrape per vCenter, selected with ?target=<name|host>
   # (multi-target pattern, like blackbox_exporter). Lets each vCenter get its
   # own job, interval or relabeling; a vCenter missing from the exporter
-  # configuration returns HTTP 404. Use either option 1 or option 2, not both,
-  # or every series will be ingested twice.
+  # configuration returns HTTP 404. Use only one of these options for a given
+  # vCenter, or its series will be ingested twice.
   # - job_name: vmware-per-vcenter
   #   scrape_interval: 60s
   #   scrape_timeout: 30s

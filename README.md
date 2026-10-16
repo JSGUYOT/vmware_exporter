@@ -195,20 +195,33 @@ Example: CPU ready in % per vCPU = `vmware_vm_perf_cpu_ready_summation_seconds{p
 | Path | Purpose |
 |---|---|
 | `/metrics` | metrics (cache of the last collection from each vCenter) |
+| `/metrics/<name\|host>` | one endpoint per vCenter, e.g. `/metrics/vc8-site-a` (configured `name` or host name of its `url`) |
 | `/metrics?target=<name\|host>` | only the given vCenter(s): configured `name` or host name of its `url`; repeatable or comma-separated |
 | `/metrics?vsphere_host=<host>` | same, with the parameter name used by pryorda/vmware_exporter |
 | `/healthz` | process liveness |
-| `/` | landing page (list of targets, with a per-vCenter link) |
+| `/` | landing page (list of targets, with a link to each vCenter endpoint) |
 
 ### Scraping a single vCenter
 
 By default one scrape of `/metrics` returns every configured vCenter. To scrape them
-separately (one job per vCenter, different intervals, or only some of them), pass
-`?target=` — the multi-target pattern of blackbox_exporter. Only vCenters declared in
+separately (one job per vCenter, different intervals, or only some of them), either use the
+per-vCenter endpoint `/metrics/<name>`, or pass `?target=` — the multi-target pattern of
+blackbox_exporter. Only vCenters declared in
 the configuration can be selected (credentials stay on the exporter); any other value
 returns HTTP 404. A filtered response contains only vCenter series, not the exporter's
 own `go_*` / `process_*` metrics. Collection still runs in the background, so filtering
 never triggers a call to vCenter.
+
+With one endpoint per vCenter, each job just sets its `metrics_path`:
+
+```yaml
+- job_name: vmware-vc8-site-a
+  metrics_path: /metrics/vc8-site-a
+  static_configs:
+    - targets: ['exporter-host.example.local:9272']
+```
+
+With `?target=`, one job covers several vCenters through relabeling:
 
 ```yaml
 - job_name: vmware-per-vcenter
