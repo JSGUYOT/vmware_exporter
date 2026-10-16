@@ -24,9 +24,10 @@ for dashboards (Grafana) **and** alerting (Prometheus / Alertmanager).
 | Language | Python (pyVmomi) | Go | Go (govmomi 0.56) |
 | Maintained / VCF 9 | no / no | partial | yes, 8/9 version negotiation |
 | Scope | VM, ESX | resources (perf) | VM, ESX, clusters, datastores, vDS, resource pools, vSAN, vCenter appliance |
-| vCenter alarms | no | no | **yes** (all entities, a single request) |
+| vCenter alarms | alarm counts per VM/host/datastore (optional) | no | **yes** (all entities, a single request) |
 | Hardware health (IPMI), multipath, uplinks, certificates | no | no | **yes** |
-| Bundled alerting rules | no | no | **76 rules + promtool tests** |
+| Bundled alerting rules | 5 (VM memory, snapshots) | no | **76 rules + promtool tests**, plus pryorda's 5 |
+| Reuse pryorda dashboards | — | no | **yes** (optional `pryorda` collector) |
 
 ## vCenter 8 / vCenter 9 compatibility: what is handled
 
@@ -329,11 +330,11 @@ cmd/vmware-exporter/     entry point (HTTP, registry, signals)
 internal/config/         YAML loading / validation, secrets, defaults
 internal/vsphere/        SOAP connection (version negotiation, session recovery), /api REST client
 internal/collector/      collectors (vcenter, alarms, cluster, host, vm, datastore, network,
-                         resourcepool, perf, vsan, appliance) + cache + tests
-deploy/prometheus/       alerting rules, promtool tests, scrape snippet
+                         resourcepool, perf, vsan, appliance, pryorda) + cache + tests
+deploy/prometheus/       alerting rules (native + pryorda-compatible), promtool tests, scrape snippet
 deploy/grafana/          dashboard (JSON + generator)
 deploy/systemd/          hardened systemd unit
 hack/vcsim/              simulated vCenter (8.x / 9.x) for testing
 docs/METRICS.md          metrics reference
-vendor/                  dependencies (offline build)
+vendor/                  dependencies (offline build, make build; DEPS=online ignores it)
 ```
