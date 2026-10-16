@@ -1,4 +1,4 @@
-# Construction hors ligne : toutes les dépendances sont dans vendor/.
+# Offline build: all dependencies are in vendor/.
 BINARY  := vmware-exporter
 VERSION ?= 1.0.0
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo local)
@@ -20,14 +20,14 @@ lint:
 	go vet $(GOFLAGS) ./...
 	test -z "$$(gofmt -l cmd internal hack)"
 
-# Nécessite promtool (fourni avec Prometheus)
+# Requires promtool (shipped with Prometheus)
 check-rules:
 	promtool check rules deploy/prometheus/vmware-alerts.yml
 
 test-rules:
 	cd deploy/prometheus && promtool test rules vmware-alerts.test.yml
 
-# vCenter simulé pour tester sans infrastructure (VERSION_SIM=8.0.3 API_SIM=8.0.3.0)
+# Simulated vCenter for testing without infrastructure (VERSION_SIM=8.0.3 API_SIM=8.0.3.0)
 VERSION_SIM ?= 9.0.0
 API_SIM     ?= 9.0.0.0
 sim:

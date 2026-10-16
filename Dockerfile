@@ -1,4 +1,4 @@
-# Image construite hors ligne (dépendances vendorisées) : docker build -t vmware-exporter:1.0.0 .
+# Image built offline (vendored dependencies): docker build -t vmware-exporter:1.0.0 .
 FROM golang:1.25 AS build
 WORKDIR /src
 COPY . .

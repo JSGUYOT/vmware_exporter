@@ -1,14 +1,14 @@
-# Règles d'alerting Prometheus pour vmware-exporter (vCenter 8.x / VCF 9.x).
+# Prometheus alerting rules for vmware-exporter (vCenter 8.x / VCF 9.x).
 #
-# Deux sources d'alertes complémentaires :
-#   1. Les alarmes natives du vCenter (vmware_alarm_triggered) relayées telles quelles :
-#      tout ce que le vCenter sait détecter (y compris vSAN, NSX, certificats, licences...)
-#      arrive dans Alertmanager sans rien redéfinir.
-#   2. Des règles propres à Prometheus sur les métriques (seuils, tendances, redondance),
-#      qui couvrent ce que les alarmes vCenter ne font pas ou font mal.
+# Two complementary alert sources:
+#   1. Native vCenter alarms (vmware_alarm_triggered), forwarded as-is:
+#      everything vCenter can detect (including vSAN, NSX, certificates, licenses...)
+#      reaches Alertmanager without having to redefine it.
+#   2. Prometheus-native rules on metrics (thresholds, trends, redundancy),
+#      covering what vCenter alarms miss or handle poorly.
 #
-# Les seuils sont des valeurs de départ raisonnables : ajustez-les à votre contexte.
-# Labels de sévérité : critical (action immédiate), warning (à traiter), info (pour mémoire).
+# Thresholds are sensible starting points: tune them to your environment.
+# Severity labels: critical (act now), warning (needs attention), info (for the record).
 
 groups:
   # ---------------------------------------------------------------------------
@@ -19,40 +19,40 @@ groups:
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "vCenter {{ $labels.vcenter }} injoignable par l'exporter"
-          description: "La connexion ou l'authentification sur {{ $labels.vcenter }} échoue depuis 5 min. Vérifier le vCenter, le réseau et le compte de service."
+          summary: "vCenter {{ $labels.vcenter }} unreachable from the exporter"
+          description: "Connection or authentication to {{ $labels.vcenter }} has been failing for 5 min. Check vCenter, the network and the service account."
 
       - alert: VMwareExporterScrapeFailed
         expr: up{job=~".*vmware.*"} == 0
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "Exporter VMware {{ $labels.instance }} non scrapé"
-          description: "Prometheus n'arrive plus à lire /metrics sur {{ $labels.instance }}."
+          summary: "VMware exporter {{ $labels.instance }} is not being scraped"
+          description: "Prometheus can no longer read /metrics on {{ $labels.instance }}."
 
       - alert: VMwareExporterStaleData
         expr: time() - vmware_collection_timestamp_seconds > 600
         for: 5m
         labels: {severity: warning}
         annotations:
-          summary: "Données VMware figées pour {{ $labels.vcenter }}"
-          description: "Aucune collecte terminée depuis {{ $value | humanizeDuration }}. La collecte est peut-être bloquée (timeout trop court, vCenter très lent)."
+          summary: "Stale VMware data for {{ $labels.vcenter }}"
+          description: "No collection has completed for {{ $value | humanizeDuration }}. Collection may be stuck (timeout too short, vCenter very slow)."
 
       - alert: VMwareExporterCollectorFailing
         expr: vmware_collector_success == 0
         for: 15m
         labels: {severity: warning}
         annotations:
-          summary: "Collecteur {{ $labels.collector }} en échec sur {{ $labels.vcenter }}"
-          description: "Le collecteur {{ $labels.collector }} échoue depuis 15 min (droits du compte de service, endpoint absent, timeout). Voir les logs de l'exporter."
+          summary: "Collector {{ $labels.collector }} failing on {{ $labels.vcenter }}"
+          description: "Collector {{ $labels.collector }} has been failing for 15 min (service account permissions, missing endpoint, timeout). Check the exporter logs."
 
       - alert: VMwareExporterSlowCollection
         expr: vmware_collection_duration_seconds > 50
         for: 15m
         labels: {severity: info}
         annotations:
-          summary: "Collecte lente sur {{ $labels.vcenter }} ({{ $value | humanize }}s)"
-          description: "Augmenter 'interval'/'timeout' ou réduire le périmètre (filtres, compteurs perf)."
+          summary: "Slow collection on {{ $labels.vcenter }} ({{ $value | humanize }}s)"
+          description: "Increase 'interval'/'timeout' or reduce the scope (filters, perf counters)."
 
   # ---------------------------------------------------------------------------
   - name: vmware-vcenter
@@ -62,89 +62,89 @@ groups:
         for: 2m
         labels: {severity: critical, source: vcenter}
         annotations:
-          summary: "[{{ $labels.vcenter }}] {{ $labels.alarm }} sur {{ $labels.entity }}"
-          description: "Alarme vCenter ROUGE '{{ $labels.alarm }}' sur {{ $labels.entity_type }} {{ $labels.entity }} (datacenter {{ $labels.datacenter }})."
+          summary: "[{{ $labels.vcenter }}] {{ $labels.alarm }} on {{ $labels.entity }}"
+          description: "RED vCenter alarm '{{ $labels.alarm }}' on {{ $labels.entity_type }} {{ $labels.entity }} (datacenter {{ $labels.datacenter }})."
 
       - alert: VMwareVCenterAlarmWarning
         expr: vmware_alarm_triggered{status="yellow", acknowledged="false"} == 2
         for: 10m
         labels: {severity: warning, source: vcenter}
         annotations:
-          summary: "[{{ $labels.vcenter }}] {{ $labels.alarm }} sur {{ $labels.entity }}"
-          description: "Alarme vCenter JAUNE '{{ $labels.alarm }}' sur {{ $labels.entity_type }} {{ $labels.entity }} (datacenter {{ $labels.datacenter }})."
+          summary: "[{{ $labels.vcenter }}] {{ $labels.alarm }} on {{ $labels.entity }}"
+          description: "YELLOW vCenter alarm '{{ $labels.alarm }}' on {{ $labels.entity_type }} {{ $labels.entity }} (datacenter {{ $labels.datacenter }})."
 
       - alert: VMwareVCenterCertificateExpiringSoon
         expr: (vmware_vcenter_certificate_expiry_timestamp_seconds - time()) < 30 * 86400
         for: 1h
         labels: {severity: warning}
         annotations:
-          summary: "Certificat TLS de {{ $labels.vcenter }} expire dans {{ $value | humanizeDuration }}"
-          description: "Renouveler le certificat machine SSL du vCenter."
+          summary: "TLS certificate of {{ $labels.vcenter }} expires in {{ $value | humanizeDuration }}"
+          description: "Renew the vCenter machine SSL certificate."
 
       - alert: VMwareVCenterCertificateExpiryCritical
         expr: (vmware_vcenter_certificate_expiry_timestamp_seconds - time()) < 7 * 86400
         for: 10m
         labels: {severity: critical}
         annotations:
-          summary: "Certificat TLS de {{ $labels.vcenter }} expire dans {{ $value | humanizeDuration }}"
-          description: "Expiration imminente du certificat machine SSL du vCenter."
+          summary: "TLS certificate of {{ $labels.vcenter }} expires in {{ $value | humanizeDuration }}"
+          description: "The vCenter machine SSL certificate is about to expire."
 
       - alert: VMwareApplianceHealthDegraded
         expr: vmware_appliance_health >= 2
         for: 10m
         labels: {severity: warning}
         annotations:
-          summary: "Appliance {{ $labels.vcenter }} : composant {{ $labels.component }} dégradé"
-          description: "La santé VAMI du composant {{ $labels.component }} est jaune/orange (valeur {{ $value }})."
+          summary: "Appliance {{ $labels.vcenter }}: component {{ $labels.component }} degraded"
+          description: "VAMI health of component {{ $labels.component }} is yellow/orange (value {{ $value }})."
 
       - alert: VMwareApplianceHealthCritical
         expr: vmware_appliance_health == 3
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "Appliance {{ $labels.vcenter }} : composant {{ $labels.component }} en erreur"
-          description: "La santé VAMI du composant {{ $labels.component }} est rouge."
+          summary: "Appliance {{ $labels.vcenter }}: component {{ $labels.component }} in error"
+          description: "VAMI health of component {{ $labels.component }} is red."
 
       - alert: VMwareApplianceServiceStopped
         expr: vmware_appliance_service_started{startup_type="automatic"} == 0
         for: 10m
         labels: {severity: critical}
         annotations:
-          summary: "Service vCenter {{ $labels.service }} arrêté sur {{ $labels.vcenter }}"
-          description: "Un service en démarrage automatique est arrêté depuis 10 min."
+          summary: "vCenter service {{ $labels.service }} stopped on {{ $labels.vcenter }}"
+          description: "A service with automatic startup has been stopped for 10 min."
 
       - alert: VMwareApplianceServiceDegraded
         expr: vmware_appliance_service_health == 3
         for: 15m
         labels: {severity: warning}
         annotations:
-          summary: "Service vCenter {{ $labels.service }} dégradé sur {{ $labels.vcenter }}"
-          description: "Le service {{ $labels.service }} signale un état DEGRADED."
+          summary: "vCenter service {{ $labels.service }} degraded on {{ $labels.vcenter }}"
+          description: "Service {{ $labels.service }} reports a DEGRADED state."
 
       - alert: VMwareVCenterBackupFailed
         expr: vmware_appliance_backup_last_succeeded == 0
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "Dernière sauvegarde du vCenter {{ $labels.vcenter }} en échec"
-          description: "Le dernier job de sauvegarde file-based du vCenter n'a pas réussi."
+          summary: "Last backup of vCenter {{ $labels.vcenter }} failed"
+          description: "The last vCenter file-based backup job did not succeed."
 
       - alert: VMwareVCenterBackupTooOld
         expr: time() - vmware_appliance_backup_last_success_timestamp_seconds > 26 * 3600
         for: 1h
         labels: {severity: warning}
         annotations:
-          summary: "Pas de sauvegarde réussie du vCenter {{ $labels.vcenter }} depuis {{ $value | humanizeDuration }}"
-          description: "Vérifier la planification des sauvegardes file-based."
+          summary: "No successful backup of vCenter {{ $labels.vcenter }} for {{ $value | humanizeDuration }}"
+          description: "Check the file-based backup schedule."
 
       - alert: VMwareVCenterNoSuccessfulBackup
-        # Endpoint de sauvegarde lisible mais aucun job réussi connu (ou aucun job du tout).
+        # Backup endpoint is readable but no successful job is known (or no job at all).
         expr: vmware_appliance_backup_jobs unless on(vcenter) vmware_appliance_backup_last_success_timestamp_seconds
         for: 6h
         labels: {severity: warning}
         annotations:
-          summary: "Aucune sauvegarde réussie connue pour le vCenter {{ $labels.vcenter }}"
-          description: "{{ $value }} job(s) de sauvegarde file-based connus, aucun réussi. Configurer ou réparer la sauvegarde du vCenter."
+          summary: "No known successful backup for vCenter {{ $labels.vcenter }}"
+          description: "{{ $value }} known file-based backup job(s), none succeeded. Configure or fix vCenter backups."
 
   # ---------------------------------------------------------------------------
   - name: vmware-cluster
@@ -154,19 +154,19 @@ groups:
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "Cluster {{ $labels.cluster }} en statut rouge ({{ $labels.vcenter }})"
-          description: "Le statut global du cluster {{ $labels.cluster }} est rouge."
+          summary: "Cluster {{ $labels.cluster }} status is red ({{ $labels.vcenter }})"
+          description: "Overall status of cluster {{ $labels.cluster }} is red."
 
       - alert: VMwareClusterHADisabled
         expr: vmware_cluster_ha_enabled == 0 and vmware_cluster_hosts > 1
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "vSphere HA désactivé sur {{ $labels.cluster }}"
-          description: "Le cluster {{ $labels.cluster }} n'est pas protégé par vSphere HA."
+          summary: "vSphere HA disabled on {{ $labels.cluster }}"
+          description: "Cluster {{ $labels.cluster }} is not protected by vSphere HA."
 
       - alert: VMwareClusterHAFailoverCapacityLost
-        # Les métriques *_configured ne sont émises que si HA + contrôle d'admission sont actifs.
+        # The *_configured metrics are only emitted when HA and admission control are enabled.
         expr: |
           (vmware_cluster_ha_failover_level_current < vmware_cluster_ha_failover_level_configured)
           or (vmware_cluster_ha_failover_cpu_resources_percent < vmware_cluster_ha_failover_cpu_resources_configured_percent)
@@ -174,48 +174,48 @@ groups:
         for: 15m
         labels: {severity: critical}
         annotations:
-          summary: "Cluster {{ $labels.cluster }} : capacité de bascule HA insuffisante"
-          description: "La capacité de basculement disponible est inférieure à la réserve configurée dans le contrôle d'admission HA : le cluster ne garantit plus le redémarrage des VMs en cas de panne d'ESX."
+          summary: "Cluster {{ $labels.cluster }}: insufficient HA failover capacity"
+          description: "Available failover capacity is below the reserve configured in HA admission control: the cluster can no longer guarantee VM restarts if a host fails."
 
       - alert: VMwareClusterHostsUnavailable
         expr: vmware_cluster_hosts - vmware_cluster_hosts_effective > 0
         for: 15m
         labels: {severity: warning}
         annotations:
-          summary: "{{ $value }} ESX indisponible(s) dans {{ $labels.cluster }}"
-          description: "ESX déconnectés, en maintenance ou non répondants dans le cluster {{ $labels.cluster }}."
+          summary: "{{ $value }} host(s) unavailable in {{ $labels.cluster }}"
+          description: "Hosts disconnected, in maintenance or not responding in cluster {{ $labels.cluster }}."
 
       - alert: VMwareClusterMemoryPressure
         expr: vmware_cluster_memory_demand_bytes / vmware_cluster_memory_effective_bytes > 0.90
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "Mémoire du cluster {{ $labels.cluster }} à {{ $value | humanizePercentage }}"
-          description: "La demande mémoire des VMs approche la capacité effective du cluster."
+          summary: "Cluster {{ $labels.cluster }} memory at {{ $value | humanizePercentage }}"
+          description: "VM memory demand is approaching the cluster's effective capacity."
 
       - alert: VMwareClusterCpuPressure
         expr: vmware_cluster_cpu_demand_mhz / vmware_cluster_cpu_effective_mhz > 0.85
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "CPU du cluster {{ $labels.cluster }} à {{ $value | humanizePercentage }}"
-          description: "La demande CPU des VMs approche la capacité effective du cluster."
+          summary: "Cluster {{ $labels.cluster }} CPU at {{ $value | humanizePercentage }}"
+          description: "VM CPU demand is approaching the cluster's effective capacity."
 
       - alert: VMwareClusterDrsScoreLow
         expr: vmware_cluster_drs_score < 60
         for: 1h
         labels: {severity: warning}
         annotations:
-          summary: "Score DRS faible ({{ $value }}) sur {{ $labels.cluster }}"
-          description: "Les VMs du cluster ne reçoivent pas les ressources demandées (contention)."
+          summary: "Low DRS score ({{ $value }}) on {{ $labels.cluster }}"
+          description: "VMs in the cluster are not getting the resources they demand (contention)."
 
       - alert: VMwareClusterConfigIssues
         expr: vmware_cluster_config_issues > 0
         for: 1h
         labels: {severity: info}
         annotations:
-          summary: "{{ $value }} problème(s) de configuration sur {{ $labels.cluster }}"
-          description: "Voir l'onglet Summary/Configuration Issues du cluster dans le vSphere Client."
+          summary: "{{ $value }} configuration issue(s) on {{ $labels.cluster }}"
+          description: "See the cluster's Summary > Configuration Issues in the vSphere Client."
 
   # ---------------------------------------------------------------------------
   - name: vmware-host
@@ -225,168 +225,168 @@ groups:
         for: 3m
         labels: {severity: critical}
         annotations:
-          summary: "ESX {{ $labels.host }} ne répond plus ({{ $labels.cluster }})"
-          description: "Le vCenter {{ $labels.vcenter }} ne reçoit plus de heartbeat de l'ESX {{ $labels.host }}."
+          summary: "Host {{ $labels.host }} not responding ({{ $labels.cluster }})"
+          description: "vCenter {{ $labels.vcenter }} is no longer receiving heartbeats from host {{ $labels.host }}."
 
       - alert: VMwareHostDisconnected
         expr: vmware_host_connection_state == 0 and vmware_host_maintenance_mode == 0
         for: 10m
         labels: {severity: warning}
         annotations:
-          summary: "ESX {{ $labels.host }} déconnecté du vCenter"
-          description: "L'ESX {{ $labels.host }} est déconnecté hors mode maintenance."
+          summary: "Host {{ $labels.host }} disconnected from vCenter"
+          description: "Host {{ $labels.host }} is disconnected while not in maintenance mode."
 
       - alert: VMwareHostStatusRed
         expr: vmware_host_overall_status == 3
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "ESX {{ $labels.host }} en statut rouge"
-          description: "Le statut global de l'ESX {{ $labels.host }} ({{ $labels.cluster }}) est rouge."
+          summary: "Host {{ $labels.host }} status is red"
+          description: "Overall status of host {{ $labels.host }} ({{ $labels.cluster }}) is red."
 
       - alert: VMwareHostMaintenanceMode
         expr: vmware_host_maintenance_mode == 1
         for: 24h
         labels: {severity: info}
         annotations:
-          summary: "ESX {{ $labels.host }} en maintenance depuis plus de 24h"
-          description: "Penser à sortir l'ESX de maintenance si l'intervention est terminée."
+          summary: "Host {{ $labels.host }} in maintenance mode for over 24h"
+          description: "Remember to exit maintenance mode once the work is done."
 
       - alert: VMwareHostQuarantine
         expr: vmware_host_quarantine_mode == 1
         for: 5m
         labels: {severity: warning}
         annotations:
-          summary: "ESX {{ $labels.host }} en quarantaine (Proactive HA)"
-          description: "Un défaut matériel partiel a été signalé par le fournisseur."
+          summary: "Host {{ $labels.host }} in quarantine mode (Proactive HA)"
+          description: "The hardware vendor reported a partial hardware failure."
 
       - alert: VMwareHostHAAgentProblem
         expr: vmware_host_ha_state{state!~"master|connectedToMaster|election"} == 1 and on(vcenter, host) (vmware_host_maintenance_mode == 0)
         for: 10m
         labels: {severity: warning}
         annotations:
-          summary: "Agent HA de {{ $labels.host }} en état {{ $labels.state }}"
-          description: "L'agent FDM n'est pas sain (isolation, partition réseau ou erreur d'initialisation)."
+          summary: "HA agent on {{ $labels.host }} in state {{ $labels.state }}"
+          description: "The FDM agent is unhealthy (isolation, network partition or initialization error)."
 
       - alert: VMwareHostSensorCritical
         expr: vmware_host_sensor_health == 3
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "Capteur {{ $labels.sensor }} en alerte sur {{ $labels.host }}"
-          description: "Capteur matériel de type {{ $labels.type }} au rouge."
+          summary: "Sensor {{ $labels.sensor }} critical on {{ $labels.host }}"
+          description: "Hardware sensor of type {{ $labels.type }} is red."
 
       - alert: VMwareHostSensorWarning
         expr: vmware_host_sensor_health == 2
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "Capteur {{ $labels.sensor }} en avertissement sur {{ $labels.host }}"
-          description: "Capteur matériel de type {{ $labels.type }} au jaune."
+          summary: "Sensor {{ $labels.sensor }} warning on {{ $labels.host }}"
+          description: "Hardware sensor of type {{ $labels.type }} is yellow."
 
       - alert: VMwareHostHardwareComponentFailed
         expr: vmware_host_hardware_status == 3
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "Composant {{ $labels.component }} défaillant sur {{ $labels.host }}"
-          description: "{{ $labels.name }} signalé en erreur."
+          summary: "Component {{ $labels.component }} failed on {{ $labels.host }}"
+          description: "{{ $labels.name }} reported in error."
 
       - alert: VMwareHostStorageLunNoPath
         expr: vmware_host_storage_luns_no_path > 0
         for: 3m
         labels: {severity: critical}
         annotations:
-          summary: "{{ $value }} LUN sans chemin vivant sur {{ $labels.host }}"
-          description: "Perte d'accès au stockage (APD/PDL probable)."
+          summary: "{{ $value }} LUN(s) with no live path on {{ $labels.host }}"
+          description: "Storage access lost (likely APD/PDL)."
 
       - alert: VMwareHostStoragePathRedundancyLost
         expr: vmware_host_storage_luns_degraded > 0
         for: 10m
         labels: {severity: warning}
         annotations:
-          summary: "{{ $value }} LUN avec un seul chemin vivant sur {{ $labels.host }}"
-          description: "La redondance multipath est perdue (fibre, switch, contrôleur...)."
+          summary: "{{ $value }} LUN(s) with a single live path on {{ $labels.host }}"
+          description: "Multipath redundancy lost (fiber, switch, controller...)."
 
       - alert: VMwareHostStoragePathDead
         expr: vmware_host_storage_paths{state="dead"} > 0
         for: 10m
         labels: {severity: warning}
         annotations:
-          summary: "{{ $value }} chemin(s) de stockage mort(s) sur {{ $labels.host }}"
-          description: "Vérifier le zoning / les liens SAN de l'ESX."
+          summary: "{{ $value }} dead storage path(s) on {{ $labels.host }}"
+          description: "Check the host's SAN zoning / links."
 
       - alert: VMwareHostUplinkDown
         expr: vmware_host_pnic_link_up{used="true"} == 0 and on(vcenter, host) (vmware_host_connection_state == 1)
         for: 5m
         labels: {severity: warning}
         annotations:
-          summary: "Uplink {{ $labels.nic }} down sur {{ $labels.host }}"
-          description: "Une carte réseau physique utilisée par un vSwitch/vDS a perdu son lien."
+          summary: "Uplink {{ $labels.nic }} down on {{ $labels.host }}"
+          description: "A physical NIC used by a vSwitch/vDS lost its link."
 
       - alert: VMwareHostCertificateExpiringSoon
         expr: (vmware_host_certificate_expiry_timestamp_seconds - time()) < 30 * 86400
         for: 1h
         labels: {severity: warning}
         annotations:
-          summary: "Certificat de l'ESX {{ $labels.host }} expire dans {{ $value | humanizeDuration }}"
-          description: "Renouveler le certificat de l'ESX (VMCA ou certificat personnalisé)."
+          summary: "Certificate of host {{ $labels.host }} expires in {{ $value | humanizeDuration }}"
+          description: "Renew the host certificate (VMCA or custom certificate)."
 
       - alert: VMwareHostSSHEnabled
         expr: vmware_host_service_running{service="TSM-SSH"} == 1
         for: 4h
         labels: {severity: info}
         annotations:
-          summary: "SSH actif sur {{ $labels.host }} depuis plus de 4h"
-          description: "Le service SSH devrait être arrêté hors intervention (durcissement)."
+          summary: "SSH enabled on {{ $labels.host }} for over 4h"
+          description: "SSH should be stopped outside maintenance windows (hardening)."
 
       - alert: VMwareHostNTPStopped
         expr: vmware_host_service_running{service=~"ntpd|chronyd", policy!="off"} == 0
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "Service NTP arrêté sur {{ $labels.host }}"
-          description: "La dérive d'horloge peut casser HA, vSAN, l'authentification et les certificats."
+          summary: "NTP service stopped on {{ $labels.host }}"
+          description: "Clock drift can break HA, vSAN, authentication and certificates."
 
       - alert: VMwareHostRebootRequired
         expr: vmware_host_reboot_required == 1
         for: 24h
         labels: {severity: info}
         annotations:
-          summary: "Redémarrage requis sur {{ $labels.host }}"
-          description: "Un correctif ou changement de configuration attend un redémarrage."
+          summary: "Reboot required on {{ $labels.host }}"
+          description: "A patch or configuration change is pending a reboot."
 
       - alert: VMwareHostCpuHigh
         expr: vmware_host_cpu_usage_mhz / vmware_host_cpu_total_mhz > 0.90
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "CPU de {{ $labels.host }} à {{ $value | humanizePercentage }}"
-          description: "Charge CPU soutenue sur l'ESX."
+          summary: "CPU on {{ $labels.host }} at {{ $value | humanizePercentage }}"
+          description: "Sustained CPU load on the host."
 
       - alert: VMwareHostMemoryHigh
         expr: vmware_host_memory_usage_bytes / vmware_host_memory_total_bytes > 0.95
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "Mémoire de {{ $labels.host }} à {{ $value | humanizePercentage }}"
-          description: "Risque de ballooning / swap hyperviseur."
+          summary: "Memory on {{ $labels.host }} at {{ $value | humanizePercentage }}"
+          description: "Risk of ballooning / hypervisor swapping."
 
       - alert: VMwareHostDatastoreLatencyHigh
         expr: max by (vcenter, cluster, host, perf_instance) ({__name__=~"vmware_host_perf_datastore_total_(read|write)_latency_average_seconds"}) > 0.030
         for: 15m
         labels: {severity: warning}
         annotations:
-          summary: "Latence datastore élevée sur {{ $labels.host }} ({{ $value | humanizeDuration }})"
-          description: "Latence moyenne > 30 ms vers le datastore {{ $labels.perf_instance }} (UUID)."
+          summary: "High datastore latency on {{ $labels.host }} ({{ $value | humanizeDuration }})"
+          description: "Average latency > 30 ms to datastore {{ $labels.perf_instance }} (UUID)."
 
       - alert: VMwareHostNetworkDrops
         expr: vmware_host_perf_net_dropped_rx_summation + vmware_host_perf_net_dropped_tx_summation > 100
         for: 15m
         labels: {severity: warning}
         annotations:
-          summary: "Paquets perdus sur {{ $labels.host }}"
-          description: "{{ $value }} paquets perdus par intervalle de 20 s."
+          summary: "Dropped packets on {{ $labels.host }}"
+          description: "{{ $value }} packets dropped per 20 s interval."
 
   # ---------------------------------------------------------------------------
   - name: vmware-vm
@@ -396,127 +396,127 @@ groups:
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "VM {{ $labels.vm }} : heartbeat invité perdu"
-          description: "La VM est allumée mais l'OS invité ne répond plus aux VMware Tools (OS figé ?)."
+          summary: "VM {{ $labels.vm }}: guest heartbeat lost"
+          description: "The VM is powered on but the guest OS no longer responds to VMware Tools (hung OS?)."
 
       - alert: VMwareVMToolsNotRunning
         expr: vmware_vm_tools_running == 0 and on(vcenter, vm_moid) (vmware_vm_power_state == 1) and on(vcenter, vm_moid) (vmware_vm_uptime_seconds > 900)
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "VMware Tools ne tournent pas sur {{ $labels.vm }}"
-          description: "Sans VMware Tools : pas d'arrêt propre, pas de supervision invitée, pas de quiescing."
+          summary: "VMware Tools not running on {{ $labels.vm }}"
+          description: "Without VMware Tools: no clean shutdown, no guest monitoring, no quiescing."
 
       - alert: VMwareVMToolsOutdated
         expr: vmware_vm_tools_version_status{status=~"guestToolsNeedUpgrade|guestToolsTooOld|guestToolsBlacklisted|guestToolsSupportedOld"} == 1
         for: 24h
         labels: {severity: info}
         annotations:
-          summary: "VMware Tools à mettre à jour sur {{ $labels.vm }} ({{ $labels.status }})"
-          description: "Version des VMware Tools obsolète."
+          summary: "VMware Tools need updating on {{ $labels.vm }} ({{ $labels.status }})"
+          description: "VMware Tools version is outdated."
 
       - alert: VMwareVMQuestionPending
         expr: vmware_vm_question_pending == 1
         for: 2m
         labels: {severity: critical}
         annotations:
-          summary: "VM {{ $labels.vm }} bloquée sur une question"
-          description: "La VM attend une réponse dans le vSphere Client (souvent après copie ou datastore plein)."
+          summary: "VM {{ $labels.vm }} blocked on a pending question"
+          description: "The VM is waiting for an answer in the vSphere Client (often after a copy or a full datastore)."
 
       - alert: VMwareVMConsolidationNeeded
         expr: vmware_vm_consolidation_needed == 1
         for: 1h
         labels: {severity: warning}
         annotations:
-          summary: "Consolidation de disques requise sur {{ $labels.vm }}"
-          description: "Des fichiers delta orphelins subsistent (sauvegarde interrompue ?)."
+          summary: "Disk consolidation needed on {{ $labels.vm }}"
+          description: "Orphaned delta files remain (interrupted backup?)."
 
       - alert: VMwareVMSnapshotTooOld
         expr: vmware_vm_snapshot_oldest_age_seconds > 3 * 86400
         for: 1h
         labels: {severity: warning}
         annotations:
-          summary: "Snapshot de plus de 3 jours sur {{ $labels.vm }}"
-          description: "Le plus ancien snapshot a {{ $value | humanizeDuration }}. Les snapshots ne sont pas des sauvegardes."
+          summary: "Snapshot older than 3 days on {{ $labels.vm }}"
+          description: "The oldest snapshot is {{ $value | humanizeDuration }} old. Snapshots are not backups."
 
       - alert: VMwareVMTooManySnapshots
         expr: vmware_vm_snapshots > 3
         for: 1h
         labels: {severity: warning}
         annotations:
-          summary: "{{ $value }} snapshots sur {{ $labels.vm }}"
-          description: "Les chaînes de snapshots longues dégradent les performances disque."
+          summary: "{{ $value }} snapshots on {{ $labels.vm }}"
+          description: "Long snapshot chains degrade disk performance."
 
       - alert: VMwareVMGuestDiskFull
         expr: (vmware_vm_guest_disk_free_bytes / vmware_vm_guest_disk_capacity_bytes) < 0.05 and vmware_vm_guest_disk_capacity_bytes > 0
         for: 10m
         labels: {severity: critical}
         annotations:
-          summary: "Disque {{ $labels.disk_path }} de {{ $labels.vm }} presque plein"
-          description: "Moins de 5 % libre ({{ $value | humanizePercentage }})."
+          summary: "Disk {{ $labels.disk_path }} on {{ $labels.vm }} almost full"
+          description: "Less than 5% free ({{ $value | humanizePercentage }})."
 
       - alert: VMwareVMGuestDiskLow
         expr: (vmware_vm_guest_disk_free_bytes / vmware_vm_guest_disk_capacity_bytes) < 0.10 and vmware_vm_guest_disk_capacity_bytes > 0
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "Disque {{ $labels.disk_path }} de {{ $labels.vm }} sous 10 %"
-          description: "Espace libre : {{ $value | humanizePercentage }}."
+          summary: "Disk {{ $labels.disk_path }} on {{ $labels.vm }} below 10% free"
+          description: "Free space: {{ $value | humanizePercentage }}."
 
       - alert: VMwareVMCpuReadyHigh
         expr: (vmware_vm_perf_cpu_ready_summation_seconds{perf_instance=""} / 20) / ignoring(perf_instance) vmware_vm_vcpus > 0.10
         for: 15m
         labels: {severity: warning}
         annotations:
-          summary: "CPU ready élevé sur {{ $labels.vm }} ({{ $value | humanizePercentage }} par vCPU)"
-          description: "La VM attend l'ordonnanceur ESX : contention CPU ou trop de vCPU."
+          summary: "High CPU ready on {{ $labels.vm }} ({{ $value | humanizePercentage }} per vCPU)"
+          description: "The VM is waiting on the ESXi scheduler: CPU contention or too many vCPUs."
 
       - alert: VMwareVMCoStopHigh
         expr: (vmware_vm_perf_cpu_costop_summation_seconds{perf_instance=""} / 20) / ignoring(perf_instance) vmware_vm_vcpus > 0.03
         for: 15m
         labels: {severity: warning}
         annotations:
-          summary: "Co-stop élevé sur {{ $labels.vm }} ({{ $value | humanizePercentage }})"
-          description: "Trop de vCPU pour la charge : réduire le nombre de vCPU."
+          summary: "High co-stop on {{ $labels.vm }} ({{ $value | humanizePercentage }})"
+          description: "Too many vCPUs for the workload: reduce the vCPU count."
 
       - alert: VMwareVMMemorySwapped
         expr: vmware_vm_memory_swapped_bytes > 0
         for: 15m
         labels: {severity: warning}
         annotations:
-          summary: "{{ $value | humanize1024 }}o de mémoire swappée par l'hyperviseur pour {{ $labels.vm }}"
-          description: "Swap hyperviseur : forte dégradation des performances de la VM."
+          summary: "{{ $value | humanize1024 }}B of {{ $labels.vm }} memory swapped by the hypervisor"
+          description: "Hypervisor swapping: severe VM performance degradation."
 
       - alert: VMwareVMMemoryBallooned
         expr: vmware_vm_memory_ballooned_bytes > 0
         for: 30m
         labels: {severity: info}
         annotations:
-          summary: "Ballooning actif sur {{ $labels.vm }}"
-          description: "{{ $value | humanize1024 }}o récupérés par le pilote balloon."
+          summary: "Ballooning active on {{ $labels.vm }}"
+          description: "{{ $value | humanize1024 }}B reclaimed by the balloon driver."
 
       - alert: VMwareVMDiskLatencyHigh
         expr: vmware_vm_perf_disk_max_total_latency_latest_seconds > 0.050
         for: 15m
         labels: {severity: warning}
         annotations:
-          summary: "Latence disque élevée pour {{ $labels.vm }} ({{ $value | humanizeDuration }})"
-          description: "Latence disque maximale > 50 ms."
+          summary: "High disk latency on {{ $labels.vm }} ({{ $value | humanizeDuration }})"
+          description: "Maximum disk latency > 50 ms."
 
       - alert: VMwareVMNotHAProtected
         expr: vmware_vm_ha_protected == 0 and on(vcenter, vm_moid) (vmware_vm_power_state == 1) and on(vcenter, vm_moid) (vmware_vm_info * on(vcenter, datacenter, cluster) group_left() (vmware_cluster_ha_enabled == 1))
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "VM {{ $labels.vm }} non protégée par HA"
-          description: "La VM est allumée dans un cluster HA mais n'est pas protégée."
+          summary: "VM {{ $labels.vm }} not protected by HA"
+          description: "The VM is powered on in an HA cluster but is not protected."
 
       - alert: VMwareVMConnectionProblem
         expr: vmware_vm_connection_state > 0
         for: 10m
         labels: {severity: warning}
         annotations:
-          summary: "VM {{ $labels.vm }} dans un état de connexion anormal ({{ $value }})"
+          summary: "VM {{ $labels.vm }} in abnormal connection state ({{ $value }})"
           description: "1=disconnected, 2=orphaned, 3=inaccessible, 4=invalid."
 
   # ---------------------------------------------------------------------------
@@ -527,32 +527,32 @@ groups:
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "Datastore {{ $labels.datastore }} rempli à {{ $value | humanizePercentage }}"
-          description: "Risque d'arrêt des VMs (thin provisioning, snapshots)."
+          summary: "Datastore {{ $labels.datastore }} {{ $value | humanizePercentage }} full"
+          description: "VMs at risk of stopping (thin provisioning, snapshots)."
 
       - alert: VMwareDatastoreUsageHigh
         expr: (1 - vmware_datastore_free_bytes / vmware_datastore_capacity_bytes) > 0.85 and vmware_datastore_capacity_bytes > 0
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "Datastore {{ $labels.datastore }} rempli à {{ $value | humanizePercentage }}"
-          description: "Planifier une libération d'espace ou une extension."
+          summary: "Datastore {{ $labels.datastore }} {{ $value | humanizePercentage }} full"
+          description: "Plan to free up space or extend the datastore."
 
       - alert: VMwareDatastoreFullIn7Days
         expr: predict_linear(vmware_datastore_free_bytes[24h], 7 * 86400) < 0 and vmware_datastore_capacity_bytes > 0
         for: 1h
         labels: {severity: warning}
         annotations:
-          summary: "Datastore {{ $labels.datastore }} plein dans moins de 7 jours"
-          description: "Projection linéaire sur 24 h de consommation."
+          summary: "Datastore {{ $labels.datastore }} full in less than 7 days"
+          description: "Linear projection based on the last 24 h of usage."
 
       - alert: VMwareDatastoreOverprovisioned
         expr: vmware_datastore_provisioned_bytes / vmware_datastore_capacity_bytes > 2 and vmware_datastore_capacity_bytes > 0
         for: 6h
         labels: {severity: info}
         annotations:
-          summary: "Datastore {{ $labels.datastore }} surprovisionné ({{ $value | humanize }}x)"
-          description: "Le provisionnement thin dépasse 200 % de la capacité."
+          summary: "Datastore {{ $labels.datastore }} overprovisioned ({{ $value | humanize }}x)"
+          description: "Thin provisioning exceeds 200% of capacity."
 
       - alert: VMwareDatastoreInaccessible
         expr: vmware_datastore_accessible == 0
@@ -560,23 +560,23 @@ groups:
         labels: {severity: critical}
         annotations:
           summary: "Datastore {{ $labels.datastore }} inaccessible"
-          description: "Le datastore n'est plus accessible depuis le vCenter {{ $labels.vcenter }}."
+          description: "The datastore is no longer accessible from vCenter {{ $labels.vcenter }}."
 
       - alert: VMwareDatastoreInaccessibleFromHosts
         expr: vmware_datastore_hosts_inaccessible > 0
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "Datastore {{ $labels.datastore }} inaccessible depuis {{ $value }} ESX"
-          description: "Une partie des ESX a perdu l'accès au datastore (APD/PDL, réseau de stockage)."
+          summary: "Datastore {{ $labels.datastore }} inaccessible from {{ $value }} host(s)"
+          description: "Some hosts lost access to the datastore (APD/PDL, storage network)."
 
       - alert: VMwareDatastoreStatusRed
         expr: vmware_datastore_overall_status == 3
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "Datastore {{ $labels.datastore }} en statut rouge"
-          description: "Voir les alarmes associées dans le vSphere Client."
+          summary: "Datastore {{ $labels.datastore }} status is red"
+          description: "Check the related alarms in the vSphere Client."
 
   # ---------------------------------------------------------------------------
   - name: vmware-network
@@ -586,24 +586,24 @@ groups:
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "vDS {{ $labels.dvs }} en statut rouge"
-          description: "Statut global rouge sur le switch distribué {{ $labels.dvs }}."
+          summary: "vDS {{ $labels.dvs }} status is red"
+          description: "Overall status of distributed switch {{ $labels.dvs }} is red."
 
       - alert: VMwareDVSHostOutOfSync
         expr: vmware_dvs_host_member_up == 0
         for: 10m
         labels: {severity: warning}
         annotations:
-          summary: "ESX {{ $labels.host }} non synchronisé avec le vDS {{ $labels.dvs }}"
-          description: "L'ESX est outOfSync, down ou en avertissement sur le vDS."
+          summary: "Host {{ $labels.host }} out of sync with vDS {{ $labels.dvs }}"
+          description: "The host is outOfSync, down or in warning state on the vDS."
 
       - alert: VMwareNetworkInaccessible
         expr: vmware_network_accessible == 0 and vmware_network_hosts > 0
         for: 10m
         labels: {severity: warning}
         annotations:
-          summary: "Réseau {{ $labels.network }} inaccessible"
-          description: "Le portgroup {{ $labels.network }} n'est accessible depuis aucun ESX."
+          summary: "Network {{ $labels.network }} inaccessible"
+          description: "Portgroup {{ $labels.network }} is not accessible from any host."
 
   # ---------------------------------------------------------------------------
   - name: vmware-vsan
@@ -613,37 +613,37 @@ groups:
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "Santé vSAN rouge sur {{ $labels.cluster }}"
-          description: "Voir le détail via vmware_vsan_health_group / vmware_vsan_health_test."
+          summary: "vSAN health red on {{ $labels.cluster }}"
+          description: "See vmware_vsan_health_group / vmware_vsan_health_test for details."
 
       - alert: VMwareVSANHealthYellow
         expr: vmware_vsan_cluster_health == 2
         for: 1h
         labels: {severity: warning}
         annotations:
-          summary: "Santé vSAN jaune sur {{ $labels.cluster }}"
-          description: "Au moins un test de santé vSAN est en avertissement."
+          summary: "vSAN health yellow on {{ $labels.cluster }}"
+          description: "At least one vSAN health test is in warning."
 
       - alert: VMwareVSANTestFailed
         expr: vmware_vsan_health_test == 3
         for: 15m
         labels: {severity: warning}
         annotations:
-          summary: "vSAN {{ $labels.cluster }} : test « {{ $labels.test }} » en échec"
-          description: "Groupe {{ $labels.group }}."
+          summary: "vSAN {{ $labels.cluster }}: health test \"{{ $labels.test }}\" failed"
+          description: "Group {{ $labels.group }}."
 
       - alert: VMwareVSANHealthUnavailable
         expr: vmware_vsan_health_query_success == 0
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "Santé vSAN illisible sur {{ $labels.cluster }}"
-          description: "Le service vSAN health ne répond pas ou le compte n'a pas les droits."
+          summary: "vSAN health unreadable on {{ $labels.cluster }}"
+          description: "The vSAN health service is not responding or the account lacks permissions."
 
       - alert: VMwareVSANHealthStale
         expr: time() - vmware_vsan_health_timestamp_seconds > 3 * 3600
         for: 30m
         labels: {severity: info}
         annotations:
-          summary: "Résultats de santé vSAN anciens sur {{ $labels.cluster }}"
-          description: "Le dernier test de santé vSAN date de {{ $value | humanizeDuration }} (vérifier la périodicité du health service)."
+          summary: "Stale vSAN health results on {{ $labels.cluster }}"
+          description: "The last vSAN health check ran {{ $value | humanizeDuration }} ago (check the health service schedule)."

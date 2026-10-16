@@ -1,4 +1,4 @@
-// Package collector contient les collecteurs vSphere et le cache exposé à Prometheus.
+// Package collector contains the vSphere collectors and the cache exposed to Prometheus.
 package collector
 
 import (
@@ -13,22 +13,22 @@ import (
 
 const namespace = "vmware"
 
-// Sink accumule les métriques d'une collecte (thread-safe).
+// Sink accumulates the metrics of one collection run (thread-safe).
 type Sink struct {
 	mu      sync.Mutex
 	metrics []prometheus.Metric
 	descs   map[string]*prometheus.Desc
-	// labels communs (vcenter + extra_labels) préfixés à chaque série
+	// common labels (vcenter + extra_labels) prepended to every series
 	baseNames  []string
 	baseValues []string
 	seen       map[string]struct{}
 	dups       int
 	errs       int
-	// Log optionnel pour signaler les séries invalides.
+	// Optional logger used to report invalid series.
 	Log *slog.Logger
 }
 
-// NewSink crée un sink avec les labels communs d'une cible.
+// NewSink creates a sink with a target's common labels.
 func NewSink(vcenter string, extra map[string]string) *Sink {
 	s := &Sink{descs: map[string]*prometheus.Desc{}, seen: map[string]struct{}{}}
 	s.baseNames = []string{"vcenter"}
@@ -56,7 +56,7 @@ func (s *Sink) desc(name, help string, labels []string) *prometheus.Desc {
 	return d
 }
 
-// L est un raccourci pour une liste de paires label=valeur.
+// L is shorthand for a list of label=value pairs.
 type L []string
 
 func split(l L) (names, values []string) {
@@ -71,8 +71,8 @@ func (s *Sink) add(t prometheus.ValueType, name, help string, v float64, l L) {
 	names, values := split(l)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	// Protection contre les doublons (deux objets de même nom au même endroit) :
-	// un doublon ferait échouer le scrape entier côté client_golang.
+	// Guard against duplicates (two objects with the same name in the same place):
+	// a duplicate would make client_golang fail the whole scrape.
 	key := name + "\xff" + strings.Join(values, "\xff")
 	if _, dup := s.seen[key]; dup {
 		s.dups++
@@ -84,38 +84,38 @@ func (s *Sink) add(t prometheus.ValueType, name, help string, v float64, l L) {
 	if err != nil {
 		s.errs++
 		if s.errs <= 5 && s.Log != nil {
-			s.Log.Error("série invalide ignorée", "metric", name, "err", err)
+			s.Log.Error("invalid series dropped", "metric", name, "err", err)
 		}
 		return
 	}
 	s.metrics = append(s.metrics, m)
 }
 
-// Gauge ajoute une jauge.
+// Gauge adds a gauge.
 func (s *Sink) Gauge(name, help string, v float64, l L) {
 	s.add(prometheus.GaugeValue, name, help, v, l)
 }
 
-// Counter ajoute un compteur.
+// Counter adds a counter.
 func (s *Sink) Counter(name, help string, v float64, l L) {
 	s.add(prometheus.CounterValue, name, help, v, l)
 }
 
-// Metrics renvoie les métriques collectées.
+// Metrics returns the collected metrics.
 func (s *Sink) Metrics() []prometheus.Metric {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.metrics
 }
 
-// Errors renvoie le nombre de séries invalides ignorées.
+// Errors returns the number of invalid series dropped.
 func (s *Sink) Errors() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.errs
 }
 
-// Duplicates renvoie le nombre de séries ignorées car dupliquées.
+// Duplicates returns the number of series dropped as duplicates.
 func (s *Sink) Duplicates() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -138,8 +138,8 @@ func bp2f(v *bool) float64 {
 	return b2f(*v)
 }
 
-// Statut global vSphere : 0=gray(inconnu) 1=green 2=yellow 3=red.
-const statusHelp = " (0=gray/inconnu, 1=green, 2=yellow, 3=red)"
+// vSphere overall status: 0=gray(unknown) 1=green 2=yellow 3=red.
+const statusHelp = " (0=gray/unknown, 1=green, 2=yellow, 3=red)"
 
 func statusValue(s types.ManagedEntityStatus) float64 {
 	switch s {
@@ -153,7 +153,7 @@ func statusValue(s types.ManagedEntityStatus) float64 {
 	return 0
 }
 
-// healthString pour les statuts texte REST/vSAN (green/yellow/orange/red/gray/unknown/info/skipped).
+// healthString maps REST/vSAN text statuses (green/yellow/orange/red/gray/unknown/info/skipped).
 func healthString(s string) float64 {
 	switch strings.ToLower(s) {
 	case "green", "ok", "healthy", "info", "skipped", "passed":

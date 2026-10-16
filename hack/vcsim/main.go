@@ -1,5 +1,5 @@
-// Command vcsim lance un vCenter simulé (govmomi) annonçant une version donnée,
-// pour tester l'exporter sans infrastructure (ex: -version 8.0.3 -api 8.0.3.0).
+// Command vcsim runs a simulated vCenter (govmomi) advertising a given version,
+// to test the exporter without any infrastructure (e.g. -version 8.0.3 -api 8.0.3.0).
 package main
 
 import (
@@ -15,15 +15,15 @@ import (
 )
 
 func main() {
-	version := flag.String("version", "9.0.0", "version vCenter simulée")
-	api := flag.String("api", "9.0.0.0", "version d'API vim25 simulée")
-	addr := flag.String("l", "127.0.0.1:8989", "adresse d'écoute")
+	version := flag.String("version", "9.0.0", "simulated vCenter version")
+	api := flag.String("api", "9.0.0.0", "simulated vim25 API version")
+	addr := flag.String("l", "127.0.0.1:8989", "listen address")
 	flag.Parse()
 	m := simulator.VPX()
 	m.Datacenter, m.Cluster, m.ClusterHost, m.Host, m.Machine, m.Portgroup, m.Pod = 1, 2, 3, 1, 4, 2, 1
 	sc := vpx.ServiceContent
 	a := sc.About
-	a.Version, a.ApiVersion, a.FullName = *version, *api, "VMware vCenter Server "+*version+" (simulé)"
+	a.Version, a.ApiVersion, a.FullName = *version, *api, "VMware vCenter Server "+*version+" (simulated)"
 	sc.About = a
 	m.ServiceContent = sc
 	if err := m.Create(); err != nil {

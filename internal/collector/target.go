@@ -3,7 +3,9 @@ package collector
 import (
 	"context"
 	"log/slog"
+	"net/url"
 	"regexp"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -16,7 +18,7 @@ import (
 	"github.com/example/vmware-exporter/internal/vsphere"
 )
 
-// Run regroupe le contexte d'une collecte.
+// Run holds the context of one collection.
 type Run struct {
 	Cfg    *config.Target
 	Log    *slog.Logger
@@ -26,7 +28,7 @@ type Run struct {
 	Topo   *Topology
 	Sink   *Sink
 
-	// Résultats partagés entre collecteurs (remplis par host/vm, lus par perf).
+	// Results shared between collectors (filled by host/vm, read by perf).
 	mu        sync.Mutex
 	hostsPerf []perfEntity
 	vmsPerf   []perfEntity
@@ -46,7 +48,7 @@ type collectorFunc struct {
 	name    string
 	enabled func(*config.Collectors) bool
 	fn      func(context.Context, *Run) error
-	// phase 1 = s'exécute en parallèle; phase 2 = après la phase 1 (dépend de ses résultats)
+	// phase 1 = runs in parallel; phase 2 = after phase 1 (depends on its results)
 	phase int
 }
 
@@ -65,7 +67,7 @@ var collectors = []collectorFunc{
 	{"perf", func(c *config.Collectors) bool { return *c.Perf }, collectPerf, 2},
 }
 
-// Target collecte périodiquement un vCenter et garde le dernier résultat en cache.
+// Target periodically collects one vCenter and caches the latest result.
 type Target struct {
 	cfg    *config.Target
 	log    *slog.Logger
@@ -78,13 +80,13 @@ type Target struct {
 	failures atomic.Int64
 }
 
-// NewTarget prépare une cible.
+// NewTarget prepares a target.
 func NewTarget(cfg *config.Target, log *slog.Logger) *Target {
 	l := log.With("vcenter", cfg.Name)
 	return &Target{cfg: cfg, log: l, client: vsphere.New(cfg, l)}
 }
 
-// Start lance la boucle de collecte jusqu'à l'annulation du contexte.
+// Start runs the collection loop until the context is cancelled.
 func (t *Target) Start(ctx context.Context) {
 	go func() {
 		t.collectOnce(ctx)
@@ -121,13 +123,13 @@ func (t *Target) collectOnce(parent context.Context) {
 	sink.Log = t.log
 	up := 0.0
 	defer func() {
-		sink.Gauge(n("up"), "1 si la dernière collecte du vCenter a réussi (connexion + inventaire).", up, nil)
-		sink.Gauge(n("collection_duration_seconds"), "Durée totale de la dernière collecte.", time.Since(start).Seconds(), nil)
-		sink.Gauge(n("collection_timestamp_seconds"), "Horodatage de la dernière collecte.", float64(time.Now().Unix()), nil)
-		sink.Counter(n("collections_total"), "Nombre de collectes effectuées.", float64(t.scrapes.Load()), nil)
-		sink.Counter(n("collection_failures_total"), "Nombre de collectes en échec (vCenter injoignable / auth).", float64(t.failures.Load()), nil)
-		sink.Gauge(n("exporter_invalid_series"), "Séries invalides ignorées (ex. conflit de nom de label).", float64(sink.Errors()), nil)
-		sink.Gauge(n("exporter_duplicate_series"), "Séries ignorées car dupliquées (objets homonymes).", float64(sink.Duplicates()), nil)
+		sink.Gauge(n("up"), "1 if the last collection of the vCenter succeeded (connection + inventory).", up, nil)
+		sink.Gauge(n("collection_duration_seconds"), "Total duration of the last collection.", time.Since(start).Seconds(), nil)
+		sink.Gauge(n("collection_timestamp_seconds"), "Timestamp of the last collection.", float64(time.Now().Unix()), nil)
+		sink.Counter(n("collections_total"), "Number of collections performed.", float64(t.scrapes.Load()), nil)
+		sink.Counter(n("collection_failures_total"), "Number of failed collections (vCenter unreachable / authentication).", float64(t.failures.Load()), nil)
+		sink.Gauge(n("exporter_invalid_series"), "Invalid series dropped (e.g. label name conflict).", float64(sink.Errors()), nil)
+		sink.Gauge(n("exporter_duplicate_series"), "Series dropped as duplicates (objects with the same name).", float64(sink.Duplicates()), nil)
 		t.mu.Lock()
 		t.snapshot = sink.Metrics()
 		t.mu.Unlock()
@@ -136,7 +138,7 @@ func (t *Target) collectOnce(parent context.Context) {
 	vc, err := t.client.Get(ctx)
 	if err != nil {
 		t.failures.Add(1)
-		t.log.Error("connexion au vCenter impossible", "err", err)
+		t.log.Error("cannot connect to vCenter", "err", err)
 		return
 	}
 	v, err := view.NewManager(vc).CreateContainerView(ctx, vc.ServiceContent.RootFolder, nil, true)
@@ -145,7 +147,7 @@ func (t *Target) collectOnce(parent context.Context) {
 			t.client.Invalidate()
 		}
 		t.failures.Add(1)
-		t.log.Error("création du ContainerView impossible", "err", err)
+		t.log.Error("cannot create ContainerView", "err", err)
 		return
 	}
 	defer func() {
@@ -161,7 +163,7 @@ func (t *Target) collectOnce(parent context.Context) {
 	}
 	if err := r.loadTopology(ctx); err != nil {
 		t.failures.Add(1)
-		t.log.Error("lecture de l'inventaire impossible", "err", err)
+		t.log.Error("cannot read inventory", "err", err)
 		if vsphere.IsAuthError(err) {
 			t.client.Invalidate()
 		}
@@ -183,25 +185,25 @@ func (t *Target) collectOnce(parent context.Context) {
 				ok := 1.0
 				if err != nil {
 					ok = 0
-					t.log.Warn("collecteur en échec", "collector", c.name, "err", err)
+					t.log.Warn("collector failed", "collector", c.name, "err", err)
 				}
-				sink.Gauge(n("collector_success"), "1 si le collecteur a réussi lors de la dernière collecte.", ok, L{"collector", c.name})
-				sink.Gauge(n("collector_duration_seconds"), "Durée du collecteur lors de la dernière collecte.", time.Since(cs).Seconds(), L{"collector", c.name})
+				sink.Gauge(n("collector_success"), "1 if the collector succeeded during the last collection.", ok, L{"collector", c.name})
+				sink.Gauge(n("collector_duration_seconds"), "Duration of the collector during the last collection.", time.Since(cs).Seconds(), L{"collector", c.name})
 			}(c)
 		}
 		wg.Wait()
 	}
 	runPhase(1)
 	runPhase(2)
-	sink.Gauge(n("exporter_unsupported_properties"), "Propriétés ignorées car absentes de la version d'API du vCenter.", float64(r.unsupported.Load()), nil)
-	sink.Gauge(n("exporter_missing_properties"), "Propriétés indisponibles sur certains objets lors de la dernière collecte (droits, ESX injoignable...).", float64(r.missing.Load()), nil)
-	t.log.Debug("collecte terminée", "duration", time.Since(start), "series", len(sink.Metrics()))
+	sink.Gauge(n("exporter_unsupported_properties"), "Properties skipped because the vCenter API version does not provide them.", float64(r.unsupported.Load()), nil)
+	sink.Gauge(n("exporter_missing_properties"), "Properties unavailable on some objects during the last collection (permissions, unreachable ESX host...).", float64(r.missing.Load()), nil)
+	t.log.Debug("collection finished", "duration", time.Since(start), "series", len(sink.Metrics()))
 }
 
 func safeRun(ctx context.Context, r *Run, fn func(context.Context, *Run) error) (err error) {
 	defer func() {
 		if p := recover(); p != nil {
-			r.Log.Error("panic dans un collecteur", "panic", p)
+			r.Log.Error("panic in collector", "panic", p)
 			err = errPanic
 		}
 	}()
@@ -212,22 +214,45 @@ type constErr string
 
 func (e constErr) Error() string { return string(e) }
 
-const errPanic = constErr("panic interne du collecteur (voir logs)")
+const errPanic = constErr("internal collector panic (see logs)")
 
-// Metrics renvoie le dernier instantané.
+// Metrics returns the latest snapshot.
 func (t *Target) Metrics() []prometheus.Metric {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	return t.snapshot
 }
 
-// Exporter est le prometheus.Collector qui sert les instantanés de toutes les cibles.
+// Name returns the configured target name (value of the "vcenter" label).
+func (t *Target) Name() string { return t.cfg.Name }
+
+// Matches reports whether s designates this target: its configured name or
+// the host name of its URL (case-insensitive).
+func (t *Target) Matches(s string) bool {
+	if strings.EqualFold(s, t.cfg.Name) {
+		return true
+	}
+	u, err := url.Parse(t.cfg.URL)
+	return err == nil && strings.EqualFold(s, u.Hostname())
+}
+
+// Exporter is the prometheus.Collector serving the snapshots of its targets.
 type Exporter struct{ Targets []*Target }
 
-// Describe ne déclare rien : collecteur "unchecked" (séries dynamiques).
+// Lookup returns the target designated by s (see Target.Matches), or nil.
+func (e *Exporter) Lookup(s string) *Target {
+	for _, t := range e.Targets {
+		if t.Matches(s) {
+			return t
+		}
+	}
+	return nil
+}
+
+// Describe declares nothing: "unchecked" collector (dynamic series).
 func (e *Exporter) Describe(chan<- *prometheus.Desc) {}
 
-// Collect renvoie le cache, sans aucun appel vCenter pendant le scrape.
+// Collect returns the cache, without any vCenter call during the scrape.
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	for _, t := range e.Targets {
 		for _, m := range t.Metrics() {

@@ -65,9 +65,9 @@ func collectVMs(ctx context.Context, r *Run) error {
 			dc = r.Topo.Datacenter(vm.ResourcePool.Value)
 			cl = r.Topo.ClusterOfPool(vm.ResourcePool.Value)
 		}
-		// Labels stables : host/cluster changent à chaque vMotion et casseraient la
-		// continuité des séries et les délais "for:" des alertes. Ils sont portés
-		// uniquement par vmware_vm_info (jointure on(vcenter, vm_moid)).
+		// Stable labels: host/cluster change on every vMotion and would break
+		// series continuity and alert "for:" durations. They are carried only
+		// by vmware_vm_info (join on(vcenter, vm_moid)).
 		l := L{"datacenter", dc, "vm", vm.Name, "vm_moid", vm.Self.Value}
 		powered := vm.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn
 		if powered {
@@ -91,55 +91,55 @@ func collectVMs(ctx context.Context, r *Run) error {
 		if vm.Guest != nil {
 			ip, gh, toolsVer = vm.Guest.IpAddress, vm.Guest.HostName, vm.Guest.ToolsVersion
 		}
-		s.Gauge(n("vm_info"), "Informations sur la VM (valeur toujours 1). Porte cluster et host courants.", 1, append(append(L{}, l...),
+		s.Gauge(n("vm_info"), "VM information (value always 1). Carries the current cluster and host.", 1, append(append(L{}, l...),
 			"cluster", cl, "host", hostName, "guest_os", guestOS, "hw_version", hw, "tools_version", toolsVer,
 			"ip_address", ip, "guest_hostname", gh, "managed_by", managedBy, "template", boolStr(isTemplate)))
 
-		s.Gauge(n("vm_power_state"), "État d'alimentation de la VM"+powerHelp+".", vmPower(vm.Runtime.PowerState), l)
-		s.Gauge(n("vm_connection_state"), "État de connexion de la VM"+vmConnHelp+".", vmConn(vm.Runtime.ConnectionState), l)
-		s.Gauge(n("vm_overall_status"), "Statut global de la VM"+statusHelp+".", statusValue(vm.OverallStatus), l)
-		s.Gauge(n("vm_guest_heartbeat_status"), "Heartbeat VMware Tools du système invité"+statusHelp+".", statusValue(vm.GuestHeartbeatStatus), l)
-		s.Gauge(n("vm_consolidation_needed"), "1 si les disques de la VM doivent être consolidés.", b2f(vm.Runtime.ConsolidationNeeded), l)
-		s.Gauge(n("vm_question_pending"), "1 si la VM est bloquée sur une question en attente de réponse.", b2f(vm.Runtime.Question != nil), l)
+		s.Gauge(n("vm_power_state"), "VM power state"+powerHelp+".", vmPower(vm.Runtime.PowerState), l)
+		s.Gauge(n("vm_connection_state"), "VM connection state"+vmConnHelp+".", vmConn(vm.Runtime.ConnectionState), l)
+		s.Gauge(n("vm_overall_status"), "Overall status of the VM"+statusHelp+".", statusValue(vm.OverallStatus), l)
+		s.Gauge(n("vm_guest_heartbeat_status"), "VMware Tools heartbeat of the guest OS"+statusHelp+".", statusValue(vm.GuestHeartbeatStatus), l)
+		s.Gauge(n("vm_consolidation_needed"), "1 if the VM disks need consolidation.", b2f(vm.Runtime.ConsolidationNeeded), l)
+		s.Gauge(n("vm_question_pending"), "1 if the VM is blocked on a pending question.", b2f(vm.Runtime.Question != nil), l)
 		if vm.Runtime.DasVmProtection != nil {
-			s.Gauge(n("vm_ha_protected"), "1 si la VM est protégée par vSphere HA.", b2f(vm.Runtime.DasVmProtection.DasProtected), l)
+			s.Gauge(n("vm_ha_protected"), "1 if the VM is protected by vSphere HA.", b2f(vm.Runtime.DasVmProtection.DasProtected), l)
 		}
 		if vm.Runtime.BootTime != nil {
-			s.Gauge(n("vm_boot_timestamp_seconds"), "Horodatage du dernier démarrage de la VM.", float64(vm.Runtime.BootTime.Unix()), l)
+			s.Gauge(n("vm_boot_timestamp_seconds"), "Time of the last VM boot.", float64(vm.Runtime.BootTime.Unix()), l)
 		}
 
-		s.Gauge(n("vm_vcpus"), "Nombre de vCPU.", float64(sc.NumCpu), l)
-		s.Gauge(n("vm_memory_size_bytes"), "Mémoire configurée.", float64(sc.MemorySizeMB)*1024*1024, l)
-		s.Gauge(n("vm_disks"), "Nombre de disques virtuels.", float64(sc.NumVirtualDisks), l)
-		s.Gauge(n("vm_nics"), "Nombre de cartes réseau virtuelles.", float64(sc.NumEthernetCards), l)
-		s.Gauge(n("vm_cpu_max_mhz"), "CPU maximum utilisable (MHz).", float64(vm.Runtime.MaxCpuUsage), l)
+		s.Gauge(n("vm_vcpus"), "Number of vCPUs.", float64(sc.NumCpu), l)
+		s.Gauge(n("vm_memory_size_bytes"), "Configured memory.", float64(sc.MemorySizeMB)*1024*1024, l)
+		s.Gauge(n("vm_disks"), "Number of virtual disks.", float64(sc.NumVirtualDisks), l)
+		s.Gauge(n("vm_nics"), "Number of virtual NICs.", float64(sc.NumEthernetCards), l)
+		s.Gauge(n("vm_cpu_max_mhz"), "Maximum usable CPU (MHz).", float64(vm.Runtime.MaxCpuUsage), l)
 
 		qs := vm.Summary.QuickStats
-		s.Gauge(n("vm_cpu_usage_mhz"), "CPU consommé (MHz).", float64(qs.OverallCpuUsage), l)
-		s.Gauge(n("vm_cpu_demand_mhz"), "Demande CPU (MHz).", float64(qs.OverallCpuDemand), l)
-		s.Gauge(n("vm_memory_guest_active_bytes"), "Mémoire active de l'invité.", float64(qs.GuestMemoryUsage)*1024*1024, l)
-		s.Gauge(n("vm_memory_host_consumed_bytes"), "Mémoire consommée sur l'ESX.", float64(qs.HostMemoryUsage)*1024*1024, l)
-		s.Gauge(n("vm_memory_ballooned_bytes"), "Mémoire récupérée par ballooning.", float64(qs.BalloonedMemory)*1024*1024, l)
-		s.Gauge(n("vm_memory_swapped_bytes"), "Mémoire swappée par l'hyperviseur.", float64(qs.SwappedMemory)*1024*1024, l)
-		s.Gauge(n("vm_memory_compressed_bytes"), "Mémoire compressée.", float64(qs.CompressedMemory)*1024, l)
-		s.Gauge(n("vm_uptime_seconds"), "Uptime de la VM.", float64(qs.UptimeSeconds), l)
+		s.Gauge(n("vm_cpu_usage_mhz"), "CPU usage (MHz).", float64(qs.OverallCpuUsage), l)
+		s.Gauge(n("vm_cpu_demand_mhz"), "CPU demand (MHz).", float64(qs.OverallCpuDemand), l)
+		s.Gauge(n("vm_memory_guest_active_bytes"), "Active guest memory.", float64(qs.GuestMemoryUsage)*1024*1024, l)
+		s.Gauge(n("vm_memory_host_consumed_bytes"), "Host memory consumed.", float64(qs.HostMemoryUsage)*1024*1024, l)
+		s.Gauge(n("vm_memory_ballooned_bytes"), "Memory reclaimed by ballooning.", float64(qs.BalloonedMemory)*1024*1024, l)
+		s.Gauge(n("vm_memory_swapped_bytes"), "Memory swapped by the hypervisor.", float64(qs.SwappedMemory)*1024*1024, l)
+		s.Gauge(n("vm_memory_compressed_bytes"), "Compressed memory.", float64(qs.CompressedMemory)*1024, l)
+		s.Gauge(n("vm_uptime_seconds"), "VM uptime.", float64(qs.UptimeSeconds), l)
 
 		if st := vm.Summary.Storage; st != nil {
-			s.Gauge(n("vm_storage_committed_bytes"), "Stockage réellement consommé sur les datastores.", float64(st.Committed), l)
-			s.Gauge(n("vm_storage_uncommitted_bytes"), "Stockage provisionné non encore consommé (thin).", float64(st.Uncommitted), l)
+			s.Gauge(n("vm_storage_committed_bytes"), "Storage actually consumed on datastores.", float64(st.Committed), l)
+			s.Gauge(n("vm_storage_uncommitted_bytes"), "Provisioned storage not yet consumed (thin).", float64(st.Uncommitted), l)
 		}
 
 		if vm.Guest != nil {
-			s.Gauge(n("vm_tools_running"), "1 si VMware Tools tourne dans l'invité.", b2f(vm.Guest.ToolsRunningStatus == string(types.VirtualMachineToolsRunningStatusGuestToolsRunning)), l)
+			s.Gauge(n("vm_tools_running"), "1 if VMware Tools is running in the guest.", b2f(vm.Guest.ToolsRunningStatus == string(types.VirtualMachineToolsRunningStatusGuestToolsRunning)), l)
 			ts := vm.Guest.ToolsVersionStatus2
 			if ts == "" {
 				ts = "unknown"
 			}
-			s.Gauge(n("vm_tools_version_status"), "Statut de version des VMware Tools (label status, valeur 1).", 1, append(append(L{}, l...), "status", ts))
+			s.Gauge(n("vm_tools_version_status"), "VMware Tools version status (status label, value 1).", 1, append(append(L{}, l...), "status", ts))
 			for _, d := range vm.Guest.Disk {
 				dl := append(append(L{}, l...), "disk_path", d.DiskPath)
-				s.Gauge(n("vm_guest_disk_capacity_bytes"), "Capacité d'un système de fichiers de l'invité (via VMware Tools).", float64(d.Capacity), dl)
-				s.Gauge(n("vm_guest_disk_free_bytes"), "Espace libre d'un système de fichiers de l'invité (via VMware Tools).", float64(d.FreeSpace), dl)
+				s.Gauge(n("vm_guest_disk_capacity_bytes"), "Capacity of a guest filesystem (via VMware Tools).", float64(d.Capacity), dl)
+				s.Gauge(n("vm_guest_disk_free_bytes"), "Free space of a guest filesystem (via VMware Tools).", float64(d.FreeSpace), dl)
 			}
 		}
 
@@ -152,17 +152,17 @@ func collectVMs(ctx context.Context, r *Run) error {
 				}
 			})
 		}
-		s.Gauge(n("vm_snapshots"), "Nombre de snapshots de la VM.", float64(count), l)
+		s.Gauge(n("vm_snapshots"), "Number of VM snapshots.", float64(count), l)
 		if !oldest.IsZero() {
-			s.Gauge(n("vm_snapshot_oldest_age_seconds"), "Âge du plus ancien snapshot de la VM.", now.Sub(oldest).Seconds(), l)
-			s.Gauge(n("vm_snapshot_oldest_timestamp_seconds"), "Date de création du plus ancien snapshot.", float64(oldest.Unix()), l)
+			s.Gauge(n("vm_snapshot_oldest_age_seconds"), "Age of the oldest VM snapshot.", now.Sub(oldest).Seconds(), l)
+			s.Gauge(n("vm_snapshot_oldest_timestamp_seconds"), "Creation time of the oldest snapshot.", float64(oldest.Unix()), l)
 		}
 	}
 	if emit {
-		s.Gauge(n("vms_monitored"), "Nombre de VMs supervisées (après filtres).", float64(total), nil)
-		s.Gauge(n("vms_powered_on"), "Nombre de VMs supervisées allumées.", float64(on), nil)
-		s.Gauge(n("vms_templates"), "Nombre de templates dans l'inventaire.", float64(templates), nil)
-		s.Gauge(n("vms_system_managed"), "Nombre de VMs gérées par une solution (vCLS, Supervisor, agents...).", float64(system), nil)
+		s.Gauge(n("vms_monitored"), "Number of monitored VMs (after filters).", float64(total), nil)
+		s.Gauge(n("vms_powered_on"), "Number of monitored powered-on VMs.", float64(on), nil)
+		s.Gauge(n("vms_templates"), "Number of templates in the inventory.", float64(templates), nil)
+		s.Gauge(n("vms_system_managed"), "Number of VMs managed by a solution (vCLS, Supervisor, agents...).", float64(system), nil)
 	}
 	return nil
 }

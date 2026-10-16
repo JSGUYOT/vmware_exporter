@@ -1,13 +1,32 @@
-# Extrait à intégrer dans prometheus.yml
+# Snippet to merge into prometheus.yml
 rule_files:
   - /etc/prometheus/rules/vmware-alerts.yml
 
 scrape_configs:
+  # Option 1: one job scraping every configured vCenter at once.
   - job_name: vmware
-    # L'exporter collecte en arrière-plan (cache) : le scrape est instantané,
-    # un intervalle plus court que 'interval' n'apporte rien.
+    # The exporter collects in the background (cache): the scrape is instant,
+    # so an interval shorter than 'interval' brings nothing.
     scrape_interval: 60s
     scrape_timeout: 30s
     static_configs:
       - targets: ['exporter-host.example.local:9272']
-    # Les séries portent déjà le label "vcenter" : inutile d'utiliser honor_labels.
+    # Series already carry the "vcenter" label: honor_labels is not needed.
+
+  # Option 2: one scrape per vCenter, selected with ?target=<name|host>
+  # (multi-target pattern, like blackbox_exporter). Lets each vCenter get its
+  # own job, interval or relabeling; a vCenter missing from the exporter
+  # configuration returns HTTP 404. Use either option 1 or option 2, not both,
+  # or every series will be ingested twice.
+  # - job_name: vmware-per-vcenter
+  #   scrape_interval: 60s
+  #   scrape_timeout: 30s
+  #   static_configs:
+  #     - targets: [vc8-site-a, vcf9-mgmt]      # names (or host names) from the exporter config
+  #   relabel_configs:
+  #     - source_labels: [__address__]
+  #       target_label: __param_target
+  #     - source_labels: [__param_target]
+  #       target_label: instance
+  #     - target_label: __address__
+  #       replacement: exporter-host.example.local:9272

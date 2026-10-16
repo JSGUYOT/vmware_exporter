@@ -10,8 +10,8 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 )
 
-// Topology est une vue légère de l'arborescence (nom + parent) servant à
-// étiqueter chaque objet avec son datacenter et son cluster.
+// Topology is a lightweight view of the inventory tree (name + parent) used
+// to label each object with its datacenter and cluster.
 type Topology struct {
 	Name   map[string]string
 	Type   map[string]string
@@ -22,7 +22,7 @@ func newTopology() *Topology {
 	return &Topology{Name: map[string]string{}, Type: map[string]string{}, Parent: map[string]types.ManagedObjectReference{}}
 }
 
-// Datacenter remonte l'arborescence jusqu'au Datacenter.
+// Datacenter walks up the tree to the Datacenter.
 func (t *Topology) Datacenter(moid string) string {
 	for i := 0; i < 64 && moid != ""; i++ {
 		if t.Type[moid] == "Datacenter" {
@@ -37,7 +37,7 @@ func (t *Topology) Datacenter(moid string) string {
 	return ""
 }
 
-// ClusterOfHost renvoie le nom du cluster d'un ESX ("" si autonome).
+// ClusterOfHost returns the cluster name of a host ("" if standalone).
 func (t *Topology) ClusterOfHost(hostMoid string) string {
 	p, ok := t.Parent[hostMoid]
 	if ok && p.Type == "ClusterComputeResource" {
@@ -46,7 +46,7 @@ func (t *Topology) ClusterOfHost(hostMoid string) string {
 	return ""
 }
 
-// ClusterOfPool renvoie le cluster propriétaire d'un resource pool / vApp.
+// ClusterOfPool returns the cluster that owns a resource pool / vApp.
 func (t *Topology) ClusterOfPool(moid string) string {
 	for i := 0; i < 64 && moid != ""; i++ {
 		switch t.Type[moid] {
@@ -64,7 +64,7 @@ func (t *Topology) ClusterOfPool(moid string) string {
 	return ""
 }
 
-// loadTopology charge nom+parent des conteneurs et ESX.
+// loadTopology loads name+parent of containers and hosts.
 func (r *Run) loadTopology(ctx context.Context) error {
 	var oc []types.ObjectContent
 	kinds := []string{"Datacenter", "Folder", "ClusterComputeResource", "ComputeResource", "HostSystem", "ResourcePool", "VirtualApp", "StoragePod"}
@@ -90,20 +90,20 @@ func (r *Run) loadTopology(ctx context.Context) error {
 	return nil
 }
 
-// retrieve interroge le ContainerView de la collecte.
+// retrieve queries the collection's ContainerView.
 //
-//   - Si une propriété n'existe pas dans la version d'API du vCenter
-//     (InvalidProperty, typiquement ajoutée ou retirée entre 8.x et 9.x), elle est
-//     retirée et la requête rejouée : la collecte se dégrade au lieu d'échouer.
-//   - Si une propriété est manquante sur un objet précis (MissingSet : droits sur
-//     cet objet, ESX injoignable pour un chemin config.*...), seul ce champ est
-//     ignoré pour cet objet ; les autres objets ne sont pas impactés.
+//   - If a property does not exist in the vCenter API version (InvalidProperty,
+//     typically added or removed between 8.x and 9.x), it is dropped and the
+//     request is replayed: collection degrades instead of failing.
+//   - If a property is missing on a specific object (MissingSet: privileges on
+//     that object, host unreachable for a config.* path...), only that field is
+//     skipped for that object; other objects are unaffected.
 func (r *Run) retrieve(ctx context.Context, kinds, props []string, dst any) error {
 	ps := append([]string{}, props...)
 	var oc []types.ObjectContent
 	for attempt := 0; ; attempt++ {
 		if attempt >= 8 {
-			return fmt.Errorf("trop de propriétés invalides pour %v", kinds)
+			return fmt.Errorf("too many invalid properties for %v", kinds)
 		}
 		oc = nil
 		err := r.View.Retrieve(ctx, kinds, ps, &oc)
@@ -114,7 +114,7 @@ func (r *Run) retrieve(ctx context.Context, kinds, props []string, dst any) erro
 		if bad == "" {
 			return err
 		}
-		r.Log.Warn("propriété non supportée par cette version de vCenter, ignorée",
+		r.Log.Warn("property not supported by this vCenter version, skipped",
 			"property", bad, "kinds", strings.Join(kinds, ","), "api", r.Client.APIVersion)
 		r.unsupported.Add(1)
 		ps = remove(ps, bad)
@@ -131,7 +131,7 @@ func (r *Run) retrieve(ctx context.Context, kinds, props []string, dst any) erro
 			if m.Fault.Fault != nil {
 				fault = fmt.Sprintf("%T", m.Fault.Fault)
 			}
-			r.Log.Debug("propriété indisponible sur un objet, ignorée",
+			r.Log.Debug("property unavailable on an object, skipped",
 				"object", oc[i].Obj.Value, "property", m.Path, "fault", fault)
 		}
 		r.missing.Add(int64(len(oc[i].MissingSet)))
@@ -165,7 +165,7 @@ func remove(list []string, bad string) []string {
 		}
 	}
 	if len(out) == len(list) {
-		// propriété fautive non trouvée telle quelle : retire les chemins qui la contiennent
+		// offending property not found verbatim: drop the paths that contain it
 		out = out[:0]
 		for _, p := range list {
 			if !strings.Contains(p, bad) {

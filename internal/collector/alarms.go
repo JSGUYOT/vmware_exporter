@@ -9,12 +9,12 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 )
 
-// collectAlarms remonte toutes les alarmes vCenter actives.
+// collectAlarms reports every active vCenter alarm.
 //
-// triggeredAlarmState est propagé vers les parents : celui du rootFolder
-// contient donc l'ensemble des alarmes déclenchées de l'inventaire (VM, ESX,
-// datastores, clusters, réseaux, vSAN...). Une seule lecture suffit, quel que
-// soit le nombre d'objets, et cela marche à l'identique en 8.x et 9.x.
+// triggeredAlarmState propagates up to parents, so the rootFolder's one holds
+// every triggered alarm in the inventory (VMs, hosts, datastores, clusters,
+// networks, vSAN...). A single read is enough regardless of the object count,
+// and it behaves identically on 8.x and 9.x.
 func collectAlarms(ctx context.Context, r *Run) error {
 	var root mo.Folder
 	pc := property.DefaultCollector(r.Vim)
@@ -23,7 +23,7 @@ func collectAlarms(ctx context.Context, r *Run) error {
 	}
 	states := root.TriggeredAlarmState
 
-	// Résolution des noms d'alarmes et d'entités en lot.
+	// Resolve alarm and entity names in bulk.
 	alarmRefs := map[types.ManagedObjectReference]bool{}
 	entityRefs := map[types.ManagedObjectReference]bool{}
 	for _, st := range states {
@@ -90,11 +90,11 @@ func collectAlarms(ctx context.Context, r *Run) error {
 			"entity", ename, "entity_type", st.Entity.Type, "entity_moid", st.Entity.Value,
 			"datacenter", dc, "status", status, "acknowledged", ack,
 		}
-		r.Sink.Gauge(n("alarm_triggered"), "Alarme vCenter active sur une entité, valeur = sévérité"+statusHelp+".", statusValue(st.OverallStatus), l)
-		r.Sink.Gauge(n("alarm_triggered_timestamp_seconds"), "Horodatage de déclenchement de l'alarme vCenter.", float64(st.Time.Unix()), l)
+		r.Sink.Gauge(n("alarm_triggered"), "Active vCenter alarm on an entity, value = severity"+statusHelp+".", statusValue(st.OverallStatus), l)
+		r.Sink.Gauge(n("alarm_triggered_timestamp_seconds"), "Time the vCenter alarm was triggered.", float64(st.Time.Unix()), l)
 	}
 	for s, c := range byStatus {
-		r.Sink.Gauge(n("alarms_active"), "Nombre d'alarmes vCenter actives par sévérité.", float64(c), L{"status", s})
+		r.Sink.Gauge(n("alarms_active"), "Number of active vCenter alarms by severity.", float64(c), L{"status", s})
 	}
 	return nil
 }

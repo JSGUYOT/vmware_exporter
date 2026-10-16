@@ -1,5 +1,5 @@
-// Package vsphere gère la connexion SOAP (govmomi) et REST (/api) à un vCenter
-// 8.x ou 9.x (VCF 9), avec négociation de version et reconnexion automatique.
+// Package vsphere manages the SOAP (govmomi) and REST (/api) connections to a
+// vCenter 8.x or 9.x (VCF 9), with version negotiation and automatic reconnection.
 package vsphere
 
 import (
@@ -22,7 +22,7 @@ import (
 	"github.com/example/vmware-exporter/internal/config"
 )
 
-// Client encapsule une session vim25 réutilisable entre deux collectes.
+// Client wraps a vim25 session that is reused across collections.
 type Client struct {
 	cfg *config.Target
 	log *slog.Logger
@@ -31,51 +31,51 @@ type Client struct {
 	vim  *vim25.Client
 	rest *RESTClient
 
-	// Version API vim25 négociée (ex "8.0.3.0", "9.0.0.0").
+	// Negotiated vim25 API version (e.g. "8.0.3.0", "9.0.0.0").
 	APIVersion string
 }
 
-// New crée un client non connecté.
+// New creates an unconnected client.
 func New(cfg *config.Target, log *slog.Logger) *Client {
 	return &Client{cfg: cfg, log: log}
 }
 
-// TLSConfig construit la configuration TLS commune SOAP/REST.
+// TLSConfig builds the TLS configuration shared by SOAP and REST.
 func TLSConfig(cfg *config.Target) (*tls.Config, error) {
-	tc := &tls.Config{MinVersion: tls.VersionTLS12, InsecureSkipVerify: *cfg.InsecureSkipVerify} //nolint:gosec // choix explicite de l'utilisateur
+	tc := &tls.Config{MinVersion: tls.VersionTLS12, InsecureSkipVerify: *cfg.InsecureSkipVerify} //nolint:gosec // explicit user choice
 	if cfg.TLSMinVersion == "1.3" {
 		tc.MinVersion = tls.VersionTLS13
 	}
 	if cfg.CAFile != "" {
 		pem, err := os.ReadFile(cfg.CAFile)
 		if err != nil {
-			return nil, fmt.Errorf("lecture ca_file: %w", err)
+			return nil, fmt.Errorf("reading ca_file: %w", err)
 		}
 		pool := x509.NewCertPool()
 		if !pool.AppendCertsFromPEM(pem) {
-			return nil, fmt.Errorf("ca_file %s: aucun certificat PEM valide", cfg.CAFile)
+			return nil, fmt.Errorf("ca_file %s: no valid PEM certificate", cfg.CAFile)
 		}
 		tc.RootCAs = pool
 	}
 	return tc, nil
 }
 
-// Get renvoie un client vim25 authentifié, en (re)connectant si nécessaire.
+// Get returns an authenticated vim25 client, (re)connecting if needed.
 func (c *Client) Get(ctx context.Context) (*vim25.Client, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.vim != nil {
-		// Vérifie que la session est toujours valide (expiration, redémarrage vpxd...).
+		// Check that the session is still valid (expiry, vpxd restart...).
 		us, err := session.NewManager(c.vim).UserSession(ctx)
 		switch {
 		case err == nil && us != nil:
 			return c.vim, nil
 		case err != nil && !IsAuthError(err):
-			// Erreur transitoire (réseau, timeout) : on garde la session pour ne pas
-			// accumuler de sessions orphelines côté vpxd.
-			return nil, fmt.Errorf("vérification de session: %w", err)
+			// Transient error (network, timeout): keep the session so as not to
+			// pile up orphaned sessions on the vpxd side.
+			return nil, fmt.Errorf("session check: %w", err)
 		}
-		c.log.Info("session vCenter expirée ou invalide, reconnexion", "err", err)
+		c.log.Info("vCenter session expired or invalid, reconnecting", "err", err)
 		c.vim = nil
 	}
 	vc, err := c.connect(ctx)
@@ -99,30 +99,30 @@ func (c *Client) connect(ctx context.Context) (*vim25.Client, error) {
 	sc.DefaultTransport().TLSClientConfig = mergeTLS(sc.DefaultTransport().TLSClientConfig, tc)
 	sc.Timeout = c.cfg.Timeout
 
-	// Négociation de version : govmomi parle par défaut la dernière API connue
-	// (9.1). Un vCenter 8 doit recevoir sa propre version, d'où la lecture de
-	// /sdk/vimServiceVersions.xml (présent en 8.x et 9.x).
+	// Version negotiation: by default govmomi speaks the latest known API
+	// (9.1). A vCenter 8 must be sent its own version, hence reading
+	// /sdk/vimServiceVersions.xml (present in 8.x and 9.x).
 	if c.cfg.ForceAPIVersion != "" {
 		sc.Version = c.cfg.ForceAPIVersion
 	} else if err := sc.UseServiceVersion(); err != nil {
-		c.log.Warn("négociation de version impossible, utilisation de la version par défaut govmomi", "err", err, "default", vim25.Version)
+		c.log.Warn("version negotiation failed, falling back to the govmomi default version", "err", err, "default", vim25.Version)
 	}
 
 	vc, err := vim25.NewClient(ctx, sc)
 	if err != nil {
-		return nil, fmt.Errorf("connexion %s: %w", u.Host, err)
+		return nil, fmt.Errorf("connecting to %s: %w", u.Host, err)
 	}
 	if !vc.IsVC() {
-		c.log.Warn("la cible n'est pas un vCenter (ESX autonome) : alarmes, clusters et vSAN seront limités")
+		c.log.Warn("target is not a vCenter (standalone ESX): alarms, clusters and vSAN will be limited")
 	}
 	if err := session.NewManager(vc).Login(ctx, url.UserPassword(c.cfg.Username, c.cfg.Password)); err != nil {
-		return nil, fmt.Errorf("authentification sur %s refusée pour %s: %w", u.Host, c.cfg.Username, err)
+		return nil, fmt.Errorf("authentication to %s rejected for %s: %w", u.Host, c.cfg.Username, err)
 	}
 	c.APIVersion = sc.Version
 	if sc.Version == "" {
 		c.APIVersion = vc.ServiceContent.About.ApiVersion
 	}
-	c.log.Info("connecté au vCenter",
+	c.log.Info("connected to vCenter",
 		"product", vc.ServiceContent.About.FullName,
 		"api_version_server", vc.ServiceContent.About.ApiVersion,
 		"api_version_used", c.APIVersion)
@@ -141,7 +141,7 @@ func mergeTLS(dst, src *tls.Config) *tls.Config {
 	return dst
 }
 
-// REST renvoie un client REST /api authentifié (sessions séparées de SOAP).
+// REST returns an authenticated /api REST client (sessions separate from SOAP).
 func (c *Client) REST(ctx context.Context) (*RESTClient, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -155,7 +155,7 @@ func (c *Client) REST(ctx context.Context) (*RESTClient, error) {
 	return c.rest, nil
 }
 
-// Logout ferme proprement les sessions.
+// Logout cleanly closes the sessions.
 func (c *Client) Logout(ctx context.Context) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -169,14 +169,14 @@ func (c *Client) Logout(ctx context.Context) {
 	}
 }
 
-// Invalidate force une reconnexion au prochain Get (erreur d'auth détectée).
+// Invalidate forces a reconnection on the next Get (auth error detected).
 func (c *Client) Invalidate() {
 	c.mu.Lock()
 	c.vim = nil
 	c.mu.Unlock()
 }
 
-// IsAuthError détecte une session expirée côté SOAP.
+// IsAuthError detects an expired SOAP session.
 func IsAuthError(err error) bool {
 	if err == nil {
 		return false
@@ -189,14 +189,14 @@ func IsAuthError(err error) bool {
 	return strings.Contains(err.Error(), "NotAuthenticated")
 }
 
-// MajorVersion extrait le majeur d'une version "9.0.0.0" -> 9.
+// MajorVersion extracts the major number of a version: "9.0.0.0" -> 9.
 func MajorVersion(v string) int {
 	var m int
 	_, _ = fmt.Sscanf(v, "%d", &m)
 	return m
 }
 
-// CertificateExpiry lit la date d'expiration du certificat TLS présenté par le vCenter.
+// CertificateExpiry reads the expiry date of the TLS certificate presented by the vCenter.
 func CertificateExpiry(ctx context.Context, cfg *config.Target) (time.Time, error) {
 	u, err := url.Parse(cfg.URL)
 	if err != nil {
@@ -206,7 +206,7 @@ func CertificateExpiry(ctx context.Context, cfg *config.Target) (time.Time, erro
 	if u.Port() == "" {
 		host += ":443"
 	}
-	d := &tls.Dialer{Config: &tls.Config{InsecureSkipVerify: true, ServerName: u.Hostname()}} //nolint:gosec // lecture seule du certificat
+	d := &tls.Dialer{Config: &tls.Config{InsecureSkipVerify: true, ServerName: u.Hostname()}} //nolint:gosec // certificate is only read
 	cctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	conn, err := d.DialContext(cctx, "tcp", host)
@@ -216,7 +216,7 @@ func CertificateExpiry(ctx context.Context, cfg *config.Target) (time.Time, erro
 	defer conn.Close()
 	st := conn.(*tls.Conn).ConnectionState()
 	if len(st.PeerCertificates) == 0 {
-		return time.Time{}, fmt.Errorf("aucun certificat présenté")
+		return time.Time{}, fmt.Errorf("no certificate presented")
 	}
 	return st.PeerCertificates[0].NotAfter, nil
 }

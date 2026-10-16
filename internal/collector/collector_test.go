@@ -38,7 +38,7 @@ func testLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: lv}))
 }
 
-// newModel crée un vCenter simulé annonçant la version donnée (8.0.3 ou 9.0.0).
+// newModel creates a simulated vCenter advertising the given version (8.0.3 or 9.0.0).
 func newModel(t *testing.T, version, apiVersion string) (*simulator.Model, *simulator.Server) {
 	t.Helper()
 	m := simulator.VPX()
@@ -172,7 +172,7 @@ func triggerVMAlarm(t *testing.T, s *simulator.Server) {
 	}
 }
 
-// TestCompatibilityMatrix exécute une collecte complète contre un vCenter 8 et un vCenter 9 simulés.
+// TestCompatibilityMatrix runs a full collection against simulated vCenter 8 and vCenter 9.
 func TestCompatibilityMatrix(t *testing.T) {
 	cases := []struct{ name, version, api string }{
 		{"vCenter-8.0U3", "8.0.3", "8.0.3.0"},
@@ -189,31 +189,31 @@ func TestCompatibilityMatrix(t *testing.T) {
 			g := gather(t, tg)
 
 			if v := g.find("vmware_up", nil); len(v) != 1 || value(v[0]) != 1 {
-				t.Fatalf("vmware_up attendu à 1")
+				t.Fatalf("expected vmware_up to be 1")
 			}
 			info := g.find("vmware_vcenter_info", nil)
 			if len(info) != 1 {
-				t.Fatalf("vmware_vcenter_info absent")
+				t.Fatalf("vmware_vcenter_info missing")
 			}
 			if got := label(info[0], "api_version_used"); got != tc.api {
-				t.Errorf("négociation: api_version_used=%q, attendu %q", got, tc.api)
+				t.Errorf("negotiation: api_version_used=%q, want %q", got, tc.api)
 			}
 			if got := label(info[0], "site"); got != "lab" {
-				t.Errorf("extra_labels non appliqué: %q", got)
+				t.Errorf("extra_labels not applied: %q", got)
 			}
 			for _, m := range g.find("vmware_collector_success", nil) {
 				if value(m) != 1 {
-					t.Errorf("collecteur %s en échec", label(m, "collector"))
+					t.Errorf("collector %s failed", label(m, "collector"))
 				}
 			}
 			if u := g.find("vmware_exporter_unsupported_properties", nil); len(u) == 1 && value(u[0]) != 0 {
-				t.Errorf("%v propriétés rejetées par le simulateur", value(u[0]))
+				t.Errorf("%v properties rejected by the simulator", value(u[0]))
 			}
 			al := g.find("vmware_alarm_triggered", map[string]string{"alarm": "vcsim VM Alarm", "entity": "DC0_C0_RP0_VM0", "status": "red"})
 			if len(al) != 1 || value(al[0]) != 3 {
-				t.Errorf("alarme vCenter rouge non remontée (%d séries)", len(al))
+				t.Errorf("red vCenter alarm not reported (%d series)", len(al))
 			} else if label(al[0], "datacenter") != "DC0" {
-				t.Errorf("datacenter de l'alarme = %q", label(al[0], "datacenter"))
+				t.Errorf("alarm datacenter = %q", label(al[0], "datacenter"))
 			}
 			mustHave := []string{
 				"vmware_cluster_overall_status", "vmware_cluster_cpu_total_mhz", "vmware_cluster_ha_enabled",
@@ -226,26 +226,26 @@ func TestCompatibilityMatrix(t *testing.T) {
 			}
 			for _, name := range mustHave {
 				if _, ok := g.fams[name]; !ok {
-					t.Errorf("métrique %s absente", name)
+					t.Errorf("metric %s missing", name)
 				}
 			}
 			vm := g.find("vmware_vm_power_state", map[string]string{"vm": "DC0_C0_RP0_VM0"})
 			if len(vm) != 1 || label(vm[0], "datacenter") != "DC0" || label(vm[0], "host") != "" || label(vm[0], "cluster") != "" {
-				t.Errorf("labels VM attendus stables (sans host/cluster): %v", vm)
+				t.Errorf("expected stable VM labels (no host/cluster): %v", vm)
 			}
 			vi := g.find("vmware_vm_info", map[string]string{"vm": "DC0_C0_RP0_VM0"})
 			if len(vi) != 1 || label(vi[0], "cluster") != "DC0_C0" || label(vi[0], "host") == "" {
-				t.Errorf("vmware_vm_info doit porter cluster/host: %v", vi)
+				t.Errorf("vmware_vm_info must carry cluster/host: %v", vi)
 			}
 			h := g.find("vmware_host_connection_state", map[string]string{"cluster": ""})
 			if len(h) == 0 {
-				t.Errorf("ESX autonome (sans cluster) non remonté")
+				t.Errorf("standalone host (no cluster) not reported")
 			}
 		})
 	}
 }
 
-// TestLint vérifie les conventions de nommage Prometheus.
+// TestLint checks Prometheus naming conventions.
 func TestLint(t *testing.T) {
 	_, s := newModel(t, "9.0.0", "9.0.0.0")
 	cfg := targetFor(t, s, func(c *config.Target) { c.Collectors.Appliance = boolp(false) })
@@ -262,8 +262,8 @@ func TestLint(t *testing.T) {
 	}
 }
 
-// TestInvalidPropertyFallback vérifie l'analyse d'un fault InvalidProperty
-// (renvoyé par un vrai vCenter quand une propriété n'existe pas dans sa version d'API).
+// TestInvalidPropertyFallback checks parsing of an InvalidProperty fault
+// (returned by a real vCenter when a property does not exist in its API version).
 func TestInvalidPropertyFallback(t *testing.T) {
 	f := &soap.Fault{Code: "ServerFaultCode", String: "InvalidProperty"}
 	f.Detail.Fault = types.InvalidProperty{Name: "summary.newIn91"}
@@ -277,11 +277,11 @@ func TestInvalidPropertyFallback(t *testing.T) {
 	}
 	got = remove([]string{"name", "config.network", "config.network.pnic"}, "config.network")
 	if strings.Join(got, ",") != "name" {
-		t.Fatalf("remove sous-chemins=%v", got)
+		t.Fatalf("remove sub-paths=%v", got)
 	}
 }
 
-// TestSessionRecovery vérifie la reconnexion automatique après expiration de session.
+// TestSessionRecovery checks automatic reconnection after session expiry.
 func TestSessionRecovery(t *testing.T) {
 	_, s := newModel(t, "9.0.0", "9.0.0.0")
 	cfg := targetFor(t, s, func(c *config.Target) { c.Collectors.Appliance = boolp(false) })
@@ -289,18 +289,18 @@ func TestSessionRecovery(t *testing.T) {
 	ctx := context.Background()
 	tg.collectOnce(ctx)
 	vc, _ := tg.client.Get(ctx)
-	// Simule un redémarrage vpxd : la session courante est détruite côté serveur.
+	// Simulate a vpxd restart: the current session is destroyed server-side.
 	if err := (&sessionKiller{}).kill(ctx, vc); err != nil {
 		t.Fatal(err)
 	}
 	tg.collectOnce(ctx)
 	g := gather(t, tg)
 	if v := g.find("vmware_up", nil); len(v) != 1 || value(v[0]) != 1 {
-		t.Fatalf("pas de reconnexion après expiration de session")
+		t.Fatalf("no reconnection after session expiry")
 	}
 }
 
-// TestUnreachable vérifie qu'un vCenter injoignable donne vmware_up=0 sans planter.
+// TestUnreachable checks that an unreachable vCenter yields vmware_up=0 without crashing.
 func TestUnreachable(t *testing.T) {
 	yml := `
 targets:
@@ -319,14 +319,14 @@ targets:
 	tg.collectOnce(context.Background())
 	g := gather(t, tg)
 	if v := g.find("vmware_up", nil); len(v) != 1 || value(v[0]) != 0 {
-		t.Fatalf("vmware_up attendu à 0")
+		t.Fatalf("expected vmware_up to be 0")
 	}
 	if v := g.find("vmware_collection_failures_total", nil); len(v) != 1 || value(v[0]) != 1 {
-		t.Fatalf("compteur d'échec attendu à 1")
+		t.Fatalf("expected failure counter to be 1")
 	}
 }
 
-// TestAppliance simule l'API REST /api d'une appliance vCenter.
+// TestAppliance simulates the /api REST API of a vCenter appliance.
 func TestAppliance(t *testing.T) {
 	_, s := newModel(t, "9.0.0", "9.0.0.0")
 	logins := 0
@@ -350,7 +350,7 @@ func TestAppliance(t *testing.T) {
 		case r.URL.Path == "/api/appliance/health/system":
 			_, _ = io.WriteString(w, `"orange"`)
 		case r.URL.Path == "/api/appliance/health/database-storage":
-			w.WriteHeader(http.StatusNotFound) // absent sur cette version
+			w.WriteHeader(http.StatusNotFound) // not available on this version
 		case strings.HasPrefix(r.URL.Path, "/api/appliance/health/"):
 			_, _ = io.WriteString(w, `"green"`)
 		case r.URL.Path == "/api/appliance/system/version":
@@ -374,7 +374,7 @@ func TestAppliance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Le REST pointe vers le faux serveur /api.
+	// Point REST at the fake /api server.
 	restCfg := *cfg
 	restCfg.URL = api.URL + "/sdk"
 	r := &Run{Cfg: cfg, Log: testLogger(), Vim: vc, Sink: NewSink("vc-test", nil)}
@@ -405,11 +405,11 @@ func TestAppliance(t *testing.T) {
 	}
 	for k, want := range checks {
 		if got, ok := mt[k]; !ok || got != want {
-			t.Errorf("%s = %v (présent=%v), attendu %v", k, got, ok, want)
+			t.Errorf("%s = %v (present=%v), want %v", k, got, ok, want)
 		}
 	}
 	if logins != 1 {
-		t.Errorf("sessions REST ouvertes: %d, attendu 1 (réutilisation)", logins)
+		t.Errorf("REST sessions opened: %d, want 1 (reuse)", logins)
 	}
 }
 
@@ -445,10 +445,34 @@ func TestPerfAggregate(t *testing.T) {
 	for rollup, want := range cases {
 		got, ok := aggregate(vals, rollup)
 		if !ok || got != want {
-			t.Errorf("%s: %v, attendu %v", rollup, got, want)
+			t.Errorf("%s: %v, want %v", rollup, got, want)
 		}
 	}
 	if _, ok := aggregate([]int64{-1, -1}, types.PerfSummaryTypeAverage); ok {
-		t.Errorf("série vide doit être ignorée")
+		t.Errorf("empty series must be skipped")
+	}
+}
+
+func TestLookup(t *testing.T) {
+	cfgs := []config.Target{
+		{Name: "vc8-site-a", URL: "https://vcenter-a.example.local/sdk"},
+		{Name: "vcf9-mgmt", URL: "https://vcf9-mgmt-vc.example.local/sdk"},
+	}
+	e := &Exporter{}
+	for i := range cfgs {
+		e.Targets = append(e.Targets, NewTarget(&cfgs[i], testLogger()))
+	}
+	for s, want := range map[string]string{
+		"vc8-site-a": "vc8-site-a", "VCF9-MGMT": "vcf9-mgmt",
+		"vcenter-a.example.local": "vc8-site-a", "vcf9-mgmt-vc.example.local": "vcf9-mgmt",
+		"unknown": "", "https://vcenter-a.example.local/sdk": "",
+	} {
+		got := ""
+		if tg := e.Lookup(s); tg != nil {
+			got = tg.Name()
+		}
+		if got != want {
+			t.Errorf("Lookup(%q) = %q, want %q", s, got, want)
+		}
 	}
 }
