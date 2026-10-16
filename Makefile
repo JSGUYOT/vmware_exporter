@@ -1,11 +1,21 @@
-# Construction hors ligne : toutes les dépendances sont dans vendor/.
+# Dependency source, chosen at build time:
+#   make build               -> DEPS=vendor (default): vendor/ only, no network access
+#   make build DEPS=online   -> modules downloaded from the Go proxy (proxy.golang.org
+#                               or $$GOPROXY), checked against go.sum; vendor/ is ignored
+DEPS ?= vendor
 BINARY  := vmware-exporter
 VERSION ?= 1.0.0
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo local)
 LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT)
+ifeq ($(DEPS),vendor)
 GOFLAGS := -mod=vendor -trimpath
+else ifeq ($(DEPS),online)
+GOFLAGS := -mod=readonly -trimpath
+else
+$(error DEPS must be "vendor" or "online", got "$(DEPS)")
+endif
 
-.PHONY: build build-windows test lint check-rules test-rules sim clean
+.PHONY: build build-windows test lint check-rules test-rules sim vendor clean
 
 build:
 	CGO_ENABLED=0 go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o dist/$(BINARY) ./cmd/vmware-exporter
@@ -20,18 +30,23 @@ lint:
 	go vet $(GOFLAGS) ./...
 	test -z "$$(gofmt -l cmd internal hack)"
 
-# Nécessite promtool (fourni avec Prometheus)
+# Requires promtool (shipped with Prometheus)
 check-rules:
-	promtool check rules deploy/prometheus/vmware-alerts.yml
+	promtool check rules deploy/prometheus/vmware-alerts.yml deploy/prometheus/pryorda-alerts.yml
 
 test-rules:
-	cd deploy/prometheus && promtool test rules vmware-alerts.test.yml
+	cd deploy/prometheus && promtool test rules vmware-alerts.test.yml pryorda-alerts.test.yml
 
-# vCenter simulé pour tester sans infrastructure (VERSION_SIM=8.0.3 API_SIM=8.0.3.0)
+# Simulated vCenter for testing without infrastructure (VERSION_SIM=8.0.3 API_SIM=8.0.3.0)
 VERSION_SIM ?= 9.0.0
 API_SIM     ?= 9.0.0.0
 sim:
 	go run $(GOFLAGS) ./hack/vcsim -version $(VERSION_SIM) -api $(API_SIM) -l 127.0.0.1:8989
+
+# Refresh vendor/ after changing dependencies in go.mod (needs network access)
+vendor:
+	go mod tidy
+	go mod vendor
 
 clean:
 	rm -rf dist

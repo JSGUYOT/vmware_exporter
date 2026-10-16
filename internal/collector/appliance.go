@@ -10,7 +10,7 @@ import (
 	"github.com/example/vmware-exporter/internal/vsphere"
 )
 
-// Endpoints de santé de l'appliance vCenter (VAMI) exposés via /api, présents en 8.x et 9.x.
+// vCenter appliance (VAMI) health endpoints exposed via /api, available on 8.x and 9.x.
 var applianceHealth = []string{"system", "load", "mem", "storage", "swap", "database", "database-storage", "applmgmt", "software-packages"}
 
 type vcService struct {
@@ -27,7 +27,7 @@ type backupJob struct {
 	Type      string `json:"type"`
 }
 
-// collectAppliance supervise le vCenter lui-même (santé VAMI, services, sauvegardes).
+// collectAppliance monitors vCenter itself (VAMI health, services, backups).
 func collectAppliance(ctx context.Context, r *Run) error {
 	if !r.Vim.IsVC() {
 		return nil
@@ -44,12 +44,12 @@ func collectAppliance(ctx context.Context, r *Run) error {
 		if err != nil {
 			up = 0
 			if !errors.Is(err, vsphere.ErrNotFound) {
-				r.Log.Debug("endpoint appliance en échec", "endpoint", name, "err", err)
+				r.Log.Debug("appliance endpoint failed", "endpoint", name, "err", err)
 			}
 		} else {
 			okCount++
 		}
-		s.Gauge(n("appliance_endpoint_up"), "1 si l'endpoint REST de l'appliance a répondu (0 = absent sur cette version ou droits insuffisants).", up, L{"endpoint", name})
+		s.Gauge(n("appliance_endpoint_up"), "1 if the appliance REST endpoint responded (0 = not available on this version or insufficient privileges).", up, L{"endpoint", name})
 	}
 
 	for _, h := range applianceHealth {
@@ -57,7 +57,7 @@ func collectAppliance(ctx context.Context, r *Run) error {
 		err := rc.Get(ctx, "/api/appliance/health/"+h, &st)
 		endpoint("health/"+h, err)
 		if err == nil {
-			s.Gauge(n("appliance_health"), "Santé d'un composant de l'appliance vCenter"+statusHelp+" (orange compté comme 2).", healthString(st), L{"component", h})
+			s.Gauge(n("appliance_health"), "Health of a vCenter appliance component"+statusHelp+" (orange counted as 2).", healthString(st), L{"component", h})
 		}
 	}
 
@@ -67,13 +67,13 @@ func collectAppliance(ctx context.Context, r *Run) error {
 	err = rc.Get(ctx, "/api/appliance/system/version", &ver)
 	endpoint("system/version", err)
 	if err == nil {
-		s.Gauge(n("appliance_info"), "Version de l'appliance vCenter (valeur toujours 1).", 1, L{"version", ver.Version, "build", ver.Build, "product", ver.Product, "type", ver.Type})
+		s.Gauge(n("appliance_info"), "vCenter appliance version (value always 1).", 1, L{"version", ver.Version, "build", ver.Build, "product", ver.Product, "type", ver.Type})
 	}
 	var uptime float64
 	err = rc.Get(ctx, "/api/appliance/system/uptime", &uptime)
 	endpoint("system/uptime", err)
 	if err == nil {
-		s.Gauge(n("appliance_uptime_seconds"), "Uptime de l'appliance vCenter.", uptime, nil)
+		s.Gauge(n("appliance_uptime_seconds"), "vCenter appliance uptime.", uptime, nil)
 	}
 
 	services := map[string]vcService{}
@@ -82,8 +82,8 @@ func collectAppliance(ctx context.Context, r *Run) error {
 	if err == nil {
 		for name, sv := range services {
 			l := L{"service", name, "startup_type", strings.ToLower(sv.StartupType)}
-			s.Gauge(n("appliance_service_started"), "1 si le service vCenter est démarré.", b2f(strings.EqualFold(sv.State, "STARTED")), l)
-			h := 0.0 // 0=inconnu 1=healthy 2=warnings 3=degraded
+			s.Gauge(n("appliance_service_started"), "1 if the vCenter service is started.", b2f(strings.EqualFold(sv.State, "STARTED")), l)
+			h := 0.0 // 0=unknown 1=healthy 2=warnings 3=degraded
 			switch strings.ToUpper(sv.Health) {
 			case "HEALTHY":
 				h = 1
@@ -92,7 +92,7 @@ func collectAppliance(ctx context.Context, r *Run) error {
 			case "DEGRADED":
 				h = 3
 			}
-			s.Gauge(n("appliance_service_health"), "Santé du service vCenter (0=inconnu, 1=healthy, 2=warnings, 3=degraded).", h, l)
+			s.Gauge(n("appliance_service_health"), "vCenter service health (0=unknown, 1=healthy, 2=warnings, 3=degraded).", h, l)
 		}
 	}
 
@@ -115,16 +115,16 @@ func collectAppliance(ctx context.Context, r *Run) error {
 				lastOK = end
 			}
 		}
-		s.Gauge(n("appliance_backup_jobs"), "Nombre de jobs de sauvegarde file-based connus.", float64(len(jobs)), nil)
+		s.Gauge(n("appliance_backup_jobs"), "Number of known file-based backup jobs.", float64(len(jobs)), nil)
 		if !lastOK.IsZero() {
-			s.Gauge(n("appliance_backup_last_success_timestamp_seconds"), "Fin de la dernière sauvegarde réussie du vCenter.", float64(lastOK.Unix()), nil)
+			s.Gauge(n("appliance_backup_last_success_timestamp_seconds"), "End time of the last successful vCenter backup.", float64(lastOK.Unix()), nil)
 		}
 		if lastStatus != "" {
-			s.Gauge(n("appliance_backup_last_succeeded"), "1 si la dernière sauvegarde du vCenter a réussi.", b2f(lastStatus == "SUCCEEDED"), nil)
+			s.Gauge(n("appliance_backup_last_succeeded"), "1 if the last vCenter backup succeeded.", b2f(lastStatus == "SUCCEEDED"), nil)
 		}
 	}
 	if okCount == 0 {
-		return fmt.Errorf("aucun endpoint /api de l'appliance accessible (%d essayés) : vérifier droits et accès HTTPS", tried)
+		return fmt.Errorf("no appliance /api endpoint reachable (%d tried): check privileges and HTTPS access", tried)
 	}
 	return nil
 }

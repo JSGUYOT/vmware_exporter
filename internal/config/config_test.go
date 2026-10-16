@@ -37,38 +37,38 @@ targets:
 	}
 	a, b := cfg.Targets[0], cfg.Targets[1]
 	if a.URL != "https://vcenter8.example.local/sdk" || a.Username != "svc-monitoring@vsphere.local" || a.Password != "s3cret" {
-		t.Errorf("cible 1 mal normalisée: %+v", a)
+		t.Errorf("target 1 not normalized correctly: %+v", a)
 	}
 	if a.Interval != 2*time.Minute || a.Timeout != 2*time.Minute-5*time.Second {
-		t.Errorf("intervalle/timeout: %v %v", a.Interval, a.Timeout)
+		t.Errorf("interval/timeout: %v %v", a.Interval, a.Timeout)
 	}
 	if *a.Collectors.VSAN || !*b.Collectors.VSAN || !*a.Collectors.Alarms {
-		t.Errorf("héritage des collecteurs incorrect")
+		t.Errorf("incorrect collector inheritance")
 	}
 	if a.ExtraLabels["site"] != "" || b.ExtraLabels["env"] != "prod" || b.ExtraLabels["site"] != "b" {
 		t.Errorf("extra_labels: %v / %v", a.ExtraLabels, b.ExtraLabels)
 	}
 	if _, ok := a.ExtraLabels["site"]; !ok {
-		t.Errorf("label site non homogénéisé")
+		t.Errorf("site label not propagated to all targets")
 	}
 	if len(a.Perf.VMCounters) == 0 || len(a.Host.Services) == 0 {
-		t.Errorf("valeurs par défaut perf/services manquantes")
+		t.Errorf("missing perf/services defaults")
 	}
 }
 
 func TestParseErrors(t *testing.T) {
 	cases := map[string]string{
-		"sans cible":    `listen_address: ":1"`,
-		"sans mdp":      "targets: [{name: a, url: x, username: u}]",
-		"intervalle":    "targets: [{name: a, url: x, username: u, password: p, interval: 5s}]",
-		"doublon":       "targets: [{name: a, url: x, username: u, password: p}, {name: a, url: y, username: u, password: p}]",
-		"label réservé": "targets: [{name: a, url: x, username: u, password: p, extra_labels: {host: z}}]",
-		"champ inconnu": "targets: [{name: a, url: x, username: u, password: p, passwd: z}]",
-		"regex":         "targets: [{name: a, url: x, username: u, password: p, filters: {vm_exclude: '('}}]",
+		"no target":      `listen_address: ":1"`,
+		"no password":    "targets: [{name: a, url: x, username: u}]",
+		"interval":       "targets: [{name: a, url: x, username: u, password: p, interval: 5s}]",
+		"duplicate":      "targets: [{name: a, url: x, username: u, password: p}, {name: a, url: y, username: u, password: p}]",
+		"reserved label": "targets: [{name: a, url: x, username: u, password: p, extra_labels: {host: z}}]",
+		"unknown field":  "targets: [{name: a, url: x, username: u, password: p, passwd: z}]",
+		"regex":          "targets: [{name: a, url: x, username: u, password: p, filters: {vm_exclude: '('}}]",
 	}
 	for name, y := range cases {
 		if _, err := Parse([]byte(y)); err == nil {
-			t.Errorf("%s: erreur attendue", name)
+			t.Errorf("%s: expected an error", name)
 		}
 	}
 }

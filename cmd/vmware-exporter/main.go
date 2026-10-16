@@ -1,13 +1,15 @@
-// Command vmware-exporter expose au format Prometheus l'état complet d'un ou
-// plusieurs vCenter 8.x / 9.x (VCF 9) : ressources, santé et alarmes.
+// Command vmware-exporter exposes, in Prometheus format, the full state of one
+// or more vCenter 8.x / 9.x (VCF 9) servers: resources, health and alarms.
 package main
 
 import (
 	"context"
 	"flag"
 	"fmt"
+	"html"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -29,9 +31,9 @@ var (
 )
 
 func main() {
-	cfgPath := flag.String("config.file", "/etc/vmware-exporter/config.yml", "Fichier de configuration YAML.")
-	check := flag.Bool("config.check", false, "Valide la configuration puis quitte.")
-	showVersion := flag.Bool("version", false, "Affiche la version.")
+	cfgPath := flag.String("config.file", "/etc/vmware-exporter/config.yml", "YAML configuration file.")
+	check := flag.Bool("config.check", false, "Validate the configuration and exit.")
+	showVersion := flag.Bool("version", false, "Print the version.")
 	flag.Parse()
 
 	if *showVersion {
@@ -41,15 +43,15 @@ func main() {
 
 	cfg, err := config.Load(*cfgPath)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "configuration invalide:", err)
+		fmt.Fprintln(os.Stderr, "invalid configuration:", err)
 		os.Exit(1)
 	}
 	if *check {
-		fmt.Printf("configuration OK : %d vCenter(s)\n", len(cfg.Targets))
+		fmt.Printf("configuration OK: %d vCenter(s)\n", len(cfg.Targets))
 		return
 	}
 	log := newLogger(cfg.LogLevel, cfg.LogFormat)
-	log.Info("démarrage de vmware-exporter", "version", version, "targets", len(cfg.Targets), "listen", cfg.ListenAddress)
+	log.Info("starting vmware-exporter", "version", version, "targets", len(cfg.Targets), "listen", cfg.ListenAddress)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -66,22 +68,53 @@ func main() {
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 		prometheus.NewGaugeFunc(prometheus.GaugeOpts{
-			Name: "vmware_exporter_build_info", Help: "Version de l'exporter (valeur toujours 1).",
+			Name: "vmware_exporter_build_info", Help: "Exporter version (value is always 1).",
 			ConstLabels: prometheus.Labels{"version": version, "commit": commit, "govmomi_api": vim25.Version},
 		}, func() float64 { return 1 }),
 	)
 
+	opts := promhttp.HandlerOpts{ErrorLog: slog.NewLogLogger(log.Handler(), slog.LevelError), ErrorHandling: promhttp.ContinueOnError}
+	all := promhttp.HandlerFor(reg, opts)
 	mux := http.NewServeMux()
-	mux.Handle(cfg.TelemetryPath, promhttp.HandlerFor(reg, promhttp.HandlerOpts{ErrorLog: slog.NewLogLogger(log.Handler(), slog.LevelError), ErrorHandling: promhttp.ContinueOnError}))
+	mux.HandleFunc(cfg.TelemetryPath, func(w http.ResponseWriter, r *http.Request) {
+		// ?target=<name|host> (repeatable, comma-separated) or ?vsphere_host=<host>
+		// (pryorda/vmware_exporter compatible) restricts the response to some vCenters.
+		q := r.URL.Query()
+		var names []string
+		for _, v := range append(q["target"], q["vsphere_host"]...) {
+			for _, s := range strings.Split(v, ",") {
+				if s = strings.TrimSpace(s); s != "" {
+					names = append(names, s)
+				}
+			}
+		}
+		if len(names) == 0 {
+			all.ServeHTTP(w, r)
+			return
+		}
+		sub := &collector.Exporter{}
+		for _, s := range names {
+			t := exp.Lookup(s)
+			if t == nil {
+				http.Error(w, fmt.Sprintf("unknown target %q: not in the configuration", s), http.StatusNotFound)
+				return
+			}
+			sub.Targets = append(sub.Targets, t)
+		}
+		sreg := prometheus.NewRegistry()
+		sreg.MustRegister(sub)
+		promhttp.HandlerFor(sreg, opts).ServeHTTP(w, r)
+	})
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok\n")) })
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		var b strings.Builder
 		for _, t := range cfg.Targets {
-			fmt.Fprintf(&b, "<li>%s (intervalle %s)</li>", t.Name, t.Interval)
+			fmt.Fprintf(&b, `<li><a href="%s?target=%s">%s</a> (interval %s)</li>`,
+				cfg.TelemetryPath, url.QueryEscape(t.Name), html.EscapeString(t.Name), t.Interval)
 		}
 		fmt.Fprintf(w, `<html><head><title>VMware Exporter</title></head><body><h1>VMware Exporter %s</h1>
-<p><a href="%s">Métriques</a></p><ul>%s</ul></body></html>`, version, cfg.TelemetryPath, b.String())
+<p><a href="%s">Metrics (all vCenters)</a></p><ul>%s</ul></body></html>`, version, cfg.TelemetryPath, b.String())
 	})
 
 	srv := &http.Server{Addr: cfg.ListenAddress, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
@@ -97,11 +130,11 @@ func main() {
 		err = srv.ListenAndServe()
 	}
 	if err != nil && err != http.ErrServerClosed {
-		log.Error("serveur HTTP arrêté", "err", err)
+		log.Error("HTTP server stopped", "err", err)
 		os.Exit(1)
 	}
-	time.Sleep(500 * time.Millisecond) // laisse les logout se terminer
-	log.Info("arrêt")
+	time.Sleep(500 * time.Millisecond) // let logouts complete
+	log.Info("stopped")
 }
 
 func newLogger(level, format string) *slog.Logger {

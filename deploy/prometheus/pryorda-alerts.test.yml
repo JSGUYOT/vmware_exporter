@@ -1,0 +1,53 @@
+# Unit tests of the pryorda-compatible rules: promtool test rules pryorda-alerts.test.yml
+rule_files:
+  - pryorda-alerts.yml
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'vmware_vm_mem_usage_average{instance="vc1",vm_name="app01"}'
+        values: '9200x40'   # 92 % (hundredths of a percent)
+      - series: 'vmware_vm_mem_usage_average{instance="vc1",vm_name="db01"}'
+        values: '9700x40'   # 97 %
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: VMWarnMemoryUsage
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: vc1, vm_name: app01}
+            exp_annotations:
+              title: 'High memory usage on vc1: 92.00%'
+      - eval_time: 10m
+        alertname: VMCritMemoryUsage
+        exp_alerts:
+          - exp_labels: {severity: critical, instance: vc1, vm_name: db01}
+            exp_annotations:
+              title: 'Very High memory usage on vc1: 97.00%'
+
+  - interval: 1m
+    input_series:
+      - series: 'vmware_vm_snapshots{instance="vc1",vm_name="app01"}'
+        values: '1x40'
+      - series: 'vmware_vm_snapshots{instance="vc1",vm_name="db01"}'
+        values: '4x40'
+      # created at t=0, evaluated 8 days later
+      - series: 'vmware_vm_snapshot_timestamp_seconds{instance="vc1",vm_name="app01",vm_snapshot_name="before-upgrade"}'
+        values: '0+0x11530'
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: VMWarnNumberSnapshots
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: vc1, vm_name: app01}
+            exp_annotations:
+              title: 'High snapshots number on vc1: 1'
+      - eval_time: 35m
+        alertname: VMCritNumberSnapshots
+        exp_alerts:
+          - exp_labels: {severity: critical, instance: vc1, vm_name: db01}
+            exp_annotations:
+              title: 'Very high snapshot number on vc1: 4'
+      - eval_time: 8d
+        alertname: VMWarnAgeSnapshots
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: vc1, vm_name: app01, vm_snapshot_name: before-upgrade}
+            exp_annotations:
+              title: 'Outdated snapshot on vc1: 8 days'

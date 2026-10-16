@@ -1,122 +1,133 @@
 # vmware-exporter
 
 > [!WARNING]
-> **Projet en cours de développement, pas encore éprouvé.** Le code n'a pas encore été
-> testé de manière approfondie sur des infrastructures réelles et peut contenir des bugs.
-> Il n'est pas recommandé pour la production : à utiliser à vos risques, de préférence
-> dans un environnement de test, avec un compte vCenter en **lecture seule**.
-> Le comportement, la configuration et les métriques peuvent encore changer sans préavis.
+> **Project under active development, not yet battle-tested.** The code has not yet been
+> thoroughly tested on real infrastructure and may contain bugs.
+> It is not recommended for production: use at your own risk, preferably
+> in a test environment, with a **read-only** vCenter account.
+> Behaviour, configuration and metrics may still change without notice.
 
-Exporter Prometheus en Go pour **vCenter 8.x** et **vCenter 9.x (VCF 9 / VVF 9)**.
-Il expose l'état complet de l'infrastructure vSphere — ressources, santé, alarmes —
-pour les graphes (Grafana) **et** l'alerting (Prometheus / Alertmanager).
+Prometheus exporter written in Go for **vCenter 8.x** and **vCenter 9.x (VCF 9 / VVF 9)**.
+It exposes the full state of the vSphere infrastructure — resources, health, alarms —
+for dashboards (Grafana) **and** alerting (Prometheus / Alertmanager).
 
-- Go 1.25, **govmomi v0.56.0** (API vim25 9.1), client_golang 1.23
-- Binaire statique unique, aucune dépendance système, construction 100 % hors ligne (`vendor/`)
-- Multi-vCenter (8 et 9 côte à côte), collecte en arrière-plan avec cache : un scrape Prometheus ne déclenche aucun appel au vCenter
-- Fourni avec 76 règles d'alerting testées et un tableau de bord Grafana
+- Go 1.25, **govmomi v0.56.0** (vim25 API 9.1), client_golang 1.23
+- Single static binary, no system dependencies, 100 % offline build (`vendor/`)
+- Multi-vCenter (8 and 9 side by side), background collection with a cache: a Prometheus scrape never triggers a call to vCenter
+- Ships with 76 tested alerting rules and a Grafana dashboard
+- Optional [pryorda/vmware_exporter compatibility](#migrating-from-pryordavmware_exporter): same metric names and labels, so existing dashboards keep working
 
-## Pourquoi un nouvel exporter
+## Why a new exporter
 
 | | pryorda/vmware_exporter | prezhdarov/vmware-exporter | **vmware-exporter** |
 |---|---|---|---|
-| Langage | Python (pyVmomi) | Go | Go (govmomi 0.56) |
-| Maintenu / VCF 9 | non / non | partiel | oui, négociation de version 8/9 |
-| Périmètre | VM, ESX | ressources (perf) | VM, ESX, clusters, datastores, vDS, resource pools, vSAN, appliance vCenter |
-| Alarmes vCenter | non | non | **oui** (toutes entités, 1 seule requête) |
-| Santé matérielle (IPMI), multipath, uplinks, certificats | non | non | **oui** |
-| Règles d'alerting fournies | non | non | **76 règles + tests promtool** |
+| Language | Python (pyVmomi) | Go | Go (govmomi 0.56) |
+| Maintained / VCF 9 | no / no | partial | yes, 8/9 version negotiation |
+| Scope | VM, ESX | resources (perf) | VM, ESX, clusters, datastores, vDS, resource pools, vSAN, vCenter appliance |
+| vCenter alarms | alarm counts per VM/host/datastore (optional) | no | **yes** (all entities, a single request) |
+| Hardware health (IPMI), multipath, uplinks, certificates | no | no | **yes** |
+| Bundled alerting rules | 5 (VM memory, snapshots) | no | **76 rules + promtool tests**, plus pryorda's 5 |
+| Reuse pryorda dashboards | — | no | **yes** (optional `pryorda` collector) |
 
-## Compatibilité vCenter 8 / vCenter 9 : ce qui est géré
+## vCenter 8 / vCenter 9 compatibility: what is handled
 
-Les différences entre les deux lignes sont traitées explicitement :
+Differences between the two release lines are handled explicitly:
 
-1. **Négociation de la version d'API SOAP.** govmomi parle par défaut la dernière API connue (9.1).
-   L'exporter lit `/sdk/vimServiceVersions.xml` sur chaque vCenter et utilise *sa* version
-   (8.0.x.0 ou 9.x.0.0). Le endpoint vSAN (`/sdk/vsanServiceVersions.xml`) est négocié séparément.
-   La version utilisée est visible dans `vmware_vcenter_info{api_version_used=...}`.
-2. **Repli automatique sur propriété inconnue.** Si une propriété demandée n'existe pas dans la
-   version d'API du vCenter (fault `InvalidProperty`), elle est retirée et la requête rejouée :
-   la collecte se dégrade au lieu d'échouer. Compteur : `vmware_exporter_unsupported_properties`.
-3. **Aucune dépendance aux fonctions retirées ou dépréciées en 9.x** : vCLS (déprécié en 9.0,
-   désactivé en 9.1), SIOC et Storage DRS load balancer (retirés en 9.0), Host Profiles (dépréciés),
-   baselines vLCM (retirées), Enhanced Linked Mode (déprécié). Les VMs système (vCLS, Supervisor,
-   agents EAM) sont identifiées par `managed_by` et peuvent être exclues (`exclude_system_vms`).
-4. **API REST moderne uniquement** (`/api/...`, présente depuis 7.0U2) — jamais l'ancien préfixe
-   `/rest/...`, voué à disparaître. Session REST dédiée, réutilisée et renouvelée sur 401.
-5. **TLS 1.3** (défaut des vCenter 9) supporté ; `tls_min_version: "1.3"` possible.
-6. **Multi-vCenter natif** : avec l'abandon de l'ELM en VCF 9, chaque vCenter de la flotte est
-   une cible indépendante (`targets:`), étiquetée par `vcenter` et vos `extra_labels`.
-7. **Aucun parsing de noms de produit** (ESXi → ESX en 9) : seules les versions numériques sont lues.
+1. **SOAP API version negotiation.** By default govmomi speaks the latest known API (9.1).
+   The exporter reads `/sdk/vimServiceVersions.xml` on each vCenter and uses *its* version
+   (8.0.x.0 or 9.x.0.0). The vSAN endpoint (`/sdk/vsanServiceVersions.xml`) is negotiated separately.
+   The version in use is visible in `vmware_vcenter_info{api_version_used=...}`.
+2. **Automatic fallback on unknown properties.** If a requested property does not exist in the
+   vCenter's API version (`InvalidProperty` fault), it is dropped and the request is retried:
+   collection degrades instead of failing. Counter: `vmware_exporter_unsupported_properties`.
+3. **No dependency on features removed or deprecated in 9.x**: vCLS (deprecated in 9.0,
+   disabled in 9.1), SIOC and Storage DRS load balancer (removed in 9.0), Host Profiles (deprecated),
+   vLCM baselines (removed), Enhanced Linked Mode (deprecated). System VMs (vCLS, Supervisor,
+   EAM agents) are identified by `managed_by` and can be excluded (`exclude_system_vms`).
+4. **Modern REST API only** (`/api/...`, available since 7.0U2) — never the legacy `/rest/...`
+   prefix, which is going away. Dedicated REST session, reused and renewed on 401.
+5. **TLS 1.3** (the vCenter 9 default) is supported; `tls_min_version: "1.3"` can be set.
+6. **Native multi-vCenter**: with ELM dropped in VCF 9, each vCenter in the fleet is
+   an independent target (`targets:`), labelled with `vcenter` and your `extra_labels`.
+7. **No parsing of product names** (ESXi → ESX in 9): only numeric versions are read.
 
-Les tests automatisés rejouent une collecte complète contre le simulateur govmomi annonçant
-successivement **8.0.3.0, 9.0.0.0 et 9.1.0.0** (voir « Tests »).
+The automated tests replay a full collection against the govmomi simulator advertising
+**8.0.3.0, 9.0.0.0 and 9.1.0.0** in turn (see "Tests").
 
-## Ce qui est supervisé
+## What is monitored
 
-| Domaine | Exemples de métriques | Alertes typiques |
+| Area | Example metrics | Typical alerts |
 |---|---|---|
-| Exporter | `vmware_up`, durée, collecteurs en échec | vCenter injoignable, données figées |
-| vCenter | version, certificat TLS, sessions, inventaire | certificat < 30 j |
-| **Alarmes vCenter** | `vmware_alarm_triggered{alarm,entity,entity_type,status,acknowledged}` | toute alarme rouge/jaune non acquittée |
-| Appliance (VAMI) | santé système/mem/stockage/BDD, services, sauvegardes | service arrêté, sauvegarde en échec ou > 26 h |
-| Clusters | capacité/demande CPU-mém, HA, DRS, score DRS, bascule HA | HA désactivé, capacité de bascule perdue, pression ressources |
-| ESX | connexion, maintenance, quarantaine, état agent HA, capteurs IPMI, composants matériels, chemins de stockage, uplinks, SSH/NTP, certificat, reboot requis | ESX non répondant, capteur rouge, LUN sans chemin, uplink down |
-| VM | power, heartbeat, tools, question en attente, consolidation, snapshots (nombre, âge), disques invités, protection HA, ballooning/swap | heartbeat perdu, snapshot > 3 j, disque invité < 5 %, CPU ready > 10 % |
-| Datastores | capacité, libre, provisionné, accessibilité par ESX, maintenance | > 85/95 %, plein dans 7 j, inaccessible |
-| Réseau | vDS (synchronisation par ESX), portgroups | ESX outOfSync |
-| vSAN | santé globale, par groupe, par test | santé rouge, test en échec |
-| Performance temps réel | CPU ready/co-stop/latence, latences disque/datastore, réseau, pertes de paquets, énergie | latence datastore > 30 ms, pertes réseau |
+| Exporter | `vmware_up`, duration, failed collectors | vCenter unreachable, stale data |
+| vCenter | version, TLS certificate, sessions, inventory | certificate < 30 days |
+| **vCenter alarms** | `vmware_alarm_triggered{alarm,entity,entity_type,status,acknowledged}` | any unacknowledged red/yellow alarm |
+| Appliance (VAMI) | system/memory/storage/database health, services, backups | service stopped, backup failed or > 26 h old |
+| Clusters | CPU/memory capacity and demand, HA, DRS, DRS score, HA failover | HA disabled, failover capacity lost, resource pressure |
+| ESX | connection, maintenance, quarantine, HA agent state, IPMI sensors, hardware components, storage paths, uplinks, SSH/NTP, certificate, reboot required | ESX not responding, red sensor, LUN without path, uplink down |
+| VM | power, heartbeat, tools, pending question, consolidation, snapshots (count, age), guest disks, HA protection, ballooning/swap | heartbeat lost, snapshot > 3 days, guest disk < 5 %, CPU ready > 10 % |
+| Datastores | capacity, free, provisioned, accessibility per ESX, maintenance | > 85/95 %, full within 7 days, inaccessible |
+| Network | vDS (per-ESX synchronization), portgroups | ESX outOfSync |
+| vSAN | overall health, per group, per test | red health, failed test |
+| Real-time performance | CPU ready/co-stop/latency, disk/datastore latency, network, packet drops, power | datastore latency > 30 ms, network drops |
 
-Référence complète : [docs/METRICS.md](docs/METRICS.md).
-Convention des statuts : `0 = gray/inconnu, 1 = green, 2 = yellow, 3 = red`.
+Full reference: [docs/METRICS.md](docs/METRICS.md).
+Status convention: `0 = gray/unknown, 1 = green, 2 = yellow, 3 = red`.
 
-Les séries VM sont identifiées par `vcenter`, `datacenter`, `vm` et `vm_moid` uniquement : `host` et
-`cluster` changent à chaque vMotion et casseraient la continuité des graphes et les délais des
-alertes. Ils sont portés par `vmware_vm_info`, à joindre au besoin :
+VM series are identified by `vcenter`, `datacenter`, `vm` and `vm_moid` only: `host` and
+`cluster` change on every vMotion and would break graph continuity and alert `for` durations.
+They are carried by `vmware_vm_info`, to be joined when needed:
 `vmware_vm_cpu_usage_mhz * on(vcenter, vm_moid) group_left(cluster, host) vmware_vm_info`.
 
 ## Architecture
 
 ```
             ┌──────────── vmware-exporter ────────────┐
-vCenter 8 ◄─┤ boucle de collecte (interval)           │
-vCenter 9 ◄─┤   1. connexion / reprise de session      │      GET /metrics
-   ...      │   2. ContainerView + PropertyCollector   ├──►  (cache, instantané)  ◄── Prometheus
-            │   3. collecteurs en parallèle            │
-            │   4. compteurs perf (QueryPerf, batchs)  │
+vCenter 8 ◄─┤ collection loop (interval)               │
+vCenter 9 ◄─┤   1. connect / resume session            │      GET /metrics
+   ...      │   2. ContainerView + PropertyCollector   ├──►  (cache, instant)     ◄── Prometheus
+            │   3. collectors in parallel              │
+            │   4. perf counters (QueryPerf, batches)  │
             └──────────────────────────────────────────┘
 ```
 
-Une collecte = un ContainerView sur l'inventaire puis une requête PropertyCollector par type
-d'objet (propriétés ciblées, pagination gérée), soit quelques dizaines d'appels quel que soit
-le nombre de VMs. Les compteurs temps réel sont demandés par lots (`batch_size`) avec un
-parallélisme borné (`max_concurrency`). Les alarmes sont lues en **une seule requête**
-(`triggeredAlarmState` du dossier racine, propagé depuis toutes les entités).
+One collection = one ContainerView over the inventory, then one PropertyCollector request per
+object type (targeted properties, pagination handled): a few dozen calls regardless of
+the number of VMs. Real-time counters are requested in batches (`batch_size`) with bounded
+parallelism (`max_concurrency`). Alarms are read in **a single request**
+(`triggeredAlarmState` of the root folder, propagated from all entities).
 
-## Installation (environnement hors ligne)
+## Installation
 
-Le dépôt contient `vendor/` : aucune connexion Internet n'est nécessaire pour construire.
+Dependencies can come from the repository or from the Internet, chosen at build time with `DEPS`:
 
 ```bash
-# Sur une machine disposant de Go >= 1.25
-make build                 # -> dist/vmware-exporter (Linux amd64, statique)
-make build-windows         # -> dist/vmware-exporter.exe
+# On a machine with Go >= 1.25
+make build                 # -> dist/vmware-exporter (Linux amd64, static), from vendor/: no network needed
+make build DEPS=online     # same, modules downloaded from the Go proxy and checked against go.sum
+make build-windows         # -> dist/vmware-exporter.exe (DEPS works the same way)
 ```
 
-Un binaire Linux amd64 prêt à l'emploi est aussi fourni dans `dist/`.
+- `DEPS=vendor` (default) builds with `-mod=vendor`: everything comes from `vendor/`, which
+  suits air-gapped environments.
+- `DEPS=online` builds with `-mod=readonly`: `vendor/` is ignored and modules are downloaded
+  from `proxy.golang.org` (or `$GOPROXY`); `go.mod` / `go.sum` are never modified.
+- Without make: `go build -mod=vendor ./cmd/vmware-exporter` or `go build -mod=readonly ./cmd/vmware-exporter`.
+- After changing dependencies, `make vendor` refreshes `vendor/` (needs network access).
+
+`make build` produces the static Linux amd64 binary in `dist/` (this directory is not tracked
+in the repository; prebuilt binaries may be published as GitHub Releases).
 
 ```bash
-# Déploiement
+# Deployment
 useradd --system --no-create-home --shell /usr/sbin/nologin vmware-exporter
 install -m 0755 dist/vmware-exporter /usr/local/bin/
 install -d -m 0750 -o root -g vmware-exporter /etc/vmware-exporter
 install -m 0640 -o root -g vmware-exporter config.example.yml /etc/vmware-exporter/config.yml
-# Mot de passe du compte de service (jamais dans le YAML)
-printf '%s' 'LeMotDePasse' > /etc/vmware-exporter/vcenter.pass
+# Service account password (never in the YAML)
+printf '%s' 'ThePassword' > /etc/vmware-exporter/vcenter.pass
 chown root:vmware-exporter /etc/vmware-exporter/vcenter.pass && chmod 0640 /etc/vmware-exporter/vcenter.pass
 echo 'VMWARE_EXPORTER_USER=svc-prometheus@vsphere.local' > /etc/vmware-exporter/vmware-exporter.env
-# CA du vCenter (VMCA : https://<vcenter>/certs/download.zip) ou de votre PKI
+# vCenter CA (VMCA: https://<vcenter>/certs/download.zip) or your own PKI
 cp ca.pem /etc/vmware-exporter/ca.pem
 
 vmware-exporter -config.file /etc/vmware-exporter/config.yml -config.check
@@ -125,121 +136,205 @@ systemctl daemon-reload && systemctl enable --now vmware-exporter
 curl -s localhost:9272/metrics | grep '^vmware_up'
 ```
 
-Image conteneur (optionnelle) : `docker build -t vmware-exporter:1.0.0 .` (construction depuis `vendor/`).
+Container image (optional): `docker build -t vmware-exporter:1.0.0 .` (built from `vendor/`;
+add `--build-arg GO_MOD=readonly` to download modules instead).
 
-## Compte de service et droits
+## Service account and permissions
 
-Créer un compte dédié et lui attribuer le rôle **Read-only** propagé depuis la racine de
-l'inventaire (vCenter > Permissions). Cela couvre inventaire, performance, alarmes et santé vSAN.
+Create a dedicated account and grant it the **Read-only** role, propagated from the root of
+the inventory (vCenter > Permissions). This covers inventory, performance, alarms and vSAN health.
 
-- **VCF 9 avec fédération d'identité** (VCF Identity Broker, ADFS, Entra ID, Okta…) : utiliser un
-  compte **local SSO** (`…@vsphere.local`), l'authentification SOAP par mot de passe n'acceptant
-  pas les comptes fédérés.
-- `vmware_vcenter_sessions` n'apparaît que si le compte peut lister les sessions
-  (privilège *Sessions.TerminateSession*) — facultatif.
-- Collecteur `appliance` (API `/api/appliance/...`) : selon la version, certains endpoints
-  peuvent exiger un rôle supplémentaire côté appliance. Un endpoint refusé ou absent donne
-  `vmware_appliance_endpoint_up{endpoint=...} 0` sans bloquer le reste de la collecte.
+- **VCF 9 with identity federation** (VCF Identity Broker, ADFS, Entra ID, Okta…): use a
+  **local SSO** account (`…@vsphere.local`), since SOAP password authentication does not
+  accept federated accounts.
+- `vmware_vcenter_sessions` only appears if the account is allowed to list sessions
+  (*Sessions.TerminateSession* privilege) — optional.
+- `appliance` collector (`/api/appliance/...` API): depending on the version, some endpoints
+  may require an additional role on the appliance side. A denied or missing endpoint yields
+  `vmware_appliance_endpoint_up{endpoint=...} 0` without blocking the rest of the collection.
 
 ## Configuration
 
-Voir [config.example.yml](config.example.yml) (entièrement commenté). Points clés :
+See [config.example.yml](config.example.yml) (fully commented). Key points:
 
-- `defaults:` est hérité par chaque cible, tout est surchargeable par cible.
-- Secrets : `password_file` (recommandé) ou `password_env` ; `${VAR}` est interpolé partout.
-- `interval` (défaut 60 s, minimum 20 s) et `timeout` (défaut `interval - 5s`).
-- `collectors:` active/désactive chaque famille ; `filters:` restreint par regex.
-- `perf.host_counters` / `perf.vm_counters` : compteurs vSphere `groupe.compteur.rollup`,
-  suffixe `:*` pour toutes les instances (ex. `datastore.totalReadLatency.average:*`).
-- `extra_labels:` ajoute des labels statiques (site, env…) à toutes les séries.
+- `defaults:` is inherited by every target; everything can be overridden per target.
+- Secrets: `password_file` (recommended) or `password_env`; `${VAR}` is interpolated everywhere.
+- `interval` (default 60 s, minimum 20 s) and `timeout` (default `interval - 5s`).
+- `collectors:` enables/disables each family; `filters:` restricts by regex.
+- `perf.host_counters` / `perf.vm_counters`: vSphere counters as `group.counter.rollup`,
+  with a `:*` suffix for all instances (e.g. `datastore.totalReadLatency.average:*`).
+- `extra_labels:` adds static labels (site, env…) to every series.
 
-Compteurs collectés par défaut :
+Counters collected by default:
 
-- **ESX** : cpu.usage/utilization/coreUtilization, mem.usage/active/consumed/vmmemctl/swapinRate/swapoutRate,
+- **ESX**: cpu.usage/utilization/coreUtilization, mem.usage/active/consumed/vmmemctl/swapinRate/swapoutRate,
   disk.maxTotalLatency/read/write/commandsAborted/busResets, net.received/transmitted/droppedRx/droppedTx/errorsRx/errorsTx,
-  power.power, datastore.totalReadLatency/totalWriteLatency (par datastore)
-- **VM** : cpu.usage/ready/costop/latency/readiness, mem.usage/active/vmmemctl/swapped/swapinRate,
+  power.power, datastore.totalReadLatency/totalWriteLatency (per datastore)
+- **VM**: cpu.usage/ready/costop/latency/readiness, mem.usage/active/vmmemctl/swapped/swapinRate,
   disk.maxTotalLatency/read/write, net.received/transmitted/droppedRx/droppedTx
 
-Nom Prometheus : `vmware_<host|vm>_perf_<groupe>_<compteur>_<rollup>_<unité>` (pourcentages en 0–100,
-octets et secondes en unités de base), label `perf_instance` (`""` = agrégat).
-Exemple : CPU ready en % par vCPU = `vmware_vm_perf_cpu_ready_summation_seconds{perf_instance=""} / 20 / ignoring(perf_instance) vmware_vm_vcpus`.
+Prometheus name: `vmware_<host|vm>_perf_<group>_<counter>_<rollup>_<unit>` (percentages as 0–100,
+bytes and seconds in base units), label `perf_instance` (`""` = aggregate).
+Example: CPU ready in % per vCPU = `vmware_vm_perf_cpu_ready_summation_seconds{perf_instance=""} / 20 / ignoring(perf_instance) vmware_vm_vcpus`.
 
-## Endpoints HTTP
+## HTTP endpoints
 
-| Chemin | Rôle |
+| Path | Purpose |
 |---|---|
-| `/metrics` | métriques (cache de la dernière collecte de chaque vCenter) |
-| `/healthz` | vivacité du processus |
-| `/` | page d'accueil (liste des cibles) |
+| `/metrics` | metrics (cache of the last collection from each vCenter) |
+| `/metrics?target=<name\|host>` | only the given vCenter(s): configured `name` or host name of its `url`; repeatable or comma-separated |
+| `/metrics?vsphere_host=<host>` | same, with the parameter name used by pryorda/vmware_exporter |
+| `/healthz` | process liveness |
+| `/` | landing page (list of targets, with a per-vCenter link) |
+
+### Scraping a single vCenter
+
+By default one scrape of `/metrics` returns every configured vCenter. To scrape them
+separately (one job per vCenter, different intervals, or only some of them), pass
+`?target=` — the multi-target pattern of blackbox_exporter. Only vCenters declared in
+the configuration can be selected (credentials stay on the exporter); any other value
+returns HTTP 404. A filtered response contains only vCenter series, not the exporter's
+own `go_*` / `process_*` metrics. Collection still runs in the background, so filtering
+never triggers a call to vCenter.
+
+```yaml
+- job_name: vmware-per-vcenter
+  static_configs:
+    - targets: [vc8-site-a, vcf9-mgmt]
+  relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - target_label: __address__
+      replacement: exporter-host.example.local:9272
+```
+
+Do not combine this with an unfiltered job on the same exporter, or every series is
+ingested twice. Full snippet: [deploy/prometheus/prometheus-scrape.yml](deploy/prometheus/prometheus-scrape.yml).
 
 ## Alerting
 
-[deploy/prometheus/vmware-alerts.yml](deploy/prometheus/vmware-alerts.yml) : 76 règles en 8 groupes
-(exporter, vCenter + appliance, cluster, ESX + performance, VM, datastore, réseau, vSAN).
+[deploy/prometheus/vmware-alerts.yml](deploy/prometheus/vmware-alerts.yml): 76 rules in 8 groups
+(exporter, vCenter + appliance, cluster, ESX + performance, VM, datastore, network, vSAN).
 
-- **Relais des alarmes vCenter** : `VMwareVCenterAlarmCritical` / `VMwareVCenterAlarmWarning`
-  transforment chaque alarme native active et non acquittée en alerte Prometheus (label `source=vcenter`).
-  Tout ce que le vCenter sait détecter arrive ainsi dans Alertmanager sans rien redéfinir ;
-  acquitter l'alarme dans le vSphere Client fait disparaître l'alerte.
-- **Règles propres à Prometheus** pour ce que les alarmes vCenter couvrent mal : tendances
-  (datastore plein dans 7 j), redondance (multipath, uplinks), CPU ready, snapshots anciens,
-  sauvegarde du vCenter, collecte en échec…
-- Sévérités : `critical`, `warning`, `info`. Les seuils sont des valeurs de départ à ajuster.
+- **vCenter alarm relay**: `VMwareVCenterAlarmCritical` / `VMwareVCenterAlarmWarning`
+  turn every active, unacknowledged native alarm into a Prometheus alert (label `source=vcenter`).
+  Everything vCenter can detect thus reaches Alertmanager without redefining anything;
+  acknowledging the alarm in the vSphere Client clears the alert.
+- **Prometheus-specific rules** for what vCenter alarms cover poorly: trends
+  (datastore full within 7 days), redundancy (multipath, uplinks), CPU ready, old snapshots,
+  vCenter backups, failed collections…
+- Severities: `critical`, `warning`, `info`. Thresholds are starting values to be tuned.
 
 ```bash
-promtool check rules deploy/prometheus/vmware-alerts.yml
-cd deploy/prometheus && promtool test rules vmware-alerts.test.yml
+promtool check rules deploy/prometheus/vmware-alerts.yml deploy/prometheus/pryorda-alerts.yml
+cd deploy/prometheus && promtool test rules vmware-alerts.test.yml pryorda-alerts.test.yml
 ```
 
-Extrait de configuration Prometheus : [deploy/prometheus/prometheus-scrape.yml](deploy/prometheus/prometheus-scrape.yml).
+Prometheus configuration snippet: [deploy/prometheus/prometheus-scrape.yml](deploy/prometheus/prometheus-scrape.yml).
 
 ## Grafana
 
-Importer [deploy/grafana/vmware-overview.json](deploy/grafana/vmware-overview.json) (Grafana ≥ 10) :
-vue d'ensemble, alarmes vCenter actives, clusters, ESX, datastores, VMs (top CPU ready, latences,
-snapshots, disques invités), vSAN, santé de l'exporter. Variables : source, vCenter, datacenter, cluster.
-Le JSON est généré par `deploy/grafana/build_dashboard.py` pour faciliter les modifications.
+Import [deploy/grafana/vmware-overview.json](deploy/grafana/vmware-overview.json) (Grafana ≥ 10):
+overview, active vCenter alarms, clusters, ESX, datastores, VMs (top CPU ready, latencies,
+snapshots, guest disks), vSAN, exporter health. Variables: datasource, vCenter, datacenter, cluster.
+The JSON is generated by `deploy/grafana/build_dashboard.py` to make changes easier.
+
+## Migrating from pryorda/vmware_exporter
+
+Dashboards and alerts built for [pryorda/vmware_exporter](https://github.com/pryorda/vmware_exporter)
+can be reused as is. Enable the `pryorda` collector:
+
+```yaml
+defaults:
+  collectors:
+    pryorda: true
+```
+
+The exporter then also emits the pryorda series, next to the native ones:
+
+- **Same names** (typos included: `vmware_datastore_provisoned_size`, `vmware_datastore_uncommited_size`),
+  **same labels** (`vm_name`, `ds_name`, `host_name`, `dc_name`, `cluster_name`, `ds_cluster`,
+  `partition`, `tools_status`, `version`, `build`, `hardware_model`…), **same units and values**
+  (MB for memory, MHz for CPU, bytes for disks, sensor state 0=red…3=unknown, `n/a` / `unknown` defaults).
+- **Same performance counters** (`vmware_vm_cpu_ready_summation`, `vmware_host_mem_swapinRate_average`…):
+  latest real-time sample, raw vSphere units, as pryorda queries them. They need the `perf` collector
+  (enabled by default).
+- **Same scrape URL**: `/metrics?target=<host>` or `/metrics?vsphere_host=<host>` with the usual
+  `__param_target` → `instance` relabeling (see [Scraping a single vCenter](#scraping-a-single-vcenter)).
+  The vCenter must be declared in the configuration; pryorda's `section` parameter is not needed
+  (credentials are per target) and is ignored.
+- **pryorda's 5 alerting rules**, unchanged: [deploy/prometheus/pryorda-alerts.yml](deploy/prometheus/pryorda-alerts.yml).
+
+Differences:
+
+- Every series also carries `vcenter` (and `extra_labels`). Queries selecting on pryorda labels
+  are unaffected; only `sum without(...)`-style aggregations may need the extra label.
+- Not implemented: pryorda's optional `fetch_tags`, `fetch_custom_attributes` and `fetch_alarms`
+  (all off by default in pryorda). For alarms, use the native `vmware_alarm_triggered`.
+- `filters` (`vm_exclude`, `host_exclude`, `exclude_system_vms`…) also apply to pryorda series;
+  templates are kept, as in pryorda (`vmware_vm_template`).
+- pryorda's `esxi.json` dashboard queries names that pryorda itself never produced
+  (`vmware_host_net_bytesRX_average`, `vmware_host_mem_usage_average`…): those panels stay empty.
+
+To avoid any clash, the native metrics that had the same name as a pryorda metric are named:
+
+| pryorda name (pryorda labels) | native name (native labels) |
+|---|---|
+| `vmware_vm_power_state` | `vmware_vm_power_status` |
+| `vmware_vm_boot_timestamp_seconds` | `vmware_vm_boot_time_seconds` |
+| `vmware_vm_snapshots` | `vmware_vm_snapshots_existing` |
+| `vmware_host_power_state` | `vmware_host_power_status` |
+| `vmware_host_connection_state` | `vmware_host_connection_status` |
+| `vmware_host_maintenance_mode` | `vmware_host_in_maintenance` |
+| `vmware_host_boot_timestamp_seconds` | `vmware_host_boot_time_seconds` |
+| `vmware_datastore_accessible` | `vmware_datastore_is_accessible` |
+| `vmware_datastore_maintenance_mode` | `vmware_datastore_in_maintenance` |
+| `vmware_datastore_vms` | `vmware_datastore_vms_hosted` |
+
+The pryorda series roughly double the number of series for VMs, hosts and datastores, and add
+one property read per collection: enable the collector only where pryorda dashboards are used.
 
 ## Tests
 
 ```bash
-make test        # tests Go : matrice 8.0.3 / 9.0 / 9.1 sur simulateur, reprise de session,
-                 # vCenter injoignable, API REST appliance simulée, lint des noms de métriques
-make test-rules  # tests unitaires des règles d'alerting (promtool)
-make sim         # lance un vCenter simulé sur https://127.0.0.1:8989/sdk (user / pass)
+make test        # Go tests: 8.0.3 / 9.0 / 9.1 matrix on the simulator, session recovery,
+                 # unreachable vCenter, simulated appliance REST API, metric name lint
+make test-rules  # alerting rule unit tests (promtool), native and pryorda-compatible
+make sim         # starts a simulated vCenter at https://127.0.0.1:8989/sdk (user / pass)
 ```
 
-Le simulateur (`hack/vcsim`) permet d'essayer l'exporter, Prometheus et Grafana sans
-infrastructure : `make sim VERSION_SIM=8.0.3 API_SIM=8.0.3.0` puis pointer une cible sur
-`127.0.0.1:8989` (`username: user`, mot de passe `pass`, `insecure_skip_verify: true`).
+The simulator (`hack/vcsim`) lets you try the exporter, Prometheus and Grafana without any
+infrastructure: `make sim VERSION_SIM=8.0.3 API_SIM=8.0.3.0`, then point a target at
+`127.0.0.1:8989` (`username: user`, password `pass`, `insecure_skip_verify: true`).
 
-## Limites connues et validation
+## Known limitations and validation
 
-- Les tests automatisés utilisent le simulateur govmomi, pas un vCenter réel : valider d'abord sur
-  une préproduction 8.x et 9.x. Surveiller au démarrage les logs `propriété non supportée` et
-  `collecteur en échec`, ainsi que `vmware_exporter_unsupported_properties` (propriété absente de la
-  version d'API) et `vmware_exporter_missing_properties` (propriété refusée sur certains objets, ex. droits).
-- Compteurs perf : moyenne des échantillons 20 s depuis la dernière collecte, sauf rollups
-  `latest` (dernier échantillon) et `maximum`/`minimum` (extrême, les pics ne sont pas lissés).
-- Le format exact de `/api/appliance/recovery/backup/job/details` peut varier selon la version ;
-  à défaut, les métriques de sauvegarde sont simplement absentes.
-- La santé vSAN est lue depuis le cache du health service (pas de relance des tests) : sa
-  fraîcheur dépend de la périodicité configurée côté vSAN (`vmware_vsan_health_timestamp_seconds`).
-- Hors périmètre (API distinctes du vCenter) : SDDC Manager, NSX, VCF Operations, VCF Automation.
+- The automated tests use the govmomi simulator, not a real vCenter: validate first on
+  an 8.x and a 9.x pre-production environment. At startup, watch the logs for unsupported-property
+  and failed-collector warnings, as well as `vmware_exporter_unsupported_properties` (property missing
+  from the API version) and `vmware_exporter_missing_properties` (property denied on some objects, e.g. permissions).
+- Perf counters: average of the 20 s samples since the last collection, except for `latest`
+  rollups (last sample) and `maximum`/`minimum` (extreme value, peaks are not smoothed).
+- The exact format of `/api/appliance/recovery/backup/job/details` may vary by version;
+  if it cannot be parsed, the backup metrics are simply absent.
+- vSAN health is read from the health service cache (tests are not re-run): its
+  freshness depends on the schedule configured on the vSAN side (`vmware_vsan_health_timestamp_seconds`).
+- Out of scope (APIs separate from vCenter): SDDC Manager, NSX, VCF Operations, VCF Automation.
 
-## Structure du dépôt
+## Repository layout
 
 ```
-cmd/vmware-exporter/     point d'entrée (HTTP, registry, signaux)
-internal/config/         chargement / validation YAML, secrets, valeurs par défaut
-internal/vsphere/        connexion SOAP (négociation de version, reprise de session), client REST /api
-internal/collector/      collecteurs (vcenter, alarms, cluster, host, vm, datastore, network,
-                         resourcepool, perf, vsan, appliance) + cache + tests
-deploy/prometheus/       règles d'alerting, tests promtool, extrait de scrape
-deploy/grafana/          tableau de bord (JSON + générateur)
-deploy/systemd/          unité systemd durcie
-hack/vcsim/              vCenter simulé (8.x / 9.x) pour les essais
-docs/METRICS.md          référence des métriques
-vendor/                  dépendances (construction hors ligne)
+cmd/vmware-exporter/     entry point (HTTP, registry, signals)
+internal/config/         YAML loading / validation, secrets, defaults
+internal/vsphere/        SOAP connection (version negotiation, session recovery), /api REST client
+internal/collector/      collectors (vcenter, alarms, cluster, host, vm, datastore, network,
+                         resourcepool, perf, vsan, appliance, pryorda) + cache + tests
+deploy/prometheus/       alerting rules (native + pryorda-compatible), promtool tests, scrape snippet
+deploy/grafana/          dashboard (JSON + generator)
+deploy/systemd/          hardened systemd unit
+hack/vcsim/              simulated vCenter (8.x / 9.x) for testing
+docs/METRICS.md          metrics reference
+vendor/                  dependencies (offline build, make build; DEPS=online ignores it)
 ```

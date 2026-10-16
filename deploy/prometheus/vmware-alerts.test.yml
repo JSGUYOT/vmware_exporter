@@ -1,4 +1,4 @@
-# Tests unitaires des règles : promtool test rules vmware-alerts.test.yml
+# Rule unit tests: promtool test rules vmware-alerts.test.yml
 rule_files:
   - vmware-alerts.yml
 evaluation_interval: 1m
@@ -15,15 +15,15 @@ tests:
         exp_alerts:
           - exp_labels: {severity: critical, source: vcenter, vcenter: vc1, alarm: "Host connection and power state", entity: esx01, entity_type: HostSystem, entity_moid: host-1, alarm_moid: alarm-1, datacenter: DC1, status: red, acknowledged: "false"}
             exp_annotations:
-              summary: "[vc1] Host connection and power state sur esx01"
-              description: "Alarme vCenter ROUGE 'Host connection and power state' sur HostSystem esx01 (datacenter DC1)."
+              summary: "[vc1] Host connection and power state on esx01"
+              description: "RED vCenter alarm 'Host connection and power state' on HostSystem esx01 (datacenter DC1)."
 
   - interval: 1m
     input_series:
       - series: 'vmware_vm_perf_cpu_ready_summation_seconds{vcenter="vc1",datacenter="DC1",vm="app01",vm_moid="vm-1",perf_instance=""}'
-        values: '8x20'     # 8 s de ready sur 20 s
+        values: '8x20'     # 8 s of ready per 20 s
       - series: 'vmware_vm_vcpus{vcenter="vc1",datacenter="DC1",vm="app01",vm_moid="vm-1"}'
-        values: '2x20'     # => 20 % par vCPU
+        values: '2x20'     # => 20% per vCPU
       - series: 'vmware_vm_perf_cpu_ready_summation_seconds{vcenter="vc1",datacenter="DC1",vm="db01",vm_moid="vm-2",perf_instance=""}'
         values: '1x20'
       - series: 'vmware_vm_vcpus{vcenter="vc1",datacenter="DC1",vm="db01",vm_moid="vm-2"}'
@@ -34,18 +34,18 @@ tests:
         exp_alerts:
           - exp_labels: {severity: warning, vcenter: vc1, datacenter: DC1, vm: app01, vm_moid: vm-1}
             exp_annotations:
-              summary: "CPU ready élevé sur app01 (20% par vCPU)"
-              description: "La VM attend l'ordonnanceur ESX : contention CPU ou trop de vCPU."
+              summary: "High CPU ready on app01 (20% per vCPU)"
+              description: "The VM is waiting on the ESXi scheduler: CPU contention or too many vCPUs."
 
   - interval: 1m
     input_series:
       - series: 'vmware_vm_guest_heartbeat_status{vcenter="vc1",datacenter="DC1",vm="app01",vm_moid="vm-1"}'
         values: '3x10'
-      - series: 'vmware_vm_power_state{vcenter="vc1",datacenter="DC1",vm="app01",vm_moid="vm-1"}'
+      - series: 'vmware_vm_power_status{vcenter="vc1",datacenter="DC1",vm="app01",vm_moid="vm-1"}'
         values: '1x10'
       - series: 'vmware_vm_guest_heartbeat_status{vcenter="vc1",datacenter="DC1",vm="off01",vm_moid="vm-3"}'
         values: '3x10'
-      - series: 'vmware_vm_power_state{vcenter="vc1",datacenter="DC1",vm="off01",vm_moid="vm-3"}'
+      - series: 'vmware_vm_power_status{vcenter="vc1",datacenter="DC1",vm="off01",vm_moid="vm-3"}'
         values: '0x10'
     alert_rule_test:
       - eval_time: 6m
@@ -53,24 +53,24 @@ tests:
         exp_alerts:
           - exp_labels: {severity: critical, vcenter: vc1, datacenter: DC1, vm: app01, vm_moid: vm-1}
             exp_annotations:
-              summary: "VM app01 : heartbeat invité perdu"
-              description: "La VM est allumée mais l'OS invité ne répond plus aux VMware Tools (OS figé ?)."
+              summary: "VM app01: guest heartbeat lost"
+              description: "The VM is powered on but the guest OS no longer responds to VMware Tools (hung OS?)."
 
   - interval: 1m
     input_series:
       - series: 'vmware_host_ha_state{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx01",state="networkIsolated"}'
         values: '1x20'
-      - series: 'vmware_host_maintenance_mode{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx01"}'
+      - series: 'vmware_host_in_maintenance{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx01"}'
         values: '0x20'
       - series: 'vmware_host_ha_state{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx02",state="connectedToMaster"}'
         values: '1x20'
-      - series: 'vmware_host_maintenance_mode{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx02"}'
+      - series: 'vmware_host_in_maintenance{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx02"}'
         values: '0x20'
       - series: 'vmware_host_pnic_link_up{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx02",nic="vmnic1",used="true",driver="i40en"}'
         values: '0x20'
       - series: 'vmware_host_pnic_link_up{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx02",nic="vmnic3",used="false",driver="i40en"}'
         values: '0x20'
-      - series: 'vmware_host_connection_state{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx02"}'
+      - series: 'vmware_host_connection_status{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx02"}'
         values: '1x20'
     alert_rule_test:
       - eval_time: 15m
@@ -78,19 +78,19 @@ tests:
         exp_alerts:
           - exp_labels: {severity: warning, vcenter: vc1, datacenter: DC1, cluster: C1, host: esx01, state: networkIsolated}
             exp_annotations:
-              summary: "Agent HA de esx01 en état networkIsolated"
-              description: "L'agent FDM n'est pas sain (isolation, partition réseau ou erreur d'initialisation)."
+              summary: "HA agent on esx01 in state networkIsolated"
+              description: "The FDM agent is unhealthy (isolation, network partition or initialization error)."
       - eval_time: 15m
         alertname: VMwareHostUplinkDown
         exp_alerts:
           - exp_labels: {severity: warning, vcenter: vc1, datacenter: DC1, cluster: C1, host: esx02, nic: vmnic1, used: "true", driver: i40en}
             exp_annotations:
-              summary: "Uplink vmnic1 down sur esx02"
-              description: "Une carte réseau physique utilisée par un vSwitch/vDS a perdu son lien."
+              summary: "Uplink vmnic1 down on esx02"
+              description: "A physical NIC used by a vSwitch/vDS lost its link."
 
   - interval: 1m
     input_series:
-      # Datastore de 1 To perdant 1 Go/min : 90 % utilisé à 15 h
+      # 1 TB datastore losing 1 GB/min: 90% used at 15h
       - series: 'vmware_datastore_free_bytes{vcenter="vc1",datacenter="DC1",datastore="ds01",datastore_moid="ds-1"}'
         values: '1000000000000-1000000000x900'
       - series: 'vmware_datastore_capacity_bytes{vcenter="vc1",datacenter="DC1",datastore="ds01",datastore_moid="ds-1"}'
@@ -101,27 +101,27 @@ tests:
         exp_alerts:
           - exp_labels: {severity: warning, vcenter: vc1, datacenter: DC1, datastore: ds01, datastore_moid: ds-1}
             exp_annotations:
-              summary: "Datastore ds01 plein dans moins de 7 jours"
-              description: "Projection linéaire sur 24 h de consommation."
+              summary: "Datastore ds01 full in less than 7 days"
+              description: "Linear projection based on the last 24 h of usage."
       - eval_time: 15h
         alertname: VMwareDatastoreUsageHigh
         exp_alerts:
           - exp_labels: {severity: warning, vcenter: vc1, datacenter: DC1, datastore: ds01, datastore_moid: ds-1}
             exp_annotations:
-              summary: "Datastore ds01 rempli à 90%"
-              description: "Planifier une libération d'espace ou une extension."
+              summary: "Datastore ds01 90% full"
+              description: "Plan to free up space or extend the datastore."
       - eval_time: 15h
         alertname: VMwareDatastoreAlmostFull
         exp_alerts: []
 
   - interval: 1m
     input_series:
-      # Lecture rapide, écriture lente : l'alerte doit se déclencher sur l'écriture
+      # Fast reads, slow writes: the alert must fire on the write latency
       - series: 'vmware_host_perf_datastore_total_read_latency_average_seconds{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx01",perf_instance="5f1a-uuid"}'
         values: '0.002x20'
       - series: 'vmware_host_perf_datastore_total_write_latency_average_seconds{vcenter="vc1",datacenter="DC1",cluster="C1",host="esx01",perf_instance="5f1a-uuid"}'
         values: '0.200x20'
-      # HA : politique en pourcentage, 15 % CPU disponibles pour 25 % réservés
+      # HA: percentage-based policy, 15% CPU available vs 25% reserved
       - series: 'vmware_cluster_ha_failover_cpu_resources_percent{vcenter="vc1",datacenter="DC1",cluster="C1"}'
         values: '15x20'
       - series: 'vmware_cluster_ha_failover_cpu_resources_configured_percent{vcenter="vc1",datacenter="DC1",cluster="C1"}'
@@ -130,7 +130,7 @@ tests:
         values: '40x20'
       - series: 'vmware_cluster_ha_failover_memory_resources_configured_percent{vcenter="vc1",datacenter="DC1",cluster="C1"}'
         values: '25x20'
-      # Cluster sans contrôle d'admission : pas de métrique *_configured => pas d'alerte
+      # Cluster without admission control: no *_configured metric => no alert
       - series: 'vmware_cluster_ha_failover_cpu_resources_percent{vcenter="vc1",datacenter="DC1",cluster="C2"}'
         values: '0x20'
     alert_rule_test:
@@ -139,15 +139,15 @@ tests:
         exp_alerts:
           - exp_labels: {severity: warning, vcenter: vc1, cluster: C1, host: esx01, perf_instance: 5f1a-uuid}
             exp_annotations:
-              summary: "Latence datastore élevée sur esx01 (200ms)"
-              description: "Latence moyenne > 30 ms vers le datastore 5f1a-uuid (UUID)."
+              summary: "High datastore latency on esx01 (200ms)"
+              description: "Average latency > 30 ms to datastore 5f1a-uuid (UUID)."
       - eval_time: 16m
         alertname: VMwareClusterHAFailoverCapacityLost
         exp_alerts:
           - exp_labels: {severity: critical, vcenter: vc1, datacenter: DC1, cluster: C1}
             exp_annotations:
-              summary: "Cluster C1 : capacité de bascule HA insuffisante"
-              description: "La capacité de basculement disponible est inférieure à la réserve configurée dans le contrôle d'admission HA : le cluster ne garantit plus le redémarrage des VMs en cas de panne d'ESX."
+              summary: "Cluster C1: insufficient HA failover capacity"
+              description: "Available failover capacity is below the reserve configured in HA admission control: the cluster can no longer guarantee VM restarts if a host fails."
 
   - interval: 1m
     input_series:
@@ -163,5 +163,5 @@ tests:
         exp_alerts:
           - exp_labels: {severity: warning, vcenter: vc1}
             exp_annotations:
-              summary: "Aucune sauvegarde réussie connue pour le vCenter vc1"
-              description: "0 job(s) de sauvegarde file-based connus, aucun réussi. Configurer ou réparer la sauvegarde du vCenter."
+              summary: "No known successful backup for vCenter vc1"
+              description: "0 known file-based backup job(s), none succeeded. Configure or fix vCenter backups."

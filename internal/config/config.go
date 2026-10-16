@@ -1,8 +1,8 @@
-// Package config charge et valide la configuration YAML de l'exporter.
+// Package config loads and validates the exporter's YAML configuration.
 //
-// Aucun secret ni URL n'est codé en dur : tout vient du fichier de
-// configuration, des variables d'environnement (${VAR} interpolées) ou de
-// fichiers de mots de passe dédiés.
+// No secret or URL is hard-coded: everything comes from the configuration
+// file, environment variables (${VAR} interpolation) or dedicated password
+// files.
 package config
 
 import (
@@ -16,7 +16,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// Config est la racine du fichier de configuration.
+// Config is the root of the configuration file.
 type Config struct {
 	ListenAddress string   `yaml:"listen_address"`
 	TelemetryPath string   `yaml:"telemetry_path"`
@@ -27,13 +27,13 @@ type Config struct {
 	Targets       []Target `yaml:"targets"`
 }
 
-// TLSSrv permet d'exposer /metrics en HTTPS (optionnel).
+// TLSSrv serves /metrics over HTTPS (optional).
 type TLSSrv struct {
 	CertFile string `yaml:"cert_file"`
 	KeyFile  string `yaml:"key_file"`
 }
 
-// Target décrit un vCenter (8.x ou 9.x / VCF 9) à superviser.
+// Target describes a vCenter (8.x or 9.x / VCF 9) to monitor.
 type Target struct {
 	Name               string        `yaml:"name"`
 	URL                string        `yaml:"url"`
@@ -47,18 +47,18 @@ type Target struct {
 	TLSMinVersion      string        `yaml:"tls_min_version"`
 	Interval           time.Duration `yaml:"interval"`
 	Timeout            time.Duration `yaml:"timeout"`
-	// ForceAPIVersion force la version vim25 (ex "8.0.3.0"). Vide = négociation auto.
+	// ForceAPIVersion pins the vim25 version (e.g. "8.0.3.0"). Empty = auto-negotiation.
 	ForceAPIVersion string `yaml:"force_api_version"`
 
 	Collectors Collectors `yaml:"collectors"`
 	Filters    Filters    `yaml:"filters"`
 	Perf       Perf       `yaml:"perf"`
 	Host       HostOpts   `yaml:"host"`
-	// Labels statiques ajoutés à toutes les séries de ce vCenter (ex: site, env).
+	// Static labels added to every series of this vCenter (e.g. site, env).
 	ExtraLabels map[string]string `yaml:"extra_labels"`
 }
 
-// Collectors active / désactive chaque famille de métriques.
+// Collectors enables / disables each metric family.
 type Collectors struct {
 	VCenter      *bool `yaml:"vcenter"`
 	Alarms       *bool `yaml:"alarms"`
@@ -72,20 +72,23 @@ type Collectors struct {
 	Perf         *bool `yaml:"perf"`
 	VSAN         *bool `yaml:"vsan"`
 	Appliance    *bool `yaml:"appliance"`
+	// Pryorda emits the metric names and labels of pryorda/vmware_exporter
+	// (in addition to the native ones), for existing dashboards.
+	Pryorda *bool `yaml:"pryorda"`
 }
 
-// Filters limite le périmètre (regex sur les noms).
+// Filters narrows the scope (regexes on names).
 type Filters struct {
 	VMExclude        string `yaml:"vm_exclude"`
 	VMInclude        string `yaml:"vm_include"`
 	HostExclude      string `yaml:"host_exclude"`
 	DatastoreExclude string `yaml:"datastore_exclude"`
-	// ExcludeSystemVMs exclut les VMs gérées par une solution (vCLS, Supervisor, agents EAM...).
+	// ExcludeSystemVMs excludes solution-managed VMs (vCLS, Supervisor, EAM agents...).
 	ExcludeSystemVMs *bool `yaml:"exclude_system_vms"`
 	IncludeTemplates *bool `yaml:"include_templates"`
 }
 
-// Perf configure la collecte des compteurs de performance temps réel (20s).
+// Perf configures collection of real-time (20s) performance counters.
 type Perf struct {
 	HostCounters   []string `yaml:"host_counters"`
 	VMCounters     []string `yaml:"vm_counters"`
@@ -93,14 +96,14 @@ type Perf struct {
 	MaxConcurrency int      `yaml:"max_concurrency"`
 }
 
-// HostOpts options spécifiques ESX.
+// HostOpts holds ESX-specific options.
 type HostOpts struct {
 	StoragePaths *bool    `yaml:"storage_paths"`
 	Sensors      *bool    `yaml:"sensors"`
 	Services     []string `yaml:"services"`
 }
 
-// reservedLabels : labels émis par l'exporter (ou ajoutés par Prometheus) qu'un extra_labels ne doit pas masquer.
+// reservedLabels: labels emitted by the exporter (or added by Prometheus) that extra_labels must not shadow.
 var reservedLabels = map[string]bool{}
 
 func init() {
@@ -111,16 +114,16 @@ func init() {
 
 var envRe = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
 
-// Load lit le fichier, interpole ${VAR}, applique les valeurs par défaut et valide.
+// Load reads the file, interpolates ${VAR}, applies defaults and validates.
 func Load(path string) (*Config, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("lecture %s: %w", path, err)
+		return nil, fmt.Errorf("reading %s: %w", path, err)
 	}
 	return Parse(raw)
 }
 
-// Parse analyse un contenu YAML.
+// Parse parses YAML content.
 func Parse(raw []byte) (*Config, error) {
 	expanded := envRe.ReplaceAllStringFunc(string(raw), func(m string) string {
 		return os.Getenv(envRe.FindStringSubmatch(m)[1])
@@ -129,7 +132,7 @@ func Parse(raw []byte) (*Config, error) {
 	dec := yaml.NewDecoder(strings.NewReader(expanded))
 	dec.KnownFields(true)
 	if err := dec.Decode(cfg); err != nil {
-		return nil, fmt.Errorf("YAML invalide: %w", err)
+		return nil, fmt.Errorf("invalid YAML: %w", err)
 	}
 	if cfg.ListenAddress == "" {
 		cfg.ListenAddress = ":9272"
@@ -141,22 +144,22 @@ func Parse(raw []byte) (*Config, error) {
 		cfg.LogLevel = "info"
 	}
 	if len(cfg.Targets) == 0 {
-		return nil, fmt.Errorf("aucune cible (targets) définie")
+		return nil, fmt.Errorf("no targets defined")
 	}
 	seen := map[string]bool{}
 	for i := range cfg.Targets {
 		t := &cfg.Targets[i]
 		mergeDefaults(t, &cfg.Defaults)
 		if err := t.finalize(); err != nil {
-			return nil, fmt.Errorf("cible #%d (%s): %w", i, t.Name, err)
+			return nil, fmt.Errorf("target #%d (%s): %w", i, t.Name, err)
 		}
 		if seen[t.Name] {
-			return nil, fmt.Errorf("nom de cible dupliqué: %s", t.Name)
+			return nil, fmt.Errorf("duplicate target name: %s", t.Name)
 		}
 		seen[t.Name] = true
 	}
-	// Même jeu de labels additionnels sur toutes les cibles (valeur vide si absent),
-	// pour garder des familles de métriques homogènes.
+	// Same set of extra labels on every target (empty value if missing),
+	// so that metric families stay consistent.
 	union := map[string]bool{}
 	for _, t := range cfg.Targets {
 		for k := range t.ExtraLabels {
@@ -167,7 +170,7 @@ func Parse(raw []byte) (*Config, error) {
 		t := &cfg.Targets[i]
 		for k := range union {
 			if reservedLabels[k] {
-				return nil, fmt.Errorf("cible %s: extra_labels %q est réservé par l'exporter", t.Name, k)
+				return nil, fmt.Errorf("target %s: extra_labels %q is reserved by the exporter", t.Name, k)
 			}
 			if t.ExtraLabels == nil {
 				t.ExtraLabels = map[string]string{}
@@ -223,6 +226,7 @@ func mergeDefaults(t, d *Target) {
 	bp(&c.Perf, dc.Perf)
 	bp(&c.VSAN, dc.VSAN)
 	bp(&c.Appliance, dc.Appliance)
+	bp(&c.Pryorda, dc.Pryorda)
 	f, df := &t.Filters, &d.Filters
 	str(&f.VMExclude, df.VMExclude)
 	str(&f.VMInclude, df.VMInclude)
@@ -259,8 +263,8 @@ func mergeDefaults(t, d *Target) {
 	}
 }
 
-// DefaultHostCounters compteurs temps réel ESX collectés par défaut.
-// Le suffixe ":*" demande toutes les instances (sinon agrégat "" uniquement).
+// DefaultHostCounters are the ESX real-time counters collected by default.
+// The ":*" suffix requests all instances (otherwise only the "" aggregate).
 var DefaultHostCounters = []string{
 	"cpu.usage.average",
 	"cpu.utilization.average",
@@ -287,7 +291,7 @@ var DefaultHostCounters = []string{
 	"datastore.totalWriteLatency.average:*",
 }
 
-// DefaultVMCounters compteurs temps réel VM collectés par défaut.
+// DefaultVMCounters are the VM real-time counters collected by default.
 var DefaultVMCounters = []string{
 	"cpu.usage.average",
 	"cpu.ready.summation",
@@ -310,10 +314,10 @@ var DefaultVMCounters = []string{
 
 func (t *Target) finalize() error {
 	if t.Name == "" {
-		return fmt.Errorf("champ 'name' obligatoire")
+		return fmt.Errorf("field 'name' is required")
 	}
 	if t.URL == "" {
-		return fmt.Errorf("champ 'url' obligatoire")
+		return fmt.Errorf("field 'url' is required")
 	}
 	u, err := ParseVCURL(t.URL)
 	if err != nil {
@@ -328,7 +332,7 @@ func (t *Target) finalize() error {
 		t.Username = v
 	}
 	if t.Username == "" {
-		return fmt.Errorf("identifiant manquant (username ou username_file)")
+		return fmt.Errorf("missing username (username or username_file)")
 	}
 	switch {
 	case t.PasswordFile != "":
@@ -341,13 +345,13 @@ func (t *Target) finalize() error {
 		t.Password = os.Getenv(t.PasswordEnv)
 	}
 	if t.Password == "" {
-		return fmt.Errorf("mot de passe manquant (password_file, password_env ou password)")
+		return fmt.Errorf("missing password (password_file, password_env or password)")
 	}
 	if t.Interval == 0 {
 		t.Interval = 60 * time.Second
 	}
 	if t.Interval < 20*time.Second {
-		return fmt.Errorf("interval minimal 20s (granularité temps réel vSphere)")
+		return fmt.Errorf("minimum interval is 20s (vSphere real-time granularity)")
 	}
 	if t.Timeout == 0 {
 		t.Timeout = t.Interval - 5*time.Second
@@ -362,7 +366,7 @@ func (t *Target) finalize() error {
 		t.TLSMinVersion = "1.2"
 	}
 	if t.TLSMinVersion != "1.2" && t.TLSMinVersion != "1.3" {
-		return fmt.Errorf("tls_min_version doit valoir 1.2 ou 1.3")
+		return fmt.Errorf("tls_min_version must be 1.2 or 1.3")
 	}
 	on := func(p **bool, def bool) {
 		if *p == nil {
@@ -382,6 +386,7 @@ func (t *Target) finalize() error {
 	on(&c.Perf, true)
 	on(&c.VSAN, true)
 	on(&c.Appliance, true)
+	on(&c.Pryorda, false)
 	on(&t.Filters.ExcludeSystemVMs, false)
 	on(&t.Filters.IncludeTemplates, false)
 	on(&t.Host.StoragePaths, true)
@@ -392,7 +397,7 @@ func (t *Target) finalize() error {
 	for _, re := range []string{t.Filters.VMExclude, t.Filters.VMInclude, t.Filters.HostExclude, t.Filters.DatastoreExclude} {
 		if re != "" {
 			if _, err := regexp.Compile(re); err != nil {
-				return fmt.Errorf("regex invalide %q: %w", re, err)
+				return fmt.Errorf("invalid regex %q: %w", re, err)
 			}
 		}
 	}
@@ -410,23 +415,23 @@ func (t *Target) finalize() error {
 	}
 	for k := range t.ExtraLabels {
 		if !regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`).MatchString(k) {
-			return fmt.Errorf("extra_labels: nom de label invalide %q", k)
+			return fmt.Errorf("extra_labels: invalid label name %q", k)
 		}
 	}
 	return nil
 }
 
-// ParseVCURL accepte "vcenter.local", "https://vcenter.local" ou ".../sdk" et normalise en https://host/sdk.
+// ParseVCURL accepts "vcenter.local", "https://vcenter.local" or ".../sdk" and normalizes to https://host/sdk.
 func ParseVCURL(s string) (*url.URL, error) {
 	if !strings.Contains(s, "://") {
 		s = "https://" + s
 	}
 	u, err := url.Parse(s)
 	if err != nil {
-		return nil, fmt.Errorf("url invalide: %w", err)
+		return nil, fmt.Errorf("invalid url: %w", err)
 	}
 	if u.Host == "" {
-		return nil, fmt.Errorf("url invalide: hôte vide")
+		return nil, fmt.Errorf("invalid url: empty host")
 	}
 	if u.Path == "" || u.Path == "/" {
 		u.Path = "/sdk"
@@ -438,7 +443,7 @@ func ParseVCURL(s string) (*url.URL, error) {
 func readSecret(path string) (string, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return "", fmt.Errorf("lecture du secret %s: %w", path, err)
+		return "", fmt.Errorf("reading secret %s: %w", path, err)
 	}
 	return strings.TrimRight(string(raw), "\r\n"), nil
 }

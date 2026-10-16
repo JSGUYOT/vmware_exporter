@@ -25,18 +25,18 @@ func collectDatastores(ctx context.Context, r *Run) error {
 		}
 		sm := ds.Summary
 		l := L{"datacenter", dc, "datastore", ds.Name, "datastore_moid", ds.Self.Value}
-		s.Gauge(n("datastore_info"), "Informations sur le datastore (valeur toujours 1).", 1, append(append(L{}, l...),
+		s.Gauge(n("datastore_info"), "Datastore information (value always 1).", 1, append(append(L{}, l...),
 			"type", sm.Type, "url", sm.Url, "datastore_cluster", pod, "shared", boolStr(sm.MultipleHostAccess != nil && *sm.MultipleHostAccess)))
-		s.Gauge(n("datastore_capacity_bytes"), "Capacité du datastore.", float64(sm.Capacity), l)
-		s.Gauge(n("datastore_free_bytes"), "Espace libre du datastore.", float64(sm.FreeSpace), l)
-		s.Gauge(n("datastore_uncommitted_bytes"), "Espace provisionné non consommé (thin) sur le datastore.", float64(sm.Uncommitted), l)
+		s.Gauge(n("datastore_capacity_bytes"), "Datastore capacity.", float64(sm.Capacity), l)
+		s.Gauge(n("datastore_free_bytes"), "Datastore free space.", float64(sm.FreeSpace), l)
+		s.Gauge(n("datastore_uncommitted_bytes"), "Provisioned but unconsumed (thin) space on the datastore.", float64(sm.Uncommitted), l)
 		prov := float64(sm.Capacity - sm.FreeSpace + sm.Uncommitted)
-		s.Gauge(n("datastore_provisioned_bytes"), "Espace provisionné total (utilisé + thin non consommé).", prov, l)
-		s.Gauge(n("datastore_accessible"), "1 si le datastore est accessible.", b2f(sm.Accessible), l)
+		s.Gauge(n("datastore_provisioned_bytes"), "Total provisioned space (used + unconsumed thin).", prov, l)
+		s.Gauge(n("datastore_is_accessible"), "1 if the datastore is accessible.", b2f(sm.Accessible), l)
 		mm := sm.MaintenanceMode
-		s.Gauge(n("datastore_maintenance_mode"), "1 si le datastore est en mode maintenance (ou en entrée).", b2f(mm != "" && mm != "normal"), l)
-		s.Gauge(n("datastore_overall_status"), "Statut global du datastore"+statusHelp+".", statusValue(ds.OverallStatus), l)
-		s.Gauge(n("datastore_vms"), "Nombre de VMs ayant des fichiers sur le datastore.", float64(len(ds.Vm)), l)
+		s.Gauge(n("datastore_in_maintenance"), "1 if the datastore is in (or entering) maintenance mode.", b2f(mm != "" && mm != "normal"), l)
+		s.Gauge(n("datastore_overall_status"), "Overall status of the datastore"+statusHelp+".", statusValue(ds.OverallStatus), l)
+		s.Gauge(n("datastore_vms_hosted"), "Number of VMs with files on the datastore.", float64(len(ds.Vm)), l)
 		mounted, inaccessible := 0, 0
 		for _, h := range ds.Host {
 			mounted++
@@ -44,8 +44,8 @@ func collectDatastores(ctx context.Context, r *Run) error {
 				inaccessible++
 			}
 		}
-		s.Gauge(n("datastore_hosts_mounted"), "Nombre d'ESX montant le datastore.", float64(mounted), l)
-		s.Gauge(n("datastore_hosts_inaccessible"), "Nombre d'ESX pour lesquels le datastore est inaccessible (APD/PDL...).", float64(inaccessible), l)
+		s.Gauge(n("datastore_hosts_mounted"), "Number of hosts mounting the datastore.", float64(mounted), l)
+		s.Gauge(n("datastore_hosts_inaccessible"), "Number of hosts on which the datastore is inaccessible (APD/PDL...).", float64(inaccessible), l)
 	}
 
 	var pods []mo.StoragePod
@@ -54,11 +54,11 @@ func collectDatastores(ctx context.Context, r *Run) error {
 	}
 	for _, p := range pods {
 		l := L{"datacenter", r.Topo.Datacenter(p.Self.Value), "datastore_cluster", p.Name}
-		s.Gauge(n("datastore_cluster_overall_status"), "Statut global du cluster de datastores"+statusHelp+".", statusValue(p.OverallStatus), l)
-		s.Gauge(n("datastore_cluster_datastores"), "Nombre de datastores dans le cluster de datastores.", float64(len(p.ChildEntity)), l)
+		s.Gauge(n("datastore_cluster_overall_status"), "Overall status of the datastore cluster"+statusHelp+".", statusValue(p.OverallStatus), l)
+		s.Gauge(n("datastore_cluster_datastores"), "Number of datastores in the datastore cluster.", float64(len(p.ChildEntity)), l)
 		if p.Summary != nil {
-			s.Gauge(n("datastore_cluster_capacity_bytes"), "Capacité du cluster de datastores.", float64(p.Summary.Capacity), l)
-			s.Gauge(n("datastore_cluster_free_bytes"), "Espace libre du cluster de datastores.", float64(p.Summary.FreeSpace), l)
+			s.Gauge(n("datastore_cluster_capacity_bytes"), "Datastore cluster capacity.", float64(p.Summary.Capacity), l)
+			s.Gauge(n("datastore_cluster_free_bytes"), "Datastore cluster free space.", float64(p.Summary.FreeSpace), l)
 		}
 	}
 	return nil

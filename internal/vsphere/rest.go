@@ -14,14 +14,14 @@ import (
 	"github.com/example/vmware-exporter/internal/config"
 )
 
-// ErrNotFound indique un endpoint absent sur cette version de vCenter.
-var ErrNotFound = errors.New("endpoint REST indisponible sur cette version")
+// ErrNotFound reports an endpoint missing on this vCenter version.
+var ErrNotFound = errors.New("REST endpoint not available on this version")
 
-// RESTClient est un client minimal pour l'API vSphere Automation moderne (/api).
+// RESTClient is a minimal client for the modern vSphere Automation API (/api).
 //
-// On n'utilise volontairement que les chemins /api/... (disponibles depuis
-// 7.0U2, conservés en 8.x et 9.x) et jamais l'ancien préfixe /rest/...,
-// déprécié et voué à disparaître sur la ligne 9.
+// It deliberately uses only /api/... paths (available since 7.0U2, kept in
+// 8.x and 9.x) and never the legacy /rest/... prefix, which is deprecated
+// and slated for removal in the 9 line.
 type RESTClient struct {
 	base  *url.URL
 	user  string
@@ -31,7 +31,7 @@ type RESTClient struct {
 	token string
 }
 
-// NewREST construit le client à partir de la cible.
+// NewREST builds the client from the target.
 func NewREST(cfg *config.Target) (*RESTClient, error) {
 	u, err := url.Parse(cfg.URL)
 	if err != nil {
@@ -67,13 +67,13 @@ func (r *RESTClient) login(ctx context.Context) error {
 	}
 	var tok string
 	if err := json.Unmarshal(body, &tok); err != nil {
-		return fmt.Errorf("réponse /api/session inattendue: %w", err)
+		return fmt.Errorf("unexpected /api/session response: %w", err)
 	}
 	r.token = tok
 	return nil
 }
 
-// Get exécute un GET JSON sur un chemin /api/..., avec reconnexion sur 401.
+// Get performs a JSON GET on an /api/... path, re-authenticating on 401.
 func (r *RESTClient) Get(ctx context.Context, path string, out any) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -106,10 +106,10 @@ func (r *RESTClient) Get(ctx context.Context, path string, out any) error {
 		}
 		return json.Unmarshal(body, out)
 	}
-	return fmt.Errorf("GET %s: authentification REST refusée", path)
+	return fmt.Errorf("GET %s: REST authentication rejected", path)
 }
 
-// Logout supprime la session REST.
+// Logout deletes the REST session.
 func (r *RESTClient) Logout(ctx context.Context) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

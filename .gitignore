@@ -1,9 +1,9 @@
-# Binaires construits (make build) : à publier en Release GitHub plutôt que dans le dépôt
+# Built binaries (make build): publish them as GitHub Releases rather than in the repository
 dist/
 
-# Configuration locale Claude Code
+# Local Claude Code settings
 .claude/
 
-# Fichiers de configuration / secrets locaux
+# Local configuration files / secrets
 config.yml
 *.pass

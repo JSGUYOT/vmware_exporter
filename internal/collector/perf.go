@@ -21,9 +21,9 @@ type unitConv struct {
 	factor float64
 }
 
-// Conversion vers des unités lisibles et proches des conventions Prometheus.
+// Conversion to readable units close to Prometheus conventions.
 var perfUnits = map[string]unitConv{
-	"percent":            {"percent", 0.01}, // vSphere renvoie des centièmes de %
+	"percent":            {"percent", 0.01}, // vSphere returns hundredths of a percent
 	"kiloBytes":          {"bytes", 1024},
 	"megaBytes":          {"bytes", 1024 * 1024},
 	"teraBytes":          {"bytes", 1 << 40},
@@ -64,7 +64,7 @@ type wantedCounter struct {
 	fullName string
 }
 
-// collectPerf interroge les compteurs temps réel (intervalle 20s) des ESX et VMs allumés.
+// collectPerf queries real-time counters (20s interval) of powered-on hosts and VMs.
 func collectPerf(ctx context.Context, r *Run) error {
 	pm := performance.NewManager(r.Vim)
 	byName, err := pm.CounterInfoByName(ctx)
@@ -85,7 +85,7 @@ func collectPerf(ctx context.Context, r *Run) error {
 			name, all := strings.TrimSuffix(raw, ":*"), strings.HasSuffix(raw, ":*")
 			info, ok := byName[name]
 			if !ok {
-				r.Log.Debug("compteur de performance inconnu sur ce vCenter, ignoré", "counter", name)
+				r.Log.Debug("performance counter unknown on this vCenter, skipped", "counter", name)
 				continue
 			}
 			unit := info.UnitInfo.GetElementDescription().Key
@@ -150,10 +150,10 @@ func collectPerf(ctx context.Context, r *Run) error {
 				defer func() { <-sem }()
 				res, err := pm.Query(ctx, specs)
 				if err != nil && len(specs) > 1 {
-					// Une entité disparue (VM éteinte/supprimée, ESX déconnecté entre
-					// l'inventaire et la requête) fait échouer tout le lot : on rejoue
-					// entité par entité pour ne perdre que celle-là.
-					r.Log.Debug("lot QueryPerf en échec, nouvel essai entité par entité", "kind", kind, "size", len(specs), "err", err)
+					// An entity that vanished (VM powered off/deleted, host disconnected
+					// between inventory and query) fails the whole batch: retry one
+					// entity at a time so only that one is lost.
+					r.Log.Debug("QueryPerf batch failed, retrying one entity at a time", "kind", kind, "size", len(specs), "err", err)
 					res, err = nil, nil
 					failed := 0
 					var lastErr error
@@ -197,7 +197,7 @@ func collectPerf(ctx context.Context, r *Run) error {
 						if !ok {
 							continue
 						}
-						help := "Compteur vSphere temps réel " + w.fullName + " (" + aggHelp(w.info.RollupType) + " des échantillons 20s depuis la dernière collecte)."
+						help := "Real-time vSphere counter " + w.fullName + " (" + aggHelp(w.info.RollupType) + " of 20s samples since the last collection)."
 						r.Sink.Gauge(w.metric, help, v*w.factor, append(append(L{}, l...), "perf_instance", series.Id.Instance))
 					}
 				}
@@ -218,9 +218,9 @@ func collectPerf(ctx context.Context, r *Run) error {
 	return errV
 }
 
-// aggregate résume les échantillons 20s selon le type de rollup du compteur :
-// "latest" -> dernier échantillon, "maximum"/"minimum" -> extrême (on ne lisse pas
-// les pics), sinon moyenne. Les valeurs -1 (échantillon absent) sont ignorées.
+// aggregate summarises the 20s samples according to the counter's rollup type:
+// "latest" -> last sample, "maximum"/"minimum" -> extreme (peaks are not
+// smoothed), otherwise average. -1 values (missing sample) are skipped.
 func aggregate(vals []int64, rollup types.PerfSummaryType) (float64, bool) {
 	var sum, out float64
 	cnt := 0
@@ -259,7 +259,7 @@ func aggHelp(rollup types.PerfSummaryType) string {
 	case types.PerfSummaryTypeMinimum:
 		return "minimum"
 	case types.PerfSummaryTypeLatest:
-		return "dernier"
+		return "latest"
 	}
-	return "moyenne"
+	return "average"
 }

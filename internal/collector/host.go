@@ -54,20 +54,20 @@ func collectHosts(ctx context.Context, r *Run) error {
 			continue
 		}
 
-		s.Gauge(n("host_overall_status"), "Statut global de l'ESX"+statusHelp+".", statusValue(h.OverallStatus), l)
-		s.Gauge(n("host_connection_state"), "État de connexion de l'ESX au vCenter"+hostConnHelp+".", hostConn(h.Runtime.ConnectionState), l)
-		s.Gauge(n("host_power_state"), "État d'alimentation de l'ESX"+powerHelp+".", hostPower(h.Runtime.PowerState), l)
-		s.Gauge(n("host_maintenance_mode"), "1 si l'ESX est en mode maintenance.", b2f(h.Runtime.InMaintenanceMode), l)
-		s.Gauge(n("host_quarantine_mode"), "1 si l'ESX est en quarantaine (Proactive HA).", bp2f(h.Runtime.InQuarantineMode), l)
-		s.Gauge(n("host_config_issues"), "Nombre de problèmes de configuration signalés sur l'ESX.", float64(len(h.ConfigIssue)), l)
-		s.Gauge(n("host_reboot_required"), "1 si un redémarrage de l'ESX est requis.", b2f(h.Summary.RebootRequired), l)
-		s.Gauge(n("host_vms"), "Nombre de VMs enregistrées sur l'ESX.", float64(len(h.Vm)), l)
-		s.Gauge(n("host_datastores"), "Nombre de datastores montés sur l'ESX.", float64(len(h.Datastore)), l)
+		s.Gauge(n("host_overall_status"), "Overall status of the host"+statusHelp+".", statusValue(h.OverallStatus), l)
+		s.Gauge(n("host_connection_status"), "Host connection state to vCenter"+hostConnHelp+".", hostConn(h.Runtime.ConnectionState), l)
+		s.Gauge(n("host_power_status"), "Host power state"+powerHelp+".", hostPower(h.Runtime.PowerState), l)
+		s.Gauge(n("host_in_maintenance"), "1 if the host is in maintenance mode.", b2f(h.Runtime.InMaintenanceMode), l)
+		s.Gauge(n("host_quarantine_mode"), "1 if the host is in quarantine mode (Proactive HA).", bp2f(h.Runtime.InQuarantineMode), l)
+		s.Gauge(n("host_config_issues"), "Number of configuration issues reported on the host.", float64(len(h.ConfigIssue)), l)
+		s.Gauge(n("host_reboot_required"), "1 if the host requires a reboot.", b2f(h.Summary.RebootRequired), l)
+		s.Gauge(n("host_vms"), "Number of VMs registered on the host.", float64(len(h.Vm)), l)
+		s.Gauge(n("host_datastores"), "Number of datastores mounted on the host.", float64(len(h.Datastore)), l)
 		if h.Runtime.BootTime != nil {
-			s.Gauge(n("host_boot_timestamp_seconds"), "Horodatage du dernier démarrage de l'ESX.", float64(h.Runtime.BootTime.Unix()), l)
+			s.Gauge(n("host_boot_time_seconds"), "Time of the last host boot.", float64(h.Runtime.BootTime.Unix()), l)
 		}
 		if das := h.Runtime.DasHostState; das != nil {
-			s.Gauge(n("host_ha_state"), "État de l'agent HA (FDM) de l'ESX, valeur 1 pour l'état courant.", 1, append(append(L{}, l...), "state", das.State))
+			s.Gauge(n("host_ha_state"), "State of the host HA agent (FDM), value 1 for the current state.", 1, append(append(L{}, l...), "state", das.State))
 		}
 
 		info := L{"datacenter", dc, "cluster", cl, "host", h.Name}
@@ -86,18 +86,18 @@ func collectHosts(ctx context.Context, r *Run) error {
 			bios = h.Hardware.BiosInfo.BiosVersion
 		}
 		info = append(info, "bios_version", bios)
-		s.Gauge(n("host_info"), "Informations sur l'ESX (valeur toujours 1).", 1, info)
+		s.Gauge(n("host_info"), "Host information (value always 1).", 1, info)
 
 		if hw := h.Summary.Hardware; hw != nil {
-			s.Gauge(n("host_cpu_cores"), "Nombre de coeurs physiques.", float64(hw.NumCpuCores), l)
-			s.Gauge(n("host_cpu_threads"), "Nombre de threads physiques.", float64(hw.NumCpuThreads), l)
-			s.Gauge(n("host_cpu_total_mhz"), "Capacité CPU totale (MHz).", float64(hw.CpuMhz)*float64(hw.NumCpuCores), l)
-			s.Gauge(n("host_memory_total_bytes"), "Mémoire physique totale.", float64(hw.MemorySize), l)
+			s.Gauge(n("host_cpu_cores"), "Number of physical cores.", float64(hw.NumCpuCores), l)
+			s.Gauge(n("host_cpu_threads"), "Number of physical threads.", float64(hw.NumCpuThreads), l)
+			s.Gauge(n("host_cpu_total_mhz"), "Total CPU capacity (MHz).", float64(hw.CpuMhz)*float64(hw.NumCpuCores), l)
+			s.Gauge(n("host_memory_total_bytes"), "Total physical memory.", float64(hw.MemorySize), l)
 		}
 		qs := h.Summary.QuickStats
-		s.Gauge(n("host_cpu_usage_mhz"), "CPU consommé (MHz).", float64(qs.OverallCpuUsage), l)
-		s.Gauge(n("host_memory_usage_bytes"), "Mémoire consommée.", float64(qs.OverallMemoryUsage)*1024*1024, l)
-		s.Gauge(n("host_uptime_seconds"), "Uptime de l'ESX.", float64(qs.Uptime), l)
+		s.Gauge(n("host_cpu_usage_mhz"), "CPU usage (MHz).", float64(qs.OverallCpuUsage), l)
+		s.Gauge(n("host_memory_usage_bytes"), "Memory usage.", float64(qs.OverallMemoryUsage)*1024*1024, l)
+		s.Gauge(n("host_uptime_seconds"), "Host uptime.", float64(qs.Uptime), l)
 
 		if h.Config != nil {
 			hostCertificate(r, h, l)
@@ -108,7 +108,7 @@ func collectHosts(ctx context.Context, r *Run) error {
 						continue
 					}
 					sl := append(append(L{}, l...), "service", svc.Key, "policy", svc.Policy)
-					s.Gauge(n("host_service_running"), "1 si le service ESX est démarré (TSM-SSH, ntpd, ...).", b2f(svc.Running), sl)
+					s.Gauge(n("host_service_running"), "1 if the ESXi service is running (TSM-SSH, ntpd, ...).", b2f(svc.Running), sl)
 				}
 			}
 			if *r.Cfg.Host.StoragePaths && h.Config.StorageDevice != nil && h.Config.StorageDevice.MultipathInfo != nil {
@@ -134,7 +134,7 @@ func hostCertificate(r *Run, h *mo.HostSystem, l L) {
 	if err != nil {
 		return
 	}
-	r.Sink.Gauge(n("host_certificate_expiry_timestamp_seconds"), "Date d'expiration du certificat de l'ESX (epoch).", float64(c.NotAfter.Unix()), l)
+	r.Sink.Gauge(n("host_certificate_expiry_timestamp_seconds"), "Host certificate expiry date (epoch).", float64(c.NotAfter.Unix()), l)
 }
 
 func hostNICs(r *Run, h *mo.HostSystem, l L) {
@@ -164,8 +164,8 @@ func hostNICs(r *Run, h *mo.HostSystem, l L) {
 			u = "true"
 		}
 		nl := append(append(L{}, l...), "nic", p.Device, "used", u, "driver", p.Driver)
-		r.Sink.Gauge(n("host_pnic_link_up"), "1 si le lien de la carte réseau physique est actif. used=true si elle est uplink d'un vSwitch/vDS.", up, nl)
-		r.Sink.Gauge(n("host_pnic_speed_mbps"), "Vitesse négociée de la carte réseau physique (Mb/s, 0 si lien down).", speed, nl)
+		r.Sink.Gauge(n("host_pnic_link_up"), "1 if the physical NIC link is up. used=true if it is an uplink of a vSwitch/vDS.", up, nl)
+		r.Sink.Gauge(n("host_pnic_speed_mbps"), "Negotiated physical NIC speed (Mb/s, 0 if link down).", speed, nl)
 	}
 }
 
@@ -192,11 +192,11 @@ func hostPaths(r *Run, mp *types.HostMultipathInfo, l L) {
 		}
 	}
 	for st, c := range states {
-		r.Sink.Gauge(n("host_storage_paths"), "Nombre de chemins de stockage par état (active, standby, dead...).", float64(c), append(append(L{}, l...), "state", st))
+		r.Sink.Gauge(n("host_storage_paths"), "Number of storage paths by state (active, standby, dead...).", float64(c), append(append(L{}, l...), "state", st))
 	}
-	r.Sink.Gauge(n("host_storage_luns"), "Nombre de LUN vus par l'ESX.", float64(len(mp.Lun)), l)
-	r.Sink.Gauge(n("host_storage_luns_no_path"), "LUN sans aucun chemin vivant (perte d'accès).", float64(noPath), l)
-	r.Sink.Gauge(n("host_storage_luns_degraded"), "LUN multi-chemins n'ayant plus qu'un seul chemin vivant (perte de redondance).", float64(single), l)
+	r.Sink.Gauge(n("host_storage_luns"), "Number of LUNs seen by the host.", float64(len(mp.Lun)), l)
+	r.Sink.Gauge(n("host_storage_luns_no_path"), "LUNs with no live path (loss of access).", float64(noPath), l)
+	r.Sink.Gauge(n("host_storage_luns_degraded"), "Multipath LUNs down to a single live path (loss of redundancy).", float64(single), l)
 }
 
 func hostSensors(r *Run, hs *types.HealthSystemRuntime, l L) {
@@ -207,13 +207,13 @@ func hostSensors(r *Run, hs *types.HealthSystemRuntime, l L) {
 				health = hs.GetElementDescription().Key
 			}
 			sl := append(append(L{}, l...), "sensor", sn.Name, "type", sn.SensorType)
-			r.Sink.Gauge(n("host_sensor_health"), "Santé d'un capteur matériel IPMI/CIM"+statusHelp+".", healthString(health), sl)
+			r.Sink.Gauge(n("host_sensor_health"), "Health of an IPMI/CIM hardware sensor"+statusHelp+".", healthString(health), sl)
 			unit := sn.BaseUnits
 			if unit == "" {
 				unit = "none"
 			}
 			val := float64(sn.CurrentReading) * math.Pow10(int(sn.UnitModifier))
-			r.Sink.Gauge(n("host_sensor_value"), "Valeur courante d'un capteur matériel (unité dans le label unit).", val, append(sl, "unit", unit))
+			r.Sink.Gauge(n("host_sensor_value"), "Current reading of a hardware sensor (unit in the unit label).", val, append(sl, "unit", unit))
 		}
 	}
 	if hw := hs.HardwareStatusInfo; hw != nil {
@@ -224,7 +224,7 @@ func hostSensors(r *Run, hs *types.HealthSystemRuntime, l L) {
 				if e.Status != nil {
 					st = e.Status.GetElementDescription().Key
 				}
-				r.Sink.Gauge(n("host_hardware_status"), "Statut d'un composant matériel (mémoire, cpu, stockage)"+statusHelp+".",
+				r.Sink.Gauge(n("host_hardware_status"), "Status of a hardware component (memory, cpu, storage)"+statusHelp+".",
 					healthString(st), append(append(L{}, l...), "component", kind, "name", e.Name))
 			}
 		}
