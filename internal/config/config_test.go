@@ -62,7 +62,7 @@ func TestParseErrors(t *testing.T) {
 		"no password":            "targets: [{name: a, url: x, username: u}]",
 		"interval":               "targets: [{name: a, url: x, username: u, password: p, interval: 5s}]",
 		"duplicate":              "targets: [{name: a, url: x, username: u, password: p}, {name: a, url: y, username: u, password: p}]",
-		"reserved label":         "targets: [{name: a, url: x, username: u, password: p, extra_labels: {host: z}}]",
+		"reserved label":         "targets: [{name: a, url: x, username: u, password: p, extra_labels: {host_name: z}}]",
 		"unknown field":          "targets: [{name: a, url: x, username: u, password: p, passwd: z}]",
 		"regex":                  "targets: [{name: a, url: x, username: u, password: p, filters: {vm_exclude: '('}}]",
 		"web tls and web config": "web_tls: {cert_file: c, key_file: k}\nweb_config_file: w\ntargets: [{name: a, url: x, username: u, password: p}]",

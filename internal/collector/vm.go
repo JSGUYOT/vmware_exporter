@@ -9,7 +9,7 @@ import (
 )
 
 var vmProps = []string{
-	"name", "resourcePool", "overallStatus", "guestHeartbeatStatus",
+	"name", "parent", "resourcePool", "overallStatus", "guestHeartbeatStatus",
 	"config.managedBy", "config.version", "config.template",
 	"summary.config", "summary.quickStats", "summary.storage",
 	"runtime.host", "runtime.powerState", "runtime.connectionState", "runtime.bootTime",
@@ -78,7 +78,7 @@ func collectVMs(ctx context.Context, r *Run) error {
 		// Stable labels: host/cluster change on every vMotion and would break
 		// series continuity and alert "for:" durations. They are carried only
 		// by vmware_vm_info (join on(vcenter, vm_moid)).
-		l := L{"datacenter", dc, "vm", vm.Name, "vm_moid", vm.Self.Value}
+		l := L{"dc_name", dc, "vm_name", vm.Name, "vm_moid", vm.Self.Value, "folder_name", r.Topo.FolderOf(vm.Parent)}
 		powered := vm.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn
 		if powered {
 			on++
@@ -102,7 +102,7 @@ func collectVMs(ctx context.Context, r *Run) error {
 			ip, gh, toolsVer = vm.Guest.IpAddress, vm.Guest.HostName, vm.Guest.ToolsVersion
 		}
 		s.Gauge(n("vm_info"), "VM information (value always 1). Carries the current cluster and host.", 1, append(append(L{}, l...),
-			"cluster", cl, "host", hostName, "guest_os", guestOS, "hw_version", hw, "tools_version", toolsVer,
+			"cluster_name", cl, "host_name", hostName, "guest_os", guestOS, "hw_version", hw, "tools_version", toolsVer,
 			"ip_address", ip, "guest_hostname", gh, "managed_by", managedBy, "template", boolStr(isTemplate)))
 
 		s.Gauge(n("vm_power_status"), "VM power state"+powerHelp+".", vmPower(vm.Runtime.PowerState), l)

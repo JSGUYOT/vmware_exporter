@@ -22,7 +22,7 @@ func collectNetwork(ctx context.Context, r *Run) error {
 		if d.Summary.ProductInfo != nil {
 			ver = d.Summary.ProductInfo.Version
 		}
-		l := L{"datacenter", dc, "dvs", d.Name}
+		l := L{"dc_name", dc, "dvs", d.Name}
 		s.Gauge(n("dvs_info"), "vDS information (value always 1).", 1, append(append(L{}, l...), "version", ver))
 		s.Gauge(n("dvs_overall_status"), "Overall status of the vDS"+statusHelp+".", statusValue(d.OverallStatus), l)
 		s.Gauge(n("dvs_ports"), "Number of ports on the vDS.", float64(d.Summary.NumPorts), l)
@@ -31,7 +31,7 @@ func collectNetwork(ctx context.Context, r *Run) error {
 			byStatus := map[string]int{"up": 0, "pending": 0, "outOfSync": 0, "warning": 0, "disconnected": 0, "down": 0}
 			for _, hm := range d.Runtime.HostMemberRuntime {
 				byStatus[hm.Status]++
-				hl := append(append(L{}, l...), "host", r.Topo.Name[hm.Host.Value])
+				hl := append(append(L{}, l...), "host_name", r.Topo.Name[hm.Host.Value])
 				s.Gauge(n("dvs_host_member_up"), "1 if the vDS member host is 'up' (otherwise outOfSync, warning, down...).", b2f(hm.Status == "up"), hl)
 			}
 			for st, c := range byStatus {
@@ -62,7 +62,7 @@ func collectNetwork(ctx context.Context, r *Run) error {
 				acc = ns.Accessible
 			}
 		}
-		l := L{"datacenter", dc, "network", nw.Name, "network_type", kind, "network_moid", nw.Self.Value}
+		l := L{"dc_name", dc, "network", nw.Name, "network_type", kind, "network_moid", nw.Self.Value}
 		s.Gauge(n("network_overall_status"), "Overall status of the network / portgroup"+statusHelp+".", statusValue(nw.OverallStatus), l)
 		s.Gauge(n("network_accessible"), "1 if the network is accessible from at least one host.", b2f(acc), l)
 		s.Gauge(n("network_vms"), "Number of VMs connected to the network.", float64(len(nw.Vm)), l)

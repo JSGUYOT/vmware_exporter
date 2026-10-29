@@ -49,7 +49,7 @@ func collectHosts(ctx context.Context, r *Run) error {
 		}
 		dc := r.Topo.Datacenter(h.Self.Value)
 		cl := r.Topo.ClusterOfHost(h.Self.Value)
-		l := L{"datacenter", dc, "cluster", cl, "host", h.Name}
+		l := L{"dc_name", dc, "cluster_name", cl, "host_name", h.Name}
 
 		var pl L
 		if pry {
@@ -80,7 +80,7 @@ func collectHosts(ctx context.Context, r *Run) error {
 			s.Gauge(n("host_ha_state"), "State of the host HA agent (FDM), value 1 for the current state.", 1, append(append(L{}, l...), "state", das.State))
 		}
 
-		info := L{"datacenter", dc, "cluster", cl, "host", h.Name}
+		info := L{"dc_name", dc, "cluster_name", cl, "host_name", h.Name}
 		if p := h.Summary.Config.Product; p != nil {
 			info = append(info, "version", p.Version, "build", p.Build, "product", p.FullName)
 		} else {

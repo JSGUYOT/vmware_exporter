@@ -64,6 +64,18 @@ func (t *Topology) ClusterOfPool(moid string) string {
 	return ""
 }
 
+// FolderOf returns the name of the VM folder holding an object: "" when it is
+// the datacenter's root VM folder or when the object is not in a folder (vApp).
+func (t *Topology) FolderOf(parent *types.ManagedObjectReference) string {
+	if parent == nil || parent.Type != "Folder" {
+		return ""
+	}
+	if p, ok := t.Parent[parent.Value]; ok && p.Type == "Datacenter" {
+		return ""
+	}
+	return t.Name[parent.Value]
+}
+
 // loadTopology loads name+parent of containers and hosts.
 func (r *Run) loadTopology(ctx context.Context) error {
 	var oc []types.ObjectContent

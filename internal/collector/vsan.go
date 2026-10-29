@@ -44,7 +44,7 @@ func collectVSAN(ctx context.Context, r *Run) error {
 	var firstErr error
 	for _, c := range targets {
 		ref := c.Self
-		l := L{"datacenter", r.Topo.Datacenter(ref.Value), "cluster", c.Name}
+		l := L{"dc_name", r.Topo.Datacenter(ref.Value), "cluster_name", c.Name}
 		res, err := methods.VsanQueryVcClusterHealthSummary(ctx, vc, &vsantypes.VsanQueryVcClusterHealthSummary{
 			This: vsanHealthSystem, Cluster: &ref,
 			Fields:         []string{"timestamp", "overallHealth", "overallHealthDescription", "groups"},

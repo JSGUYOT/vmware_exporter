@@ -32,7 +32,7 @@ func collectDatastores(ctx context.Context, r *Run) error {
 			continue
 		}
 		sm := ds.Summary
-		l := L{"datacenter", dc, "datastore", ds.Name, "datastore_moid", ds.Self.Value}
+		l := L{"dc_name", dc, "ds_name", ds.Name, "datastore_moid", ds.Self.Value}
 		s.Gauge(n("datastore_info"), "Datastore information (value always 1).", 1, append(append(L{}, l...),
 			"type", sm.Type, "url", sm.Url, "datastore_cluster", pod, "shared", boolStr(sm.MultipleHostAccess != nil && *sm.MultipleHostAccess)))
 		s.Gauge(n("datastore_capacity_bytes"), "Datastore capacity.", float64(sm.Capacity), l)
@@ -64,7 +64,7 @@ func collectDatastores(ctx context.Context, r *Run) error {
 		return err
 	}
 	for _, p := range pods {
-		l := L{"datacenter", r.Topo.Datacenter(p.Self.Value), "datastore_cluster", p.Name}
+		l := L{"dc_name", r.Topo.Datacenter(p.Self.Value), "datastore_cluster", p.Name}
 		s.Gauge(n("datastore_cluster_overall_status"), "Overall status of the datastore cluster"+statusHelp+".", statusValue(p.OverallStatus), l)
 		s.Gauge(n("datastore_cluster_datastores"), "Number of datastores in the datastore cluster.", float64(len(p.ChildEntity)), l)
 		if p.Summary != nil {

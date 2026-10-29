@@ -110,7 +110,7 @@ type HostOpts struct {
 var reservedLabels = map[string]bool{}
 
 func init() {
-	for _, l := range strings.Fields(`acknowledged alarm alarm_moid api_version_server api_version_used bios_version build cluster collector commit component cpu_model datacenter datastore datastore_cluster datastore_moid disk_path driver dvs endpoint entity entity_moid entity_type govmomi_api group guest_hostname guest_os host hw_version instance instance_uuid ip_address job managed_by model name network network_moid network_type nic perf_instance policy product product_line resource_pool resource_pool_moid sensor service shared startup_type state status template test tools_version type unit url used vcenter vendor version vm vm_moid`) {
+	for _, l := range strings.Fields(`acknowledged alarm alarm_moid api_version_server api_version_used bios_version build cluster_name collector commit component cpu_model dc_name ds_name datastore_cluster datastore_moid disk_path driver dvs endpoint entity entity_moid entity_type folder_name govmomi_api group guest_hostname guest_os host_name hw_version instance instance_uuid ip_address job managed_by model name network network_moid network_type nic perf_instance policy product product_line resource_pool resource_pool_moid sensor service shared startup_type state status template test tools_version type unit url used vcenter vendor version vm_moid vm_name`) {
 		reservedLabels[l] = true
 	}
 }

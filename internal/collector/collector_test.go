@@ -212,8 +212,8 @@ func TestCompatibilityMatrix(t *testing.T) {
 			al := g.find("vmware_alarm_triggered", map[string]string{"alarm": "vcsim VM Alarm", "entity": "DC0_C0_RP0_VM0", "status": "red"})
 			if len(al) != 1 || value(al[0]) != 3 {
 				t.Errorf("red vCenter alarm not reported (%d series)", len(al))
-			} else if label(al[0], "datacenter") != "DC0" {
-				t.Errorf("alarm datacenter = %q", label(al[0], "datacenter"))
+			} else if label(al[0], "dc_name") != "DC0" {
+				t.Errorf("alarm dc_name = %q", label(al[0], "dc_name"))
 			}
 			mustHave := []string{
 				"vmware_cluster_overall_status", "vmware_cluster_cpu_total_mhz", "vmware_cluster_ha_enabled",
@@ -229,15 +229,24 @@ func TestCompatibilityMatrix(t *testing.T) {
 					t.Errorf("metric %s missing", name)
 				}
 			}
-			vm := g.find("vmware_vm_power_status", map[string]string{"vm": "DC0_C0_RP0_VM0"})
-			if len(vm) != 1 || label(vm[0], "datacenter") != "DC0" || label(vm[0], "host") != "" || label(vm[0], "cluster") != "" {
-				t.Errorf("expected stable VM labels (no host/cluster): %v", vm)
+			vm := g.find("vmware_vm_power_status", map[string]string{"vm_name": "DC0_C0_RP0_VM0"})
+			if len(vm) != 1 || label(vm[0], "dc_name") != "DC0" || label(vm[0], "host_name") != "" || label(vm[0], "cluster_name") != "" {
+				t.Errorf("expected stable VM labels (no host_name/cluster_name): %v", vm)
 			}
-			vi := g.find("vmware_vm_info", map[string]string{"vm": "DC0_C0_RP0_VM0"})
-			if len(vi) != 1 || label(vi[0], "cluster") != "DC0_C0" || label(vi[0], "host") == "" {
-				t.Errorf("vmware_vm_info must carry cluster/host: %v", vi)
+			vi := g.find("vmware_vm_info", map[string]string{"vm_name": "DC0_C0_RP0_VM0"})
+			if len(vi) != 1 || label(vi[0], "cluster_name") != "DC0_C0" || label(vi[0], "host_name") == "" {
+				t.Errorf("vmware_vm_info must carry cluster_name/host_name: %v", vi)
 			}
-			h := g.find("vmware_host_connection_status", map[string]string{"cluster": ""})
+			for _, name := range []string{"vmware_host_info", "vmware_datastore_capacity_bytes", "vmware_cluster_overall_status"} {
+				for _, m := range g.fams[name].GetMetric() {
+					for _, old := range []string{"host", "cluster", "datacenter", "datastore", "vm"} {
+						if label(m, old) != "" {
+							t.Errorf("%s still has the old label %q", name, old)
+						}
+					}
+				}
+			}
+			h := g.find("vmware_host_connection_status", map[string]string{"cluster_name": ""})
 			if len(h) == 0 {
 				t.Errorf("standalone host (no cluster) not reported")
 			}
@@ -593,6 +602,46 @@ func TestPryordaOnly(t *testing.T) {
 	for _, name := range []string{"vmware_vm_info", "vmware_host_info", "vmware_datastore_info"} {
 		if _, ok := g.fams[name]; ok {
 			t.Errorf("native %s emitted although its collector is disabled", name)
+		}
+	}
+}
+
+// TestFolderName: VM series carry the name of the VM folder ("" at the root).
+func TestFolderName(t *testing.T) {
+	_, s := newModel(t, "9.0.0", "9.0.0.0")
+	ctx := context.Background()
+	gc, err := govmomi.NewClient(ctx, s.URL, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := find.NewFinder(gc.Client)
+	root, err := f.Folder(ctx, "/DC0/vm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	apps, err := root.CreateFolder(ctx, "apps")
+	if err != nil {
+		t.Fatal(err)
+	}
+	vm, err := f.VirtualMachine(ctx, "/DC0/vm/DC0_C0_RP0_VM0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	task, err := apps.MoveInto(ctx, []types.ManagedObjectReference{vm.Reference()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := task.Wait(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	tg := NewTarget(targetFor(t, s, nil), testLogger())
+	tg.collectOnce(ctx)
+	g := gather(t, tg)
+	for vmName, want := range map[string]string{"DC0_C0_RP0_VM0": "apps", "DC0_C0_RP0_VM1": ""} {
+		m := g.find("vmware_vm_power_status", map[string]string{"vm_name": vmName})
+		if len(m) != 1 || label(m[0], "folder_name") != want {
+			t.Errorf("%s: folder_name = %v, want %q", vmName, m, want)
 		}
 	}
 }
