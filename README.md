@@ -195,7 +195,8 @@ See [config.example.yml](config.example.yml) (fully commented). Key points:
 - `defaults:` is inherited by every target; everything can be overridden per target.
 - Secrets: `password_file` (recommended) or `password_env`; `${VAR}` is interpolated everywhere.
 - `interval` (default 60 s, minimum 20 s) and `timeout` (default `interval - 5s`).
-- `collectors:` enables/disables each family; `filters:` restricts by regex.
+- `collectors:` enables/disables each family; `filters:` restricts by regex. `exporter: false`
+  drops the collection's own metrics (durations, collectors, failures); `vmware_up` stays.
 - `perf.host_counters` / `perf.vm_counters`: vSphere counters as `group.counter.rollup`,
   with a `:*` suffix for all instances (e.g. `datastore.totalReadLatency.average:*`).
 - `extra_labels:` adds static labels (site, env…) to every series.

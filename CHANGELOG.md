@@ -1,4 +1,4 @@
-## main / unreleased
+## 2.0.0 / 2026-10-29
 
 * [CHANGE] `vmware-exporter` is renamed `vmware_exporter` everywhere: binary, systemd unit
   (`vmware_exporter.service`), system user and group, configuration directory
@@ -21,6 +21,9 @@
   (configured interval / timeout per vCenter).
 * [ENHANCEMENT] Overview dashboard: "Collection per vCenter" section (last / max duration,
   duration / timeout, data age, collections and failures, duration per collector).
+* [FEATURE] `collectors.exporter` (default `true`): set it to `false` to drop the collection's
+  own metrics (`vmware_collection_*`, `vmware_collector_*`, `vmware_exporter_*` properties and
+  series counters); `vmware_up` is always emitted.
 * [CHANGE] `VMwareExporterSlowCollection` now fires when a collection uses more than 80% of its
   timeout (was a fixed 50 s, wrong for intervals other than 60 s).
 

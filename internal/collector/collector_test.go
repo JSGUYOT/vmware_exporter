@@ -645,3 +645,26 @@ func TestFolderName(t *testing.T) {
 		}
 	}
 }
+
+// TestExporterMetricsDisabled: collectors.exporter=false drops the collection's own
+// metrics but keeps vmware_up and the vCenter data.
+func TestExporterMetricsDisabled(t *testing.T) {
+	_, s := newModel(t, "9.0.0", "9.0.0.0")
+	cfg := targetFor(t, s, func(c *config.Target) {
+		off := false
+		c.Collectors.Exporter = &off
+	})
+	tg := NewTarget(cfg, testLogger())
+	tg.collectOnce(context.Background())
+	g := gather(t, tg)
+	for name := range g.fams {
+		if strings.HasPrefix(name, "vmware_collection") || strings.HasPrefix(name, "vmware_collector_") || strings.HasPrefix(name, "vmware_exporter_") {
+			t.Errorf("%s emitted although collectors.exporter is false", name)
+		}
+	}
+	for _, name := range []string{"vmware_up", "vmware_host_info", "vmware_vm_info"} {
+		if len(g.fams[name].GetMetric()) == 0 {
+			t.Errorf("%s missing with collectors.exporter false", name)
+		}
+	}
+}

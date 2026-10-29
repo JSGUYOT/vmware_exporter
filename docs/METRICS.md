@@ -11,6 +11,11 @@ Real-time performance counters: `vmware_<host|vm>_perf_<group>_<counter>_<rollup
 
 ## Exporter
 
+Disabled by `collectors: {exporter: false}` (globally or per target), except `vmware_up`, always
+emitted, and `vmware_exporter_build_info`, which describes the exporter process. The "Collection
+per vCenter" section of the overview dashboard and the `VMwareExporter*` alerts based on these
+metrics then stay empty.
+
 | Metric | Type | Labels | Description |
 |---|---|---|---|
 | `vmware_collection_duration_seconds` | gauge |  | Total duration of the last collection. |
