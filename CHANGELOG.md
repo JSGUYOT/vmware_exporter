@@ -1,5 +1,16 @@
 ## main / unreleased
 
+* [CHANGE] The binary is now named `vmware_exporter` (was `vmware-exporter`); the systemd
+  service name, system user and `/etc/vmware-exporter` are unchanged.
+* [CHANGE] Native labels renamed: `host` → `host_name`, `cluster` → `cluster_name`,
+  `datacenter` → `dc_name`, `datastore` → `ds_name`, `vm` → `vm_name`. Queries, alerts and
+  dashboards built on the old names must be updated (the shipped ones are). `host` is no
+  longer reserved, so it can be set through `extra_labels` or relabeling.
+* [FEATURE] `folder_name` label (VM folder) on every native VM series.
+* [FEATURE] Four linked Grafana dashboards: overview, clusters, ESX hosts, VMs, with
+  drill-down links (cluster → host → VM). The overview's uid changed from
+  `vmware-exporter-overview` to `vmware-overview`: delete the old dashboard after importing.
+
 ## 1.0.0 / 2026-10-16
 
 First release.

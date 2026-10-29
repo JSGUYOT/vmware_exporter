@@ -68,10 +68,11 @@ jobs:
             | tar xz --strip-components=1 -C /usr/local/bin "prometheus-${PROMETHEUS_VERSION}.linux-amd64/promtool"
       - run: make check-rules
       - run: make test-rules
-      - name: Grafana dashboard is in sync with its generator
+      - name: Grafana dashboards are in sync with their generator
         run: |
-          cd deploy/grafana
-          python3 build_dashboard.py | diff -u vmware-overview.json -
+          (cd deploy/grafana && python3 build_dashboard.py)
+          git status --porcelain -- deploy/grafana
+          test -z "$(git status --porcelain -- deploy/grafana)"
 
   docker:
     name: Docker image (GO_MOD=${{ matrix.go_mod }})

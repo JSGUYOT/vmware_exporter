@@ -1,0 +1,3519 @@
+{
+ "title": "VMware vSphere / VCF - ESX hosts",
+ "uid": "vmware-hosts",
+ "description": "Selected ESX host(s): status, CPU / memory, storage, network, hardware, VMs (click a VM to open it).",
+ "tags": [
+  "vmware-exporter",
+  "vmware",
+  "vsphere",
+  "vcf"
+ ],
+ "links": [
+  {
+   "title": "VMware dashboards",
+   "type": "dashboards",
+   "tags": [
+    "vmware-exporter"
+   ],
+   "asDropdown": false,
+   "includeVars": true,
+   "keepTime": true,
+   "targetBlank": false,
+   "icon": "external link",
+   "tooltip": "",
+   "url": ""
+  }
+ ],
+ "timezone": "browser",
+ "schemaVersion": 39,
+ "version": 1,
+ "editable": true,
+ "graphTooltip": 1,
+ "refresh": "1m",
+ "time": {
+  "from": "now-6h",
+  "to": "now"
+ },
+ "templating": {
+  "list": [
+   {
+    "name": "datasource",
+    "label": "Data source",
+    "type": "datasource",
+    "query": "prometheus",
+    "current": {},
+    "refresh": 1,
+    "regex": ""
+   },
+   {
+    "name": "vcenter",
+    "label": "vCenter",
+    "type": "query",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "${datasource}"
+    },
+    "refresh": 2,
+    "includeAll": true,
+    "multi": true,
+    "allValue": ".*",
+    "current": {
+     "selected": true,
+     "text": [
+      "All"
+     ],
+     "value": [
+      "$__all"
+     ]
+    },
+    "query": {
+     "query": "label_values(vmware_up, vcenter)",
+     "refId": "vcenter",
+     "qryType": 1
+    },
+    "definition": "label_values(vmware_up, vcenter)",
+    "sort": 1,
+    "regex": "",
+    "options": []
+   },
+   {
+    "name": "dc_name",
+    "label": "Datacenter",
+    "type": "query",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "${datasource}"
+    },
+    "refresh": 2,
+    "includeAll": true,
+    "multi": true,
+    "allValue": ".*",
+    "current": {
+     "selected": true,
+     "text": [
+      "All"
+     ],
+     "value": [
+      "$__all"
+     ]
+    },
+    "query": {
+     "query": "label_values(vmware_datacenter_overall_status{vcenter=~\"$vcenter\"}, dc_name)",
+     "refId": "dc_name",
+     "qryType": 1
+    },
+    "definition": "label_values(vmware_datacenter_overall_status{vcenter=~\"$vcenter\"}, dc_name)",
+    "sort": 1,
+    "regex": "",
+    "options": []
+   },
+   {
+    "name": "cluster_name",
+    "label": "Cluster",
+    "type": "query",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "${datasource}"
+    },
+    "refresh": 2,
+    "includeAll": true,
+    "multi": true,
+    "allValue": ".*",
+    "current": {
+     "selected": true,
+     "text": [
+      "All"
+     ],
+     "value": [
+      "$__all"
+     ]
+    },
+    "query": {
+     "query": "label_values(vmware_cluster_overall_status{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"}, cluster_name)",
+     "refId": "cluster_name",
+     "qryType": 1
+    },
+    "definition": "label_values(vmware_cluster_overall_status{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"}, cluster_name)",
+    "sort": 1,
+    "regex": "",
+    "options": []
+   },
+   {
+    "name": "host_name",
+    "label": "ESX host",
+    "type": "query",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "${datasource}"
+    },
+    "refresh": 2,
+    "includeAll": true,
+    "multi": true,
+    "allValue": ".*",
+    "current": {
+     "selected": true,
+     "text": [
+      "All"
+     ],
+     "value": [
+      "$__all"
+     ]
+    },
+    "query": {
+     "query": "label_values(vmware_host_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\"}, host_name)",
+     "refId": "host_name",
+     "qryType": 1
+    },
+    "definition": "label_values(vmware_host_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\"}, host_name)",
+    "sort": 1,
+    "regex": "",
+    "options": []
+   }
+  ]
+ },
+ "annotations": {
+  "list": []
+ },
+ "panels": [
+  {
+   "type": "row",
+   "title": "Status",
+   "collapsed": false,
+   "panels": [],
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 1
+   },
+   "id": 1
+  },
+  {
+   "type": "table",
+   "title": "ESX host status",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max by (vcenter, cluster_name, host_name, version, build, model) (vmware_host_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "B",
+     "expr": "max by (vcenter, cluster_name, host_name) (vmware_host_overall_status{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "C",
+     "expr": "max by (vcenter, cluster_name, host_name) (vmware_host_connection_status{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "D",
+     "expr": "max by (vcenter, cluster_name, host_name) (vmware_host_in_maintenance{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "E",
+     "expr": "max by (vcenter, cluster_name, host_name) ((vmware_host_cpu_usage_mhz{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"} / vmware_host_cpu_total_mhz{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"}))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "F",
+     "expr": "max by (vcenter, cluster_name, host_name) ((vmware_host_memory_usage_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"} / vmware_host_memory_total_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"}))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "G",
+     "expr": "max by (vcenter, cluster_name, host_name) (vmware_host_vms{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "H",
+     "expr": "max by (vcenter, cluster_name, host_name) (vmware_host_uptime_seconds{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "I",
+     "expr": "max by (vcenter, cluster_name, host_name) (vmware_host_reboot_required{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "J",
+     "expr": "max by (vcenter, cluster_name, host_name) (vmware_host_config_issues{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "K",
+     "expr": "max by (vcenter, cluster_name, host_name) (vmware_host_power_status{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "L",
+     "expr": "max by (vcenter, cluster_name, host_name) (vmware_host_quarantine_mode{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "M",
+     "expr": "max by (vcenter, cluster_name, host_name) (vmware_host_certificate_expiry_timestamp_seconds{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"} - time())",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "N",
+     "expr": "max by (vcenter, cluster_name, host_name) (count by (vcenter, cluster_name, host_name) (vmware_alarm_triggered{vcenter=~\"$vcenter\", entity_type=\"HostSystem\"} * on(vcenter, entity) group_left(cluster_name, host_name) label_replace(vmware_host_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"}, \"entity\", \"$1\", \"host_name\", \"(.*)\")))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "merge",
+     "options": {}
+    },
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true,
+       "Value #A": true
+      },
+      "renameByName": {
+       "Value #B": "Status",
+       "Value #C": "Connection",
+       "Value #D": "Maintenance",
+       "Value #E": "CPU",
+       "Value #F": "Memory",
+       "Value #G": "VMs",
+       "Value #H": "Uptime",
+       "Value #I": "Reboot required",
+       "Value #J": "Config issues",
+       "Value #K": "Power",
+       "Value #L": "Quarantine",
+       "Value #M": "Certificate expires in",
+       "Value #N": "Active alarms"
+      },
+      "indexByName": {
+       "vcenter": 0,
+       "cluster_name": 1,
+       "host_name": 2,
+       "version": 3,
+       "build": 4,
+       "model": 5,
+       "Value #B": 7,
+       "Value #C": 8,
+       "Value #D": 9,
+       "Value #E": 10,
+       "Value #F": 11,
+       "Value #G": 12,
+       "Value #H": 13,
+       "Value #I": 14,
+       "Value #J": 15,
+       "Value #K": 16,
+       "Value #L": 17,
+       "Value #M": 18,
+       "Value #N": 19
+      }
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": false,
+      "align": "auto"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Status"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "gray",
+            "color": "#8e8e8e",
+            "index": 0
+           },
+           "1": {
+            "text": "green",
+            "color": "green",
+            "index": 1
+           },
+           "2": {
+            "text": "yellow",
+            "color": "orange",
+            "index": 2
+           },
+           "3": {
+            "text": "red",
+            "color": "red",
+            "index": 3
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Connection"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "disconnected",
+            "color": "red",
+            "index": 0
+           },
+           "1": {
+            "text": "connected",
+            "color": "green",
+            "index": 1
+           },
+           "2": {
+            "text": "not responding",
+            "color": "red",
+            "index": 2
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Maintenance"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "no",
+            "color": "green",
+            "index": 0
+           },
+           "1": {
+            "text": "yes",
+            "color": "orange",
+            "index": 1
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "CPU"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "percentunit"
+       },
+       {
+        "id": "min",
+        "value": 0
+       },
+       {
+        "id": "max",
+        "value": 1
+       },
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "green",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 0.85
+          },
+          {
+           "color": "red",
+           "value": 0.95
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "gauge",
+         "mode": "basic",
+         "valueDisplayMode": "text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Memory"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "percentunit"
+       },
+       {
+        "id": "min",
+        "value": 0
+       },
+       {
+        "id": "max",
+        "value": 1
+       },
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "green",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 0.85
+          },
+          {
+           "color": "red",
+           "value": 0.95
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "gauge",
+         "mode": "basic",
+         "valueDisplayMode": "text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Uptime"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "s"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Reboot required"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "no",
+            "color": "green",
+            "index": 0
+           },
+           "1": {
+            "text": "yes",
+            "color": "orange",
+            "index": 1
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Config issues"
+      },
+      "properties": [
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "green",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 1
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Power"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "off",
+            "color": "#8e8e8e",
+            "index": 0
+           },
+           "1": {
+            "text": "on",
+            "color": "green",
+            "index": 1
+           },
+           "2": {
+            "text": "suspended/standby",
+            "color": "orange",
+            "index": 2
+           },
+           "3": {
+            "text": "unknown",
+            "color": "#8e8e8e",
+            "index": 3
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Quarantine"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "no",
+            "color": "green",
+            "index": 0
+           },
+           "1": {
+            "text": "yes",
+            "color": "orange",
+            "index": 1
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Certificate expires in"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "s"
+       },
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "red",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 604800
+          },
+          {
+           "color": "green",
+           "value": 2592000
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Active alarms"
+      },
+      "properties": [
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "green",
+           "value": null
+          },
+          {
+           "color": "red",
+           "value": 1
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "host_name"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Open ESX host ${__value.raw}",
+          "url": "/d/vmware-hosts/vmware-vsphere-vcf-esx-hosts?var-datasource=${datasource}&var-vcenter=${__data.fields.vcenter}&var-host_name=${__value.raw}&${__url_time_range}"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "cluster_name"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Open cluster ${__value.raw}",
+          "url": "/d/vmware-clusters/vmware-vsphere-vcf-clusters?var-datasource=${datasource}&var-vcenter=${__data.fields.vcenter}&var-cluster_name=${__value.raw}&${__url_time_range}"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 1,
+    "w": 24,
+    "h": 6
+   },
+   "id": 2
+  },
+  {
+   "type": "table",
+   "title": "Hardware",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max by (vcenter, host_name, vendor, model, cpu_model, bios_version, product) (vmware_host_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "B",
+     "expr": "max by (vcenter, host_name) (vmware_host_cpu_cores{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "C",
+     "expr": "max by (vcenter, host_name) (vmware_host_cpu_threads{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "D",
+     "expr": "max by (vcenter, host_name) (vmware_host_cpu_total_mhz{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "E",
+     "expr": "max by (vcenter, host_name) (vmware_host_memory_total_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "F",
+     "expr": "max by (vcenter, host_name) (vmware_host_datastores{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "G",
+     "expr": "max by (vcenter, host_name) (vmware_host_storage_luns{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "merge",
+     "options": {}
+    },
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true,
+       "Value #A": true
+      },
+      "renameByName": {
+       "Value #B": "Cores",
+       "Value #C": "Threads",
+       "Value #D": "CPU total",
+       "Value #E": "Memory",
+       "Value #F": "Datastores",
+       "Value #G": "LUNs"
+      },
+      "indexByName": {
+       "vcenter": 0,
+       "host_name": 1,
+       "vendor": 2,
+       "model": 3,
+       "cpu_model": 4,
+       "bios_version": 5,
+       "product": 6,
+       "Value #B": 8,
+       "Value #C": 9,
+       "Value #D": 10,
+       "Value #E": 11,
+       "Value #F": 12,
+       "Value #G": 13
+      }
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": false,
+      "align": "auto"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "CPU total"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "mhz"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Memory"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "bytes"
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 7,
+    "w": 24,
+    "h": 5
+   },
+   "id": 3
+  },
+  {
+   "type": "row",
+   "title": "CPU / memory",
+   "collapsed": false,
+   "panels": [],
+   "gridPos": {
+    "x": 0,
+    "y": 12,
+    "w": 24,
+    "h": 1
+   },
+   "id": 4
+  },
+  {
+   "type": "timeseries",
+   "title": "CPU usage",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "(vmware_host_cpu_usage_mhz{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"} / vmware_host_cpu_total_mhz{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} usage"
+    },
+    {
+     "refId": "B",
+     "expr": "vmware_host_perf_cpu_utilization_average_percent{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", perf_instance=\"\"} / 100",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} utilization (perf)"
+    },
+    {
+     "refId": "C",
+     "expr": "vmware_host_perf_cpu_core_utilization_average_percent{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", perf_instance=\"\"} / 100",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} core utilization (perf)"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "links": [],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true,
+      "axisSoftMin": 0,
+      "axisSoftMax": 1
+     },
+     "max": 1,
+     "min": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 13,
+    "w": 12,
+    "h": 8
+   },
+   "id": 5
+  },
+  {
+   "type": "timeseries",
+   "title": "Memory usage",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "(vmware_host_memory_usage_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"} / vmware_host_memory_total_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} usage"
+    },
+    {
+     "refId": "B",
+     "expr": "vmware_host_perf_mem_usage_average_percent{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", perf_instance=\"\"} / 100",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} usage (perf)"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "links": [],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true,
+      "axisSoftMin": 0,
+      "axisSoftMax": 1
+     },
+     "max": 1,
+     "min": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 13,
+    "w": 12,
+    "h": 8
+   },
+   "id": 6
+  },
+  {
+   "type": "timeseries",
+   "title": "Memory (perf)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "vmware_host_perf_mem_consumed_average_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", perf_instance=\"\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} consumed"
+    },
+    {
+     "refId": "B",
+     "expr": "vmware_host_perf_mem_active_average_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", perf_instance=\"\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} active"
+    },
+    {
+     "refId": "C",
+     "expr": "vmware_host_perf_mem_vmmemctl_average_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", perf_instance=\"\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} ballooned"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "bytes",
+     "links": [],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 21,
+    "w": 12,
+    "h": 8
+   },
+   "id": 7
+  },
+  {
+   "type": "timeseries",
+   "title": "Hypervisor swap rate",
+   "description": "Should stay at 0: host memory overcommitment.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "vmware_host_perf_mem_swapin_rate_average_bytes_per_second{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", perf_instance=\"\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} swap in"
+    },
+    {
+     "refId": "B",
+     "expr": "vmware_host_perf_mem_swapout_rate_average_bytes_per_second{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", perf_instance=\"\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} swap out"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "Bps",
+     "links": [],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 21,
+    "w": 12,
+    "h": 8
+   },
+   "id": 8
+  },
+  {
+   "type": "row",
+   "title": "Storage",
+   "collapsed": false,
+   "panels": [],
+   "gridPos": {
+    "x": 0,
+    "y": 29,
+    "w": 24,
+    "h": 1
+   },
+   "id": 9
+  },
+  {
+   "type": "timeseries",
+   "title": "Disk throughput",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "vmware_host_perf_disk_read_average_bytes_per_second{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", perf_instance=\"\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} read"
+    },
+    {
+     "refId": "B",
+     "expr": "vmware_host_perf_disk_write_average_bytes_per_second{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", perf_instance=\"\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} write"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "Bps",
+     "links": [],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 30,
+    "w": 12,
+    "h": 8
+   },
+   "id": 10
+  },
+  {
+   "type": "timeseries",
+   "title": "Max disk latency",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max by (vcenter, host_name) (vmware_host_perf_disk_max_total_latency_latest_seconds{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "links": [],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 30,
+    "w": 12,
+    "h": 8
+   },
+   "id": 11
+  },
+  {
+   "type": "timeseries",
+   "title": "Datastore latency seen by the host (max of read / write)",
+   "description": "Per datastore (datastore.totalRead/WriteLatency counters, instance = datastore UUID resolved to its name).",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max by (vcenter, host_name, perf_instance) ({__name__=~\"vmware_host_perf_datastore_total_(read|write)_latency_average_seconds\", vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", perf_instance!=\"\"}) * on(vcenter, perf_instance) group_left(ds_name) max by (vcenter, perf_instance, ds_name) (label_replace(vmware_datastore_info{vcenter=~\"$vcenter\", url=~\".*/volumes/.+\"}, \"perf_instance\", \"$1\", \"url\", \".*/volumes/([^/]+)/?\"))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} / {{ds_name}}"
+    },
+    {
+     "refId": "B",
+     "expr": "max by (vcenter, host_name, perf_instance) ({__name__=~\"vmware_host_perf_datastore_total_(read|write)_latency_average_seconds\", vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", perf_instance!=\"\"}) unless on(vcenter, perf_instance) max by (vcenter, perf_instance, ds_name) (label_replace(vmware_datastore_info{vcenter=~\"$vcenter\", url=~\".*/volumes/.+\"}, \"perf_instance\", \"$1\", \"url\", \".*/volumes/([^/]+)/?\"))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} / {{perf_instance}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "links": [],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 38,
+    "w": 12,
+    "h": 8
+   },
+   "id": 12
+  },
+  {
+   "type": "timeseries",
+   "title": "Storage paths / LUNs",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (vcenter, host_name, state) (vmware_host_storage_paths{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} paths {{state}}"
+    },
+    {
+     "refId": "B",
+     "expr": "vmware_host_storage_luns_degraded{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} LUNs degraded"
+    },
+    {
+     "refId": "C",
+     "expr": "vmware_host_storage_luns_no_path{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} LUNs without path"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "links": [],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 38,
+    "w": 12,
+    "h": 8
+   },
+   "id": 13
+  },
+  {
+   "type": "table",
+   "title": "Datastores of the host's datacenter",
+   "description": "Datastores of the datacenter(s) containing the selected host(s) (the exporter does not expose the host/datastore mount map).",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max by (vcenter, dc_name, ds_name, type, shared) (vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"}) and on(vcenter, dc_name) (vmware_host_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "B",
+     "expr": "max by (vcenter, dc_name, ds_name) (vmware_datastore_overall_status{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"}) and on(vcenter, dc_name) (vmware_host_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "C",
+     "expr": "max by (vcenter, dc_name, ds_name) (vmware_datastore_is_accessible{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"}) and on(vcenter, dc_name) (vmware_host_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "D",
+     "expr": "max by (vcenter, dc_name, ds_name) (vmware_datastore_capacity_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"}) and on(vcenter, dc_name) (vmware_host_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "E",
+     "expr": "max by (vcenter, dc_name, ds_name) (vmware_datastore_free_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"}) and on(vcenter, dc_name) (vmware_host_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "F",
+     "expr": "max by (vcenter, dc_name, ds_name) (1 - vmware_datastore_free_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"} / vmware_datastore_capacity_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"}) and on(vcenter, dc_name) (vmware_host_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "G",
+     "expr": "max by (vcenter, dc_name, ds_name) (vmware_datastore_hosts_mounted{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"}) and on(vcenter, dc_name) (vmware_host_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "H",
+     "expr": "max by (vcenter, dc_name, ds_name) (vmware_datastore_hosts_inaccessible{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"}) and on(vcenter, dc_name) (vmware_host_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "merge",
+     "options": {}
+    },
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true,
+       "Value #A": true
+      },
+      "renameByName": {
+       "Value #B": "Status",
+       "Value #C": "Accessible",
+       "Value #D": "Capacity",
+       "Value #E": "Free",
+       "Value #F": "Used",
+       "Value #G": "Hosts mounting",
+       "Value #H": "Hosts without access"
+      },
+      "indexByName": {
+       "vcenter": 0,
+       "dc_name": 1,
+       "ds_name": 2,
+       "type": 3,
+       "shared": 4,
+       "Value #B": 6,
+       "Value #C": 7,
+       "Value #D": 8,
+       "Value #E": 9,
+       "Value #F": 10,
+       "Value #G": 11,
+       "Value #H": 12
+      }
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Status"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "gray",
+            "color": "#8e8e8e",
+            "index": 0
+           },
+           "1": {
+            "text": "green",
+            "color": "green",
+            "index": 1
+           },
+           "2": {
+            "text": "yellow",
+            "color": "orange",
+            "index": 2
+           },
+           "3": {
+            "text": "red",
+            "color": "red",
+            "index": 3
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Accessible"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "no",
+            "color": "orange",
+            "index": 0
+           },
+           "1": {
+            "text": "yes",
+            "color": "green",
+            "index": 1
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Capacity"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "bytes"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Free"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "bytes"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Used"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "percentunit"
+       },
+       {
+        "id": "min",
+        "value": 0
+       },
+       {
+        "id": "max",
+        "value": 1
+       },
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "green",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 0.85
+          },
+          {
+           "color": "red",
+           "value": 0.95
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "gauge",
+         "mode": "basic",
+         "valueDisplayMode": "text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Hosts without access"
+      },
+      "properties": [
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "green",
+           "value": null
+          },
+          {
+           "color": "red",
+           "value": 1
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    },
+    "sortBy": [
+     {
+      "displayName": "Used",
+      "desc": true
+     }
+    ]
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 46,
+    "w": 24,
+    "h": 8
+   },
+   "id": 14
+  },
+  {
+   "type": "row",
+   "title": "Network",
+   "collapsed": false,
+   "panels": [],
+   "gridPos": {
+    "x": 0,
+    "y": 54,
+    "w": 24,
+    "h": 1
+   },
+   "id": 15
+  },
+  {
+   "type": "timeseries",
+   "title": "Network throughput",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "vmware_host_perf_net_received_average_bytes_per_second{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", perf_instance=\"\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} rx"
+    },
+    {
+     "refId": "B",
+     "expr": "vmware_host_perf_net_transmitted_average_bytes_per_second{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", perf_instance=\"\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} tx"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "Bps",
+     "links": [],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 55,
+    "w": 12,
+    "h": 8
+   },
+   "id": 16
+  },
+  {
+   "type": "timeseries",
+   "title": "Dropped packets / errors (per 20 s sample)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "vmware_host_perf_net_dropped_rx_summation{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", perf_instance=\"\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} dropped rx"
+    },
+    {
+     "refId": "B",
+     "expr": "vmware_host_perf_net_dropped_tx_summation{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", perf_instance=\"\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} dropped tx"
+    },
+    {
+     "refId": "C",
+     "expr": "vmware_host_perf_net_errors_rx_summation{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", perf_instance=\"\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} errors rx"
+    },
+    {
+     "refId": "D",
+     "expr": "vmware_host_perf_net_errors_tx_summation{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", perf_instance=\"\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}} errors tx"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "links": [],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 55,
+    "w": 12,
+    "h": 8
+   },
+   "id": 17
+  },
+  {
+   "type": "table",
+   "title": "Physical NICs",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max by (vcenter, host_name, nic, driver, used) (vmware_host_pnic_link_up{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "B",
+     "expr": "max by (vcenter, host_name, nic) (vmware_host_pnic_link_up{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "C",
+     "expr": "max by (vcenter, host_name, nic) (vmware_host_pnic_speed_mbps{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"} * 1000000)",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "merge",
+     "options": {}
+    },
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true,
+       "Value #A": true
+      },
+      "renameByName": {
+       "Value #B": "Link",
+       "Value #C": "Speed"
+      },
+      "indexByName": {
+       "vcenter": 0,
+       "host_name": 1,
+       "nic": 2,
+       "driver": 3,
+       "used": 4,
+       "Value #B": 6,
+       "Value #C": 7
+      }
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Link"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "down",
+            "color": "red",
+            "index": 0
+           },
+           "1": {
+            "text": "up",
+            "color": "green",
+            "index": 1
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Speed"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "bps"
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 63,
+    "w": 24,
+    "h": 7
+   },
+   "id": 18
+  },
+  {
+   "type": "row",
+   "title": "Hardware health / services",
+   "collapsed": false,
+   "panels": [],
+   "gridPos": {
+    "x": 0,
+    "y": 70,
+    "w": 24,
+    "h": 1
+   },
+   "id": 19
+  },
+  {
+   "type": "timeseries",
+   "title": "Power consumption",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "vmware_host_perf_power_power_average_watts{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", perf_instance=\"\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{host_name}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "watt",
+     "links": [],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 71,
+    "w": 8,
+    "h": 8
+   },
+   "id": 20
+  },
+  {
+   "type": "table",
+   "title": "Hardware status",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "vmware_host_hardware_status{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true,
+       "__name__": true,
+       "job": true,
+       "instance": true,
+       "vcenter": true,
+       "dc_name": true,
+       "cluster_name": true
+      },
+      "renameByName": {
+       "Value": "Status"
+      },
+      "indexByName": {
+       "host_name": 0,
+       "component": 1,
+       "name": 2
+      }
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Status"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "gray",
+            "color": "#8e8e8e",
+            "index": 0
+           },
+           "1": {
+            "text": "green",
+            "color": "green",
+            "index": 1
+           },
+           "2": {
+            "text": "yellow",
+            "color": "orange",
+            "index": 2
+           },
+           "3": {
+            "text": "red",
+            "color": "red",
+            "index": 3
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    },
+    "sortBy": [
+     {
+      "displayName": "Status",
+      "desc": true
+     }
+    ]
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 71,
+    "w": 16,
+    "h": 8
+   },
+   "id": 21
+  },
+  {
+   "type": "table",
+   "title": "Sensors (worst first)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max by (host_name, type, sensor) (vmware_host_sensor_health{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "B",
+     "expr": "max by (host_name, type, sensor, unit) (vmware_host_sensor_value{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "C",
+     "expr": "max by (host_name, type, sensor) (vmware_host_sensor_value{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "merge",
+     "options": {}
+    },
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true,
+       "Value #B": true
+      },
+      "renameByName": {
+       "Value #A": "Health",
+       "Value #C": "Value"
+      },
+      "indexByName": {
+       "host_name": 0,
+       "type": 1,
+       "sensor": 2,
+       "unit": 3,
+       "Value #A": 4,
+       "Value #C": 6
+      }
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Health"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "gray",
+            "color": "#8e8e8e",
+            "index": 0
+           },
+           "1": {
+            "text": "green",
+            "color": "green",
+            "index": 1
+           },
+           "2": {
+            "text": "yellow",
+            "color": "orange",
+            "index": 2
+           },
+           "3": {
+            "text": "red",
+            "color": "red",
+            "index": 3
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    },
+    "sortBy": [
+     {
+      "displayName": "Health",
+      "desc": true
+     }
+    ]
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 79,
+    "w": 16,
+    "h": 8
+   },
+   "id": 22
+  },
+  {
+   "type": "table",
+   "title": "Services",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "vmware_host_service_running{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true,
+       "__name__": true,
+       "job": true,
+       "instance": true,
+       "vcenter": true,
+       "dc_name": true,
+       "cluster_name": true
+      },
+      "renameByName": {
+       "Value": "Running"
+      },
+      "indexByName": {
+       "host_name": 0,
+       "service": 1,
+       "policy": 2
+      }
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Running"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "stopped",
+            "color": "#8e8e8e",
+            "index": 0
+           },
+           "1": {
+            "text": "running",
+            "color": "green",
+            "index": 1
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    }
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 79,
+    "w": 8,
+    "h": 8
+   },
+   "id": 23
+  },
+  {
+   "type": "row",
+   "title": "Virtual machines on the host",
+   "collapsed": false,
+   "panels": [],
+   "gridPos": {
+    "x": 0,
+    "y": 87,
+    "w": 24,
+    "h": 1
+   },
+   "id": 24
+  },
+  {
+   "type": "table",
+   "title": "VMs (click a VM to open it)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max by (vcenter, vm_name, vm_moid, host_name, cluster_name, guest_os, ip_address) (vmware_vm_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "B",
+     "expr": "max by (vcenter, vm_name, vm_moid) (vmware_vm_power_status{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"} and on(vcenter, vm_moid) vmware_vm_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "C",
+     "expr": "max by (vcenter, vm_name, vm_moid) (vmware_vm_overall_status{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"} and on(vcenter, vm_moid) vmware_vm_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "D",
+     "expr": "max by (vcenter, vm_name, vm_moid) (vmware_vm_vcpus{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"} and on(vcenter, vm_moid) vmware_vm_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "E",
+     "expr": "max by (vcenter, vm_name, vm_moid) (vmware_vm_memory_size_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"} and on(vcenter, vm_moid) vmware_vm_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "F",
+     "expr": "max by (vcenter, vm_name, vm_moid) (vmware_vm_cpu_usage_mhz{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"} and on(vcenter, vm_moid) vmware_vm_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "G",
+     "expr": "max by (vcenter, vm_name, vm_moid) (((vmware_vm_perf_cpu_ready_summation_seconds{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", perf_instance=\"\"} / 20) / ignoring(perf_instance) vmware_vm_vcpus{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"}) and on(vcenter, vm_moid) vmware_vm_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "H",
+     "expr": "max by (vcenter, vm_name, vm_moid) (vmware_vm_memory_host_consumed_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"} and on(vcenter, vm_moid) vmware_vm_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "I",
+     "expr": "max by (vcenter, vm_name, vm_moid) (vmware_vm_tools_running{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"} and on(vcenter, vm_moid) vmware_vm_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "J",
+     "expr": "max by (vcenter, vm_name, vm_moid) (vmware_vm_snapshots_existing{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"} and on(vcenter, vm_moid) vmware_vm_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "K",
+     "expr": "max by (vcenter, vm_name, vm_moid) (vmware_vm_uptime_seconds{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"} and on(vcenter, vm_moid) vmware_vm_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "merge",
+     "options": {}
+    },
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true,
+       "vm_moid": true,
+       "Value #A": true
+      },
+      "renameByName": {
+       "Value #B": "Power",
+       "Value #C": "Status",
+       "Value #D": "vCPUs",
+       "Value #E": "Memory",
+       "Value #F": "CPU used",
+       "Value #G": "CPU ready / vCPU",
+       "Value #H": "Host memory consumed",
+       "Value #I": "Tools running",
+       "Value #J": "Snapshots",
+       "Value #K": "Uptime"
+      },
+      "indexByName": {
+       "vcenter": 0,
+       "vm_name": 1,
+       "vm_moid": 2,
+       "host_name": 3,
+       "cluster_name": 4,
+       "guest_os": 5,
+       "ip_address": 6,
+       "Value #B": 8,
+       "Value #C": 9,
+       "Value #D": 10,
+       "Value #E": 11,
+       "Value #F": 12,
+       "Value #G": 13,
+       "Value #H": 14,
+       "Value #I": 15,
+       "Value #J": 16,
+       "Value #K": 17
+      }
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Power"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "off",
+            "color": "#8e8e8e",
+            "index": 0
+           },
+           "1": {
+            "text": "on",
+            "color": "green",
+            "index": 1
+           },
+           "2": {
+            "text": "suspended/standby",
+            "color": "orange",
+            "index": 2
+           },
+           "3": {
+            "text": "unknown",
+            "color": "#8e8e8e",
+            "index": 3
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Status"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "gray",
+            "color": "#8e8e8e",
+            "index": 0
+           },
+           "1": {
+            "text": "green",
+            "color": "green",
+            "index": 1
+           },
+           "2": {
+            "text": "yellow",
+            "color": "orange",
+            "index": 2
+           },
+           "3": {
+            "text": "red",
+            "color": "red",
+            "index": 3
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Memory"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "bytes"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "CPU used"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "mhz"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "CPU ready / vCPU"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "percentunit"
+       },
+       {
+        "id": "min",
+        "value": 0
+       },
+       {
+        "id": "max",
+        "value": 1
+       },
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "green",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 0.05
+          },
+          {
+           "color": "red",
+           "value": 0.1
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "gauge",
+         "mode": "basic",
+         "valueDisplayMode": "text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Host memory consumed"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "bytes"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Tools running"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "no",
+            "color": "orange",
+            "index": 0
+           },
+           "1": {
+            "text": "yes",
+            "color": "green",
+            "index": 1
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Snapshots"
+      },
+      "properties": [
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "green",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 1
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Uptime"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "s"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "vm_name"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Open VM ${__value.raw}",
+          "url": "/d/vmware-vms/vmware-vsphere-vcf-vms?var-datasource=${datasource}&var-vcenter=${__data.fields.vcenter}&var-vm_name=${__value.raw}&${__url_time_range}"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "host_name"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Open ESX host ${__value.raw}",
+          "url": "/d/vmware-hosts/vmware-vsphere-vcf-esx-hosts?var-datasource=${datasource}&var-vcenter=${__data.fields.vcenter}&var-host_name=${__value.raw}&${__url_time_range}"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "cluster_name"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Open cluster ${__value.raw}",
+          "url": "/d/vmware-clusters/vmware-vsphere-vcf-clusters?var-datasource=${datasource}&var-vcenter=${__data.fields.vcenter}&var-cluster_name=${__value.raw}&${__url_time_range}"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    },
+    "sortBy": [
+     {
+      "displayName": "CPU used",
+      "desc": true
+     }
+    ]
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 88,
+    "w": 24,
+    "h": 10
+   },
+   "id": 25
+  },
+  {
+   "type": "timeseries",
+   "title": "Top 10 VMs by CPU ready (% per vCPU)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "topk(10, ((vmware_vm_perf_cpu_ready_summation_seconds{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", perf_instance=\"\"} / 20) / ignoring(perf_instance) vmware_vm_vcpus{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"}) and on(vcenter, vm_moid) vmware_vm_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{vm_name}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "links": [
+      {
+       "title": "Open VM ${__field.labels.vm_name}",
+       "url": "/d/vmware-vms/vmware-vsphere-vcf-vms?var-datasource=${datasource}&var-vcenter=${__field.labels.vcenter}&var-vm_name=${__field.labels.vm_name}&${__url_time_range}"
+      }
+     ],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true,
+      "axisSoftMin": 0,
+      "axisSoftMax": 1
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 98,
+    "w": 12,
+    "h": 8
+   },
+   "id": 26
+  },
+  {
+   "type": "timeseries",
+   "title": "Top 10 VMs by CPU usage (MHz)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "topk(10, vmware_vm_cpu_usage_mhz{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"} and on(vcenter, vm_moid) vmware_vm_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{vm_name}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "mhz",
+     "links": [
+      {
+       "title": "Open VM ${__field.labels.vm_name}",
+       "url": "/d/vmware-vms/vmware-vsphere-vcf-vms?var-datasource=${datasource}&var-vcenter=${__field.labels.vcenter}&var-vm_name=${__field.labels.vm_name}&${__url_time_range}"
+      }
+     ],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 98,
+    "w": 12,
+    "h": 8
+   },
+   "id": 27
+  },
+  {
+   "type": "row",
+   "title": "Alarms",
+   "collapsed": false,
+   "panels": [],
+   "gridPos": {
+    "x": 0,
+    "y": 106,
+    "w": 24,
+    "h": 1
+   },
+   "id": 28
+  },
+  {
+   "type": "table",
+   "title": "Active alarms on the host",
+   "description": "Active (triggered) vCenter alarms. Only present when an alarm is active.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "vmware_alarm_triggered{vcenter=~\"$vcenter\", entity_type=\"HostSystem\"} and on(vcenter, entity) label_replace(vmware_host_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\"}, \"entity\", \"$1\", \"host_name\", \"(.*)\")",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true,
+       "__name__": true,
+       "job": true,
+       "instance": true,
+       "alarm_moid": true,
+       "entity_moid": true
+      },
+      "renameByName": {
+       "Value": "Severity"
+      },
+      "indexByName": {
+       "vcenter": 0,
+       "dc_name": 1,
+       "status": 2,
+       "alarm": 3,
+       "entity_type": 4,
+       "entity": 5,
+       "acknowledged": 6
+      }
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Severity"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "gray",
+            "color": "#8e8e8e",
+            "index": 0
+           },
+           "1": {
+            "text": "green",
+            "color": "green",
+            "index": 1
+           },
+           "2": {
+            "text": "yellow",
+            "color": "orange",
+            "index": 2
+           },
+           "3": {
+            "text": "red",
+            "color": "red",
+            "index": 3
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    },
+    "sortBy": [
+     {
+      "displayName": "Severity",
+      "desc": true
+     }
+    ]
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 107,
+    "w": 24,
+    "h": 7
+   },
+   "id": 29
+  }
+ ]
+}
