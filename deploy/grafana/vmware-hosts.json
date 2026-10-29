@@ -1535,7 +1535,12 @@
    "fieldConfig": {
     "defaults": {
      "unit": "s",
-     "links": [],
+     "links": [
+      {
+       "title": "Open datastore ${__field.labels.ds_name}",
+       "url": "/d/vmware-datastores/vmware-vsphere-vcf-datastores?var-datasource=${datasource}&var-vcenter=${__field.labels.vcenter}&var-ds_name=${__field.labels.ds_name}&${__url_time_range}"
+      }
+     ],
      "custom": {
       "lineWidth": 1,
       "fillOpacity": 10,
@@ -1964,6 +1969,23 @@
         "value": {
          "type": "color-text"
         }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "ds_name"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Open datastore ${__value.raw}",
+          "url": "/d/vmware-datastores/vmware-vsphere-vcf-datastores?var-datasource=${datasource}&var-vcenter=${__data.fields.vcenter}&var-ds_name=${__value.raw}&${__url_time_range}"
+         }
+        ]
        }
       ]
      }

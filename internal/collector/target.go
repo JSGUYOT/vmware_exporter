@@ -131,6 +131,8 @@ func (t *Target) collectOnce(parent context.Context) {
 		sink.Gauge(n("up"), "1 if the last collection of the vCenter succeeded (connection + inventory).", up, nil)
 		sink.Gauge(n("collection_duration_seconds"), "Total duration of the last collection.", time.Since(start).Seconds(), nil)
 		sink.Gauge(n("collection_timestamp_seconds"), "Timestamp of the last collection.", float64(time.Now().Unix()), nil)
+		sink.Gauge(n("collection_interval_seconds"), "Configured collection interval.", t.cfg.Interval.Seconds(), nil)
+		sink.Gauge(n("collection_timeout_seconds"), "Configured collection timeout.", t.cfg.Timeout.Seconds(), nil)
 		sink.Counter(n("collections_total"), "Number of collections performed.", float64(t.scrapes.Load()), nil)
 		sink.Counter(n("collection_failures_total"), "Number of failed collections (vCenter unreachable / authentication).", float64(t.failures.Load()), nil)
 		sink.Gauge(n("exporter_invalid_series"), "Invalid series dropped (e.g. label name conflict).", float64(sink.Errors()), nil)

@@ -165,3 +165,22 @@ tests:
             exp_annotations:
               summary: "No known successful backup for vCenter vc1"
               description: "0 known file-based backup job(s), none succeeded. Configure or fix vCenter backups."
+
+  - interval: 1m
+    input_series:
+      - series: 'vmware_collection_duration_seconds{vcenter="vc1"}'
+        values: '50x20'    # 50 s of a 55 s timeout (91%)
+      - series: 'vmware_collection_timeout_seconds{vcenter="vc1"}'
+        values: '55x20'
+      - series: 'vmware_collection_duration_seconds{vcenter="vc2"}'
+        values: '60x20'    # 60 s of a 115 s timeout (52%): fine
+      - series: 'vmware_collection_timeout_seconds{vcenter="vc2"}'
+        values: '115x20'
+    alert_rule_test:
+      - eval_time: 16m
+        alertname: VMwareExporterSlowCollection
+        exp_alerts:
+          - exp_labels: {severity: info, vcenter: vc1}
+            exp_annotations:
+              summary: "Slow collection on vc1 (90.91% of the timeout)"
+              description: "The collection uses more than 80% of its timeout and risks being cut. Increase 'interval'/'timeout' or reduce the scope (filters, perf counters)."

@@ -47,12 +47,12 @@ groups:
           description: "Collector {{ $labels.collector }} has been failing for 15 min (service account permissions, missing endpoint, timeout). Check the exporter logs."
 
       - alert: VMwareExporterSlowCollection
-        expr: vmware_collection_duration_seconds > 50
+        expr: vmware_collection_duration_seconds / vmware_collection_timeout_seconds > 0.8
         for: 15m
         labels: {severity: info}
         annotations:
-          summary: "Slow collection on {{ $labels.vcenter }} ({{ $value | humanize }}s)"
-          description: "Increase 'interval'/'timeout' or reduce the scope (filters, perf counters)."
+          summary: "Slow collection on {{ $labels.vcenter }} ({{ $value | humanizePercentage }} of the timeout)"
+          description: "The collection uses more than 80% of its timeout and risks being cut. Increase 'interval'/'timeout' or reduce the scope (filters, perf counters)."
 
   # ---------------------------------------------------------------------------
   - name: vmware-vcenter

@@ -15,7 +15,9 @@ Real-time performance counters: `vmware_<host|vm>_perf_<group>_<counter>_<rollup
 |---|---|---|---|
 | `vmware_collection_duration_seconds` | gauge |  | Total duration of the last collection. |
 | `vmware_collection_failures_total` | counter |  | Number of failed collections (vCenter unreachable / auth). |
+| `vmware_collection_interval_seconds` | gauge |  | Configured collection interval. |
 | `vmware_collection_timestamp_seconds` | gauge |  | Timestamp of the last collection. |
+| `vmware_collection_timeout_seconds` | gauge |  | Configured collection timeout. |
 | `vmware_collections_total` | counter |  | Number of collections performed. |
 | `vmware_collector_duration_seconds` | gauge | collector | Collector duration during the last collection. |
 | `vmware_collector_success` | gauge | collector | 1 if the collector succeeded during the last collection. |

@@ -12,6 +12,17 @@
 * [FEATURE] Four linked Grafana dashboards: overview, clusters, ESX hosts, VMs, with
   drill-down links (cluster → host → VM). The overview's uid changed from
   `vmware-exporter-overview` to `vmware-overview`: delete the old dashboard after importing.
+* [FEATURE] Fifth dashboard, Datastores: capacity, thin provisioning, accessibility, datastore
+  clusters, latency / throughput / IOPS per datastore and per ESX host, alarms. Datastore names
+  link to it from the other dashboards. Screenshots in the README.
+* [ENHANCEMENT] ESX counters collected by default: `datastore.read`, `datastore.write`,
+  `datastore.numberReadAveraged`, `datastore.numberWriteAveraged` (per datastore).
+* [FEATURE] `vmware_collection_interval_seconds` and `vmware_collection_timeout_seconds`
+  (configured interval / timeout per vCenter).
+* [ENHANCEMENT] Overview dashboard: "Collection per vCenter" section (last / max duration,
+  duration / timeout, data age, collections and failures, duration per collector).
+* [CHANGE] `VMwareExporterSlowCollection` now fires when a collection uses more than 80% of its
+  timeout (was a fixed 50 s, wrong for intervals other than 60 s).
 
 ## 1.0.0 / 2026-10-16
 

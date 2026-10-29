@@ -204,7 +204,8 @@ Counters collected by default:
 
 - **ESX**: cpu.usage/utilization/coreUtilization, mem.usage/active/consumed/vmmemctl/swapinRate/swapoutRate,
   disk.maxTotalLatency/read/write/commandsAborted/busResets, net.received/transmitted/droppedRx/droppedTx/errorsRx/errorsTx,
-  power.power, datastore.totalReadLatency/totalWriteLatency (per datastore)
+  power.power, datastore.totalReadLatency/totalWriteLatency, read/write, numberReadAveraged/numberWriteAveraged
+  (per datastore)
 - **VM**: cpu.usage/ready/costop/latency/readiness, mem.usage/active/vmmemctl/swapped/swapinRate,
   disk.maxTotalLatency/read/write, net.received/transmitted/droppedRx/droppedTx
 
@@ -322,7 +323,7 @@ Prometheus configuration snippet: [deploy/prometheus/prometheus-scrape.yml](depl
 
 ## Grafana
 
-Four linked dashboards (Grafana >= 10, no plugin), in `deploy/grafana/`:
+Five linked dashboards (Grafana >= 10, no plugin), in `deploy/grafana/`:
 
 | File | Dashboard | Content |
 |---|---|---|
@@ -330,18 +331,34 @@ Four linked dashboards (Grafana >= 10, no plugin), in `deploy/grafana/`:
 | `vmware-clusters.json` | Clusters (uid `vmware-clusters`) | status, CPU / memory capacity, N-1, HA / DRS, ESX hosts, resource pools, vSAN, alarms |
 | `vmware-hosts.json` | ESX hosts (uid `vmware-hosts`) | status, hardware, CPU / memory, storage and datastore latency, NICs, sensors, services, VMs of the host |
 | `vmware-vms.json` | VMs (uid `vmware-vms`) | placement, CPU (ready, co-stop), memory, disks, guest file systems, snapshots, network, alarms |
+| `vmware-datastores.json` | Datastores (uid `vmware-datastores`) | capacity, thin provisioning, accessibility, datastore clusters, latency / throughput / IOPS per datastore and per ESX host, alarms |
 
 - Navigation: the header links (tag `vmware_exporter`) switch between the dashboards, keeping
   the time range and the variables.
-- Drill-down: click a cluster, ESX host or VM name in a table or a graph to open it
-  (overview → cluster → ESX host → VM); the VMs dashboard links back to the VM's ESX host and cluster.
+- Drill-down: click a cluster, ESX host, VM or datastore name in a table or a graph to open it
+  (overview → cluster → ESX host → VM); the VMs dashboard links back to the VM's ESX host and
+  cluster, and every datastore (or datastore cluster) opens the datastores dashboard.
 - Variables: `datasource`, `vcenter`, `dc_name`, `cluster_name`, `host_name`, `folder_name`,
-  `vm_name` (chained).
+  `vm_name`, `datastore_cluster`, `ds_name` (chained).
 - Import: *Dashboards > New > Import*, upload each JSON file and choose your Prometheus data
-  source (or `POST /api/dashboards/db`). Import all four so the links work. The overview's uid
+  source (or `POST /api/dashboards/db`). Import all five so the links work. The overview's uid
   changed from `vmware-exporter-overview` to `vmware-overview`: delete the old dashboard.
-- To modify them, edit `deploy/grafana/build_dashboard.py` and regenerate the four files with
+- To modify them, edit `deploy/grafana/build_dashboard.py` and regenerate the five files with
   `python3 build_dashboard.py` (CI checks they are in sync).
+- The datastore performance panels use the ESX `datastore.*` counters, whose instance (the
+  datastore UUID) is resolved through the datastore URL (`.../volumes/<uuid>/`): VMFS and vSAN
+  datastores.
+
+Screenshots (simulated vCenter from `make sim`, so the values are synthetic and some panels
+are empty: no alarms, no vSAN, no datastore counters):
+
+![Overview](docs/images/dashboard-overview.png)
+
+| Clusters | ESX hosts |
+|---|---|
+| [![Clusters](docs/images/dashboard-clusters.png)](docs/images/dashboard-clusters.png) | [![ESX hosts](docs/images/dashboard-hosts.png)](docs/images/dashboard-hosts.png) |
+| **VMs** | **Datastores** |
+| [![VMs](docs/images/dashboard-vms.png)](docs/images/dashboard-vms.png) | [![Datastores](docs/images/dashboard-datastores.png)](docs/images/dashboard-datastores.png) |
 
 ## Migrating from pryorda/vmware_exporter
 
@@ -440,11 +457,12 @@ internal/vsphere/        SOAP connection (version negotiation, session recovery)
 internal/collector/      collectors (vcenter, alarms, cluster, host, vm, datastore, network,
                          resourcepool, perf, vsan, appliance, pryorda) + cache + tests
 deploy/prometheus/       alerting rules (native + pryorda-compatible), promtool tests, scrape snippet
-deploy/grafana/          4 linked dashboards (JSON + generator)
+deploy/grafana/          5 linked dashboards (JSON + generator)
 deploy/systemd/          hardened systemd unit
 deploy/web-config.example.yml  optional authentication / HTTPS for the endpoints
 hack/vcsim/              simulated vCenter (8.x / 9.x) for testing
 docs/METRICS.md          metrics reference
+docs/images/             dashboard screenshots (simulated vCenter)
 vendor/                  dependencies (offline build, make build; DEPS=online ignores it)
 ```
 

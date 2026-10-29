@@ -295,6 +295,10 @@ var DefaultHostCounters = []string{
 	"power.power.average",
 	"datastore.totalReadLatency.average:*",
 	"datastore.totalWriteLatency.average:*",
+	"datastore.read.average:*",
+	"datastore.write.average:*",
+	"datastore.numberReadAveraged.average:*",
+	"datastore.numberWriteAveraged.average:*",
 }
 
 // DefaultVMCounters are the VM real-time counters collected by default.

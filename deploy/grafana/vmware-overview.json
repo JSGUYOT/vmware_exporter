@@ -1162,7 +1162,7 @@
   },
   {
    "type": "row",
-   "title": "Active vCenter alarms",
+   "title": "Collection per vCenter",
    "collapsed": false,
    "panels": [],
    "gridPos": {
@@ -1172,6 +1172,837 @@
     "h": 1
    },
    "id": 16
+  },
+  {
+   "type": "table",
+   "title": "Collection per vCenter",
+   "description": "Load = last duration / timeout. Above 80%, the collection risks being cut (timeout = interval - 5 s by default): raise the interval or disable collectors. Max duration, collections and failures cover the dashboard time range.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max by (vcenter) (vmware_collection_duration_seconds{vcenter=~\"$vcenter\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "B",
+     "expr": "max by (vcenter) (vmware_collection_interval_seconds{vcenter=~\"$vcenter\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "C",
+     "expr": "max by (vcenter) (vmware_collection_timeout_seconds{vcenter=~\"$vcenter\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "D",
+     "expr": "max by (vcenter) ((vmware_collection_duration_seconds{vcenter=~\"$vcenter\"} / vmware_collection_timeout_seconds{vcenter=~\"$vcenter\"}))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "E",
+     "expr": "max by (vcenter) (max_over_time(vmware_collection_duration_seconds{vcenter=~\"$vcenter\"}[$__range]))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "F",
+     "expr": "max by (vcenter) (time() - vmware_collection_timestamp_seconds{vcenter=~\"$vcenter\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "G",
+     "expr": "max by (vcenter) (round(increase(vmware_collections_total{vcenter=~\"$vcenter\"}[$__range])))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "H",
+     "expr": "max by (vcenter) (round(increase(vmware_collection_failures_total{vcenter=~\"$vcenter\"}[$__range])))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "I",
+     "expr": "max by (vcenter) (count by (vcenter) (vmware_collector_success{vcenter=~\"$vcenter\"} == 0) or (count by (vcenter) (vmware_collector_success{vcenter=~\"$vcenter\"}) * 0))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "J",
+     "expr": "max by (vcenter) (vmware_exporter_unsupported_properties{vcenter=~\"$vcenter\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "K",
+     "expr": "max by (vcenter) (vmware_exporter_missing_properties{vcenter=~\"$vcenter\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "merge",
+     "options": {}
+    },
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true
+      },
+      "renameByName": {
+       "Value #A": "Last duration",
+       "Value #B": "Interval",
+       "Value #C": "Timeout",
+       "Value #D": "Load",
+       "Value #E": "Max duration",
+       "Value #F": "Data age",
+       "Value #G": "Collections",
+       "Value #H": "Failures",
+       "Value #I": "Failed collectors",
+       "Value #J": "Unsupported props",
+       "Value #K": "Missing props"
+      },
+      "indexByName": {
+       "vcenter": 0,
+       "Value #A": 1,
+       "Value #B": 2,
+       "Value #C": 3,
+       "Value #D": 4,
+       "Value #E": 5,
+       "Value #F": 6,
+       "Value #G": 7,
+       "Value #H": 8,
+       "Value #I": 9,
+       "Value #J": 10,
+       "Value #K": 11
+      }
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": false,
+      "align": "auto"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Last duration"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "s"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Interval"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "s"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Timeout"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "s"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Load"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "percentunit"
+       },
+       {
+        "id": "min",
+        "value": 0
+       },
+       {
+        "id": "max",
+        "value": 1
+       },
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "green",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 0.5
+          },
+          {
+           "color": "red",
+           "value": 0.8
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "gauge",
+         "mode": "basic",
+         "valueDisplayMode": "text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Max duration"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "s"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Data age"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "s"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Failures"
+      },
+      "properties": [
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "green",
+           "value": null
+          },
+          {
+           "color": "red",
+           "value": 1
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Failed collectors"
+      },
+      "properties": [
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "green",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 1
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Unsupported props"
+      },
+      "properties": [
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "green",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 1
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Missing props"
+      },
+      "properties": [
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "green",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 1
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    },
+    "sortBy": [
+     {
+      "displayName": "Load",
+      "desc": true
+     }
+    ]
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 16,
+    "w": 24,
+    "h": 6
+   },
+   "id": 17
+  },
+  {
+   "type": "timeseries",
+   "title": "Collection duration per vCenter",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "vmware_collection_duration_seconds{vcenter=~\"$vcenter\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{vcenter}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "links": [],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "mean",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 22,
+    "w": 8,
+    "h": 8
+   },
+   "id": 18
+  },
+  {
+   "type": "timeseries",
+   "title": "Load (duration / timeout)",
+   "description": "Above 80%: the collection risks being cut by its timeout.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "(vmware_collection_duration_seconds{vcenter=~\"$vcenter\"} / vmware_collection_timeout_seconds{vcenter=~\"$vcenter\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{vcenter}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "links": [],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true,
+      "axisSoftMin": 0,
+      "axisSoftMax": 1
+     },
+     "min": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 22,
+    "w": 8,
+    "h": 8
+   },
+   "id": 19
+  },
+  {
+   "type": "timeseries",
+   "title": "Duration per collector",
+   "description": "Phase-1 collectors run in parallel, then perf and pryorda: the total is not the sum.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "vmware_collector_duration_seconds{vcenter=~\"$vcenter\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{vcenter}} / {{collector}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "links": [],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 22,
+    "w": 8,
+    "h": 8
+   },
+   "id": 20
+  },
+  {
+   "type": "table",
+   "title": "Collectors (failed first)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "vmware_collector_success{vcenter=~\"$vcenter\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true,
+       "__name__": true,
+       "job": true,
+       "instance": true
+      },
+      "renameByName": {
+       "Value": "OK"
+      },
+      "indexByName": {
+       "vcenter": 0,
+       "collector": 1
+      }
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "OK"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "no",
+            "color": "orange",
+            "index": 0
+           },
+           "1": {
+            "text": "yes",
+            "color": "green",
+            "index": 1
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    },
+    "sortBy": [
+     {
+      "displayName": "OK",
+      "desc": false
+     }
+    ]
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 30,
+    "w": 12,
+    "h": 8
+   },
+   "id": 21
+  },
+  {
+   "type": "table",
+   "title": "Collector duration (last)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max by (vcenter, collector) (vmware_collector_duration_seconds{vcenter=~\"$vcenter\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "B",
+     "expr": "max by (vcenter, collector) (max_over_time(vmware_collector_duration_seconds{vcenter=~\"$vcenter\"}[$__range]))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "merge",
+     "options": {}
+    },
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true
+      },
+      "renameByName": {
+       "Value #A": "Duration",
+       "Value #B": "Max (range)"
+      },
+      "indexByName": {
+       "vcenter": 0,
+       "collector": 1,
+       "Value #A": 2,
+       "Value #B": 3
+      }
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": false,
+      "align": "auto"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Duration"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "s"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Max (range)"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "s"
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    },
+    "sortBy": [
+     {
+      "displayName": "Duration",
+      "desc": true
+     }
+    ]
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 30,
+    "w": 12,
+    "h": 8
+   },
+   "id": 22
+  },
+  {
+   "type": "row",
+   "title": "Active vCenter alarms",
+   "collapsed": false,
+   "panels": [],
+   "gridPos": {
+    "x": 0,
+    "y": 38,
+    "w": 24,
+    "h": 1
+   },
+   "id": 23
   },
   {
    "type": "table",
@@ -1291,11 +2122,11 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 16,
+    "y": 39,
     "w": 24,
     "h": 8
    },
-   "id": 17
+   "id": 24
   },
   {
    "type": "row",
@@ -1304,11 +2135,11 @@
    "panels": [],
    "gridPos": {
     "x": 0,
-    "y": 24,
+    "y": 47,
     "w": 24,
     "h": 1
    },
-   "id": 18
+   "id": 25
   },
   {
    "type": "table",
@@ -1850,11 +2681,11 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 25,
+    "y": 48,
     "w": 24,
     "h": 7
    },
-   "id": 19
+   "id": 26
   },
   {
    "type": "timeseries",
@@ -1912,11 +2743,11 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 32,
+    "y": 55,
     "w": 12,
     "h": 8
    },
-   "id": 20
+   "id": 27
   },
   {
    "type": "timeseries",
@@ -1974,11 +2805,11 @@
    },
    "gridPos": {
     "x": 12,
-    "y": 32,
+    "y": 55,
     "w": 12,
     "h": 8
    },
-   "id": 21
+   "id": 28
   },
   {
    "type": "row",
@@ -1987,11 +2818,11 @@
    "panels": [],
    "gridPos": {
     "x": 0,
-    "y": 40,
+    "y": 63,
     "w": 24,
     "h": 1
    },
-   "id": 22
+   "id": 29
   },
   {
    "type": "timeseries",
@@ -2049,11 +2880,11 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 41,
+    "y": 64,
     "w": 12,
     "h": 8
    },
-   "id": 23
+   "id": 30
   },
   {
    "type": "timeseries",
@@ -2111,11 +2942,11 @@
    },
    "gridPos": {
     "x": 12,
-    "y": 41,
+    "y": 64,
     "w": 12,
     "h": 8
    },
-   "id": 24
+   "id": 31
   },
   {
    "type": "table",
@@ -2409,11 +3240,11 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 49,
+    "y": 72,
     "w": 24,
     "h": 6
    },
-   "id": 25
+   "id": 32
   },
   {
    "type": "row",
@@ -2422,11 +3253,11 @@
    "panels": [],
    "gridPos": {
     "x": 0,
-    "y": 55,
+    "y": 78,
     "w": 24,
     "h": 1
    },
-   "id": 26
+   "id": 33
   },
   {
    "type": "bargauge",
@@ -2453,7 +3284,12 @@
      "unit": "percentunit",
      "min": 0,
      "max": 1,
-     "links": [],
+     "links": [
+      {
+       "title": "Open datastore ${__field.labels.ds_name}",
+       "url": "/d/vmware-datastores/vmware-vsphere-vcf-datastores?var-datasource=${datasource}&var-vcenter=${__field.labels.vcenter}&var-ds_name=${__field.labels.ds_name}&${__url_time_range}"
+      }
+     ],
      "thresholds": {
       "mode": "absolute",
       "steps": [
@@ -2488,11 +3324,11 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 56,
+    "y": 79,
     "w": 12,
     "h": 10
    },
-   "id": 27
+   "id": 34
   },
   {
    "type": "table",
@@ -2815,6 +3651,40 @@
         "value": "percentunit"
        }
       ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "ds_name"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Open datastore ${__value.raw}",
+          "url": "/d/vmware-datastores/vmware-vsphere-vcf-datastores?var-datasource=${datasource}&var-vcenter=${__data.fields.vcenter}&var-ds_name=${__value.raw}&${__url_time_range}"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "datastore_cluster"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Open datastore cluster ${__value.raw}",
+          "url": "/d/vmware-datastores/vmware-vsphere-vcf-datastores?var-datasource=${datasource}&var-vcenter=${__data.fields.vcenter}&var-datastore_cluster=${__value.raw}&${__url_time_range}"
+         }
+        ]
+       }
+      ]
      }
     ]
    },
@@ -2833,11 +3703,11 @@
    },
    "gridPos": {
     "x": 12,
-    "y": 56,
+    "y": 79,
     "w": 12,
     "h": 10
    },
-   "id": 28
+   "id": 35
   },
   {
    "type": "row",
@@ -2846,11 +3716,11 @@
    "panels": [],
    "gridPos": {
     "x": 0,
-    "y": 66,
+    "y": 89,
     "w": 24,
     "h": 1
    },
-   "id": 29
+   "id": 36
   },
   {
    "type": "timeseries",
@@ -2908,11 +3778,11 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 67,
+    "y": 90,
     "w": 12,
     "h": 8
    },
-   "id": 30
+   "id": 37
   },
   {
    "type": "timeseries",
@@ -2968,11 +3838,11 @@
    },
    "gridPos": {
     "x": 12,
-    "y": 67,
+    "y": 90,
     "w": 12,
     "h": 8
    },
-   "id": 31
+   "id": 38
   },
   {
    "type": "timeseries",
@@ -3028,11 +3898,11 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 75,
+    "y": 98,
     "w": 12,
     "h": 8
    },
-   "id": 32
+   "id": 39
   },
   {
    "type": "timeseries",
@@ -3097,11 +3967,11 @@
    },
    "gridPos": {
     "x": 12,
-    "y": 75,
+    "y": 98,
     "w": 12,
     "h": 8
    },
-   "id": 33
+   "id": 40
   },
   {
    "type": "table",
@@ -3227,11 +4097,11 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 83,
+    "y": 106,
     "w": 12,
     "h": 8
    },
-   "id": 34
+   "id": 41
   },
   {
    "type": "table",
@@ -3362,11 +4232,11 @@
    },
    "gridPos": {
     "x": 12,
-    "y": 83,
+    "y": 106,
     "w": 12,
     "h": 8
    },
-   "id": 35
+   "id": 42
   },
   {
    "type": "row",
@@ -3375,11 +4245,11 @@
    "panels": [],
    "gridPos": {
     "x": 0,
-    "y": 91,
+    "y": 114,
     "w": 24,
     "h": 1
    },
-   "id": 36
+   "id": 43
   },
   {
    "type": "table",
@@ -3505,180 +4375,11 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 92,
+    "y": 115,
     "w": 24,
     "h": 8
    },
-   "id": 37
-  },
-  {
-   "type": "row",
-   "title": "Exporter",
-   "collapsed": false,
-   "panels": [],
-   "gridPos": {
-    "x": 0,
-    "y": 100,
-    "w": 24,
-    "h": 1
-   },
-   "id": 38
-  },
-  {
-   "type": "timeseries",
-   "title": "Collection duration",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "${datasource}"
-   },
-   "targets": [
-    {
-     "refId": "A",
-     "expr": "vmware_collection_duration_seconds{vcenter=~\"$vcenter\"}",
-     "datasource": {
-      "type": "prometheus",
-      "uid": "${datasource}"
-     },
-     "legendFormat": "{{vcenter}}"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "s",
-     "links": [],
-     "custom": {
-      "lineWidth": 1,
-      "fillOpacity": 10,
-      "showPoints": "never",
-      "spanNulls": true
-     }
-    },
-    "overrides": []
-   },
-   "options": {
-    "legend": {
-     "displayMode": "table",
-     "placement": "right",
-     "calcs": [
-      "lastNotNull",
-      "max"
-     ],
-     "showLegend": true
-    },
-    "tooltip": {
-     "mode": "multi",
-     "sort": "desc"
-    }
-   },
-   "gridPos": {
-    "x": 0,
-    "y": 101,
-    "w": 12,
-    "h": 8
-   },
-   "id": 39
-  },
-  {
-   "type": "table",
-   "title": "Collectors",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "${datasource}"
-   },
-   "targets": [
-    {
-     "refId": "A",
-     "expr": "vmware_collector_success{vcenter=~\"$vcenter\"}",
-     "datasource": {
-      "type": "prometheus",
-      "uid": "${datasource}"
-     },
-     "instant": true,
-     "range": false,
-     "format": "table"
-    }
-   ],
-   "transformations": [
-    {
-     "id": "organize",
-     "options": {
-      "excludeByName": {
-       "Time": true,
-       "__name__": true,
-       "job": true,
-       "instance": true
-      },
-      "renameByName": {
-       "Value": "OK"
-      },
-      "indexByName": {
-       "vcenter": 0,
-       "collector": 1
-      }
-     }
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "custom": {
-      "filterable": true,
-      "align": "auto"
-     }
-    },
-    "overrides": [
-     {
-      "matcher": {
-       "id": "byName",
-       "options": "OK"
-      },
-      "properties": [
-       {
-        "id": "mappings",
-        "value": [
-         {
-          "type": "value",
-          "options": {
-           "0": {
-            "text": "no",
-            "color": "orange",
-            "index": 0
-           },
-           "1": {
-            "text": "yes",
-            "color": "green",
-            "index": 1
-           }
-          }
-         }
-        ]
-       },
-       {
-        "id": "custom.cellOptions",
-        "value": {
-         "type": "color-background",
-         "mode": "basic"
-        }
-       }
-      ]
-     }
-    ]
-   },
-   "options": {
-    "showHeader": true,
-    "cellHeight": "sm",
-    "footer": {
-     "show": false
-    }
-   },
-   "gridPos": {
-    "x": 12,
-    "y": 101,
-    "w": 12,
-    "h": 8
-   },
-   "id": 40
+   "id": 44
   }
  ]
 }

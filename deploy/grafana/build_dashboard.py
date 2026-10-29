@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""Generate the four linked Grafana (>= 10) dashboards of vmware_exporter.
+"""Generate the five linked Grafana (>= 10) dashboards of vmware_exporter.
 
-    vmware-overview.json   alarms, health, capacity, top lists       (uid vmware-overview)
-    vmware-clusters.json   one or more clusters and their ESX hosts  (uid vmware-clusters)
-    vmware-hosts.json      one or more ESX hosts and their VMs       (uid vmware-hosts)
-    vmware-vms.json        one or more VMs                           (uid vmware-vms)
+    vmware-overview.json     alarms, health, capacity, top lists       (uid vmware-overview)
+    vmware-clusters.json     one or more clusters and their ESX hosts  (uid vmware-clusters)
+    vmware-hosts.json        one or more ESX hosts and their VMs       (uid vmware-hosts)
+    vmware-vms.json          one or more VMs                           (uid vmware-vms)
+    vmware-datastores.json   datastores and datastore clusters         (uid vmware-datastores)
 
 The dashboards share the tag "vmware_exporter": the header links (keeping time range and
 variables) navigate between them. Data links drill down overview -> cluster -> ESX -> VM
-(and back from a VM to its ESX host / cluster).
+(and back from a VM to its ESX host / cluster); every datastore links to the datastore dashboard.
 
-Regenerate (writes the four files next to this script):  python3 build_dashboard.py
+Regenerate (writes the five files next to this script):  python3 build_dashboard.py
 """
 import json
 import os
@@ -25,6 +26,7 @@ DASHBOARDS = {
     "clusters": ("vmware-clusters", "vmware-vsphere-vcf-clusters", "Clusters", "vmware-clusters.json"),
     "hosts": ("vmware-hosts", "vmware-vsphere-vcf-esx-hosts", "ESX hosts", "vmware-hosts.json"),
     "vms": ("vmware-vms", "vmware-vsphere-vcf-vms", "VMs", "vmware-vms.json"),
+    "datastores": ("vmware-datastores", "vmware-vsphere-vcf-datastores", "Datastores", "vmware-datastores.json"),
 }
 
 
@@ -71,12 +73,15 @@ def drill(target, title, **vars_):
 T_CLUSTER = drill("clusters", "Open cluster ${__value.raw}", vcenter="${__data.fields.vcenter}", cluster_name="${__value.raw}")
 T_HOST = drill("hosts", "Open ESX host ${__value.raw}", vcenter="${__data.fields.vcenter}", host_name="${__value.raw}")
 T_VM = drill("vms", "Open VM ${__value.raw}", vcenter="${__data.fields.vcenter}", vm_name="${__value.raw}")
+T_DS = drill("datastores", "Open datastore ${__value.raw}", vcenter="${__data.fields.vcenter}", ds_name="${__value.raw}")
+T_POD = drill("datastores", "Open datastore cluster ${__value.raw}", vcenter="${__data.fields.vcenter}", datastore_cluster="${__value.raw}")
 # In time series: the clicked series' labels.
 S_CLUSTER = drill("clusters", "Open cluster ${__field.labels.cluster_name}",
                   vcenter="${__field.labels.vcenter}", cluster_name="${__field.labels.cluster_name}")
 S_HOST = drill("hosts", "Open ESX host ${__field.labels.host_name}",
                vcenter="${__field.labels.vcenter}", host_name="${__field.labels.host_name}")
 S_VM = drill("vms", "Open VM ${__field.labels.vm_name}", vcenter="${__field.labels.vcenter}", vm_name="${__field.labels.vm_name}")
+S_DS = drill("datastores", "Open datastore ${__field.labels.ds_name}", vcenter="${__field.labels.vcenter}", ds_name="${__field.labels.ds_name}")
 
 
 # --------------------------------------------------------------------------- value mappings / thresholds
@@ -270,6 +275,8 @@ V_CLUSTER = var("cluster_name", "Cluster", "label_values(vmware_cluster_overall_
 V_HOST = var("host_name", "ESX host", "label_values(vmware_host_info{" + SELC + "}, host_name)")
 V_FOLDER = var("folder_name", "VM folder", "label_values(vmware_vm_info{" + SELH + "}, folder_name)")
 V_VM = var("vm_name", "VM", "label_values(vmware_vm_info{" + SELH + ", folder_name=~\"$folder_name\"}, vm_name)")
+V_POD = var("datastore_cluster", "Datastore cluster", "label_values(vmware_datastore_info{" + SEL + "}, datastore_cluster)")
+V_DSN = var("ds_name", "Datastore", "label_values(vmware_datastore_info{" + SEL + ", datastore_cluster=~\"$datastore_cluster\"}, ds_name)")
 
 
 class Dashboard:
@@ -375,9 +382,50 @@ def vm_cols(vs, info):
     ]
 
 
+def ds_map(info_sel):
+    """perf_instance (datastore UUID, from the datastore URL .../volumes/<uuid>/) -> ds_name, for the ESX datastore.* counters."""
+    return ('max by (vcenter, perf_instance, ds_name) (label_replace(vmware_datastore_info{' + info_sel + ', url=~".*/volumes/.+"}, '
+            '"perf_instance", "$1", "url", ".*/volumes/([^/]+)/?"))')
+
+
 def ready_per_vcpu(vs):
     """CPU ready (summation over the 20 s real-time sample) as a fraction of time, per vCPU."""
     return "(" + m("vmware_vm_perf_cpu_ready_summation_seconds", vs, 'perf_instance=""') + " / 20) / ignoring(perf_instance) " + m("vmware_vm_vcpus", vs)
+
+
+T_LOAD = [{"color": "green", "value": None}, {"color": "orange", "value": 0.5}, {"color": "red", "value": 0.8}]
+
+
+def collection_row(d):
+    """Exporter collection per vCenter: durations, load (duration / timeout), data age, failures, collectors."""
+    d.row("Collection per vCenter")
+    d.add(table("Collection per vCenter", ["vcenter"], [
+        col("Last duration", m("vmware_collection_duration_seconds", VC), unit="s"),
+        col("Interval", m("vmware_collection_interval_seconds", VC), unit="s"),
+        col("Timeout", m("vmware_collection_timeout_seconds", VC), unit="s"),
+        col("Load", pct(m("vmware_collection_duration_seconds", VC), m("vmware_collection_timeout_seconds", VC)), "pct", thresholds=T_LOAD),
+        col("Max duration", f"max_over_time(vmware_collection_duration_seconds{{{VC}}}[$__range])", unit="s"),
+        col("Data age", f"time() - {m('vmware_collection_timestamp_seconds', VC)}", unit="s"),
+        col("Collections", f"round(increase(vmware_collections_total{{{VC}}}[$__range]))"),
+        col("Failures", f"round(increase(vmware_collection_failures_total{{{VC}}}[$__range]))", thresholds=T_RED),
+        col("Failed collectors", f"count by (vcenter) (vmware_collector_success{{{VC}}} == 0) or (count by (vcenter) (vmware_collector_success{{{VC}}}) * 0)", thresholds=T_ORANGE),
+        col("Unsupported props", m("vmware_exporter_unsupported_properties", VC), thresholds=T_ORANGE),
+        col("Missing props", m("vmware_exporter_missing_properties", VC), thresholds=T_ORANGE),
+    ], sort=("Load", True),
+        desc="Load = last duration / timeout. Above 80%, the collection risks being cut (timeout = interval - 5 s by default): "
+             "raise the interval or disable collectors. Max duration, collections and failures cover the dashboard time range."), 24, 6)
+    d.add(ts("Collection duration per vCenter", [(m("vmware_collection_duration_seconds", VC), "{{vcenter}}")], "s",
+             legend_calcs=("lastNotNull", "mean", "max")), 8, 8)
+    d.add(ts("Load (duration / timeout)", [(pct(m("vmware_collection_duration_seconds", VC), m("vmware_collection_timeout_seconds", VC)), "{{vcenter}}")],
+             "percentunit", min_=0, legend_calcs=("lastNotNull", "max"), desc="Above 80%: the collection risks being cut by its timeout."), 8, 8)
+    d.add(ts("Duration per collector", [(m("vmware_collector_duration_seconds", VC), "{{vcenter}} / {{collector}}")], "s",
+             legend_calcs=("lastNotNull", "max"), desc="Phase-1 collectors run in parallel, then perf and pryorda: the total is not the sum."), 8, 8)
+    d.add(raw_table("Collectors (failed first)", f"vmware_collector_success{{{VC}}}", ["vcenter", "collector"], value_name="OK", kind=M_YES_GOOD,
+                    sort=("OK", False)), 12, 8)
+    d.add(table("Collector duration (last)", ["vcenter", "collector"], [
+        col("Duration", m("vmware_collector_duration_seconds", VC), unit="s"),
+        col("Max (range)", f"max_over_time(vmware_collector_duration_seconds{{{VC}}}[$__range])", unit="s"),
+    ], sort=("Duration", True)), 12, 8)
 
 
 # =========================================================================== 1. Overview
@@ -416,6 +464,8 @@ def overview():
         col("Collection duration", m("vmware_collection_duration_seconds", VC), unit="s"),
     ]), 24, 5)
 
+    collection_row(d)
+
     d.row("Active vCenter alarms")
     d.add(alarms_table(m("vmware_alarm_triggered", SEL)), 24, 8)
 
@@ -439,7 +489,7 @@ def overview():
                 links={"host_name": T_HOST, "cluster_name": T_CLUSTER}, only=bad, desc="Empty = every ESX host is fine."), 24, 6)
 
     d.row("Datastores")
-    d.add(bargauge("Datastore usage", f"1 - vmware_datastore_free_bytes{{{SEL}}} / vmware_datastore_capacity_bytes{{{SEL}}}", "{{vcenter}} / {{ds_name}}"), 12, 10)
+    d.add(bargauge("Datastore usage", f"1 - vmware_datastore_free_bytes{{{SEL}}} / vmware_datastore_capacity_bytes{{{SEL}}}", "{{vcenter}} / {{ds_name}}", links=[S_DS]), 12, 10)
     d.add(table("Datastores", ["vcenter", "dc_name", "ds_name"], [
         col("Info", m("vmware_datastore_info", SEL), by=("type", "shared", "datastore_cluster"), hide_value=True),
         col("Status", m("vmware_datastore_overall_status", SEL), M_STATUS),
@@ -450,7 +500,7 @@ def overview():
         col("Provisioned", pct(m("vmware_datastore_provisioned_bytes", SEL), m("vmware_datastore_capacity_bytes", SEL)), unit="percentunit"),
         col("Hosts", m("vmware_datastore_hosts_mounted", SEL)),
         col("VMs", m("vmware_datastore_vms_hosted", SEL)),
-    ], sort=("Used", True), filterable=True), 12, 10)
+    ], links={"ds_name": T_DS, "datastore_cluster": T_POD}, sort=("Used", True), filterable=True), 12, 10)
 
     d.row("Virtual machines")
     d.add(ts("Top 10 CPU ready (% per vCPU)", [(f"topk(10, ({ready_per_vcpu(SEL)}){vf})", "{{vm_name}}")], "percentunit", links=[S_VM]), 12, 8)
@@ -470,9 +520,6 @@ def overview():
     d.add(raw_table("Non-green vSAN health tests", f"vmware_vsan_health_test{{{SELC}}} > 1", ["vcenter", "cluster_name", "group", "test"],
                     value_name="Severity", kind=M_STATUS, links={"cluster_name": T_CLUSTER}), 24, 8)
 
-    d.row("Exporter")
-    d.add(ts("Collection duration", [(f"vmware_collection_duration_seconds{{{VC}}}", "{{vcenter}}")], "s"), 12, 8)
-    d.add(raw_table("Collectors", f"vmware_collector_success{{{VC}}}", ["vcenter", "collector"], value_name="OK", kind=M_YES_GOOD), 12, 8)
     return d
 
 
@@ -612,12 +659,11 @@ def hosts():
                                  perf("vmware_host_perf_disk_write_average_bytes_per_second", "{{host_name}} write")], "Bps"), 12, 8)
     d.add(ts("Max disk latency", [(f"max by (vcenter, host_name) ({m('vmware_host_perf_disk_max_total_latency_latest_seconds', S)})", "{{host_name}}")], "s"), 12, 8)
     lat = f'max by (vcenter, host_name, perf_instance) ({{__name__=~"vmware_host_perf_datastore_total_(read|write)_latency_average_seconds", {S}, perf_instance!=""}})'
-    dsmap = ('max by (vcenter, perf_instance, ds_name) (label_replace(vmware_datastore_info{' + VC + ', url=~".*/volumes/.+"}, '
-             '"perf_instance", "$1", "url", ".*/volumes/([^/]+)/?"))')
+    dsmap = ds_map(VC)
     d.add(ts("Datastore latency seen by the host (max of read / write)", [
         (f"{lat} * on(vcenter, perf_instance) group_left(ds_name) {dsmap}", "{{host_name}} / {{ds_name}}"),
         (f"{lat} unless on(vcenter, perf_instance) {dsmap}", "{{host_name}} / {{perf_instance}}"),
-    ], "s", desc="Per datastore (datastore.totalRead/WriteLatency counters, instance = datastore UUID resolved to its name)."), 12, 8)
+    ], "s", links=[S_DS], desc="Per datastore (datastore.totalRead/WriteLatency counters, instance = datastore UUID resolved to its name)."), 12, 8)
     d.add(ts("Storage paths / LUNs", [(f"sum by (vcenter, host_name, state) ({m('vmware_host_storage_paths', S)})", "{{host_name}} paths {{state}}"),
                                       (m("vmware_host_storage_luns_degraded", S), "{{host_name}} LUNs degraded"),
                                       (m("vmware_host_storage_luns_no_path", S), "{{host_name}} LUNs without path")], "none"), 12, 8)
@@ -630,7 +676,7 @@ def hosts():
         col("Used", f"1 - vmware_datastore_free_bytes{{{SEL}}} / vmware_datastore_capacity_bytes{{{SEL}}}", "pct"),
         col("Hosts mounting", m("vmware_datastore_hosts_mounted", SEL)),
         col("Hosts without access", m("vmware_datastore_hosts_inaccessible", SEL), thresholds=T_RED),
-    ], sort=("Used", True), filterable=True,
+    ], links={"ds_name": T_DS}, sort=("Used", True), filterable=True,
         only=f"vmware_host_info{{{S}}}", only_on=["vcenter", "dc_name"],
         desc="Datastores of the datacenter(s) containing the selected host(s) (the exporter does not expose the host/datastore mount map)."), 24, 8)
 
@@ -757,9 +803,111 @@ def vms():
     return d
 
 
+# =========================================================================== 5. Datastores
+
+def datastores():
+    d = Dashboard("datastores", [V_VC, V_DC, V_POD, V_DSN],
+                  "Selected datastore(s) / datastore cluster(s): capacity, provisioning, accessibility, performance seen by the ESX hosts.")
+    S = sel("vcenter", "dc_name", "ds_name")
+    info = S + ', datastore_cluster=~"$datastore_cluster"'
+    pod = sel("vcenter", "dc_name", "datastore_cluster")
+    pf = " and on(vcenter, datastore_moid) vmware_datastore_info{" + info + "}"
+    dsmap = ds_map(info)
+
+    def q(metric):
+        return "(" + m(metric, S) + pf + ")"
+
+    def used():
+        return f"(1 - {q('vmware_datastore_free_bytes')} / {q('vmware_datastore_capacity_bytes')})"
+
+    def perf(counter):
+        """ESX datastore.* counter per (host, datastore): the UUID instance resolved to ds_name."""
+        return f'vmware_host_perf_datastore_{counter}{{{VC}, perf_instance!=""}} * on(vcenter, perf_instance) group_left(ds_name) {dsmap}'
+
+    T_OVER = [{"color": "green", "value": None}, {"color": "orange", "value": 1}, {"color": "red", "value": 1.5}]
+    perf_desc = ("From the ESX datastore.* real-time counters, per datastore instance (UUID resolved through the datastore URL): "
+                 "VMFS and vSAN datastores; empty for datastores without a .../volumes/<uuid>/ URL.")
+
+    d.row("Summary")
+    d.add(stat("Datastores", f"count({q('vmware_datastore_capacity_bytes')}) or vector(0)", color_mode="value"), 3, 4)
+    d.add(stat("Capacity", f"sum({q('vmware_datastore_capacity_bytes')})", unit="bytes", color_mode="value"), 3, 4)
+    d.add(stat("Free", f"sum({q('vmware_datastore_free_bytes')})", unit="bytes", color_mode="value"), 3, 4)
+    d.add(stat("Used", f"1 - sum({q('vmware_datastore_free_bytes')}) / sum({q('vmware_datastore_capacity_bytes')})", T_PCT, unit="percentunit"), 3, 4)
+    d.add(stat("Provisioned / capacity", f"sum({q('vmware_datastore_provisioned_bytes')}) / sum({q('vmware_datastore_capacity_bytes')})", T_OVER,
+               unit="percentunit", desc="> 100%: thin provisioning overcommitment."), 3, 4)
+    d.add(stat("Datastores > 85%", f"count({used()} > 0.85) or vector(0)", T_ORANGE), 3, 4)
+    d.add(stat("Not accessible", f"count({q('vmware_datastore_is_accessible')} == 0) or vector(0)", T_RED), 3, 4)
+    d.add(stat("Hosts without access", f"sum({q('vmware_datastore_hosts_inaccessible')}) or vector(0)", T_RED,
+               desc="Sum over the datastores of the ESX hosts that mount it but cannot access it (APD / PDL...)."), 3, 4)
+
+    d.row("Datastores")
+    d.add(table("Datastores (click a datastore / datastore cluster to open it)", ["vcenter", "dc_name", "ds_name"], [
+        col("Info", m("vmware_datastore_info", info), by=("type", "shared", "datastore_cluster"), hide_value=True),
+        col("Status", q("vmware_datastore_overall_status"), M_STATUS),
+        col("Accessible", q("vmware_datastore_is_accessible"), M_YES_GOOD),
+        col("Maintenance", q("vmware_datastore_in_maintenance"), M_YES_BAD),
+        col("Capacity", q("vmware_datastore_capacity_bytes"), unit="bytes"),
+        col("Free", q("vmware_datastore_free_bytes"), unit="bytes"),
+        col("Used", used(), "pct"),
+        col("Provisioned", f"{q('vmware_datastore_provisioned_bytes')} / {q('vmware_datastore_capacity_bytes')}", unit="percentunit", thresholds=T_OVER),
+        col("Uncommitted (thin)", q("vmware_datastore_uncommitted_bytes"), unit="bytes"),
+        col("Hosts mounting", q("vmware_datastore_hosts_mounted")),
+        col("Hosts without access", q("vmware_datastore_hosts_inaccessible"), thresholds=T_RED),
+        col("VMs", q("vmware_datastore_vms_hosted")),
+    ], links={"ds_name": T_DS, "datastore_cluster": T_POD}, sort=("Used", True), filterable=True), 24, 9)
+
+    d.row("Capacity")
+    d.add(ts("Used space", [(used(), "{{ds_name}}")], "percentunit", links=[S_DS], min_=0, max_=1), 12, 8)
+    d.add(ts("Free space", [(q("vmware_datastore_free_bytes"), "{{ds_name}}")], "bytes", links=[S_DS], legend_calcs=("lastNotNull", "min")), 12, 8)
+    d.add(ts("Provisioned / capacity", [(f"{q('vmware_datastore_provisioned_bytes')} / {q('vmware_datastore_capacity_bytes')}", "{{ds_name}}")],
+             "percentunit", links=[S_DS], desc="Thin provisioning: above 100%, the VMs could fill the datastore if they grew to their full size."), 12, 8)
+    d.add(bargauge("Used space (now)", used(), "{{ds_name}}", links=[S_DS]), 12, 8)
+
+    d.row("Datastore clusters")
+    d.add(table("Datastore clusters (click one to open it)", ["vcenter", "dc_name", "datastore_cluster"], [
+        col("Status", m("vmware_datastore_cluster_overall_status", pod), M_STATUS),
+        col("Datastores", m("vmware_datastore_cluster_datastores", pod)),
+        col("Capacity", m("vmware_datastore_cluster_capacity_bytes", pod), unit="bytes"),
+        col("Free", m("vmware_datastore_cluster_free_bytes", pod), unit="bytes"),
+        col("Used", f"1 - {m('vmware_datastore_cluster_free_bytes', pod)} / {m('vmware_datastore_cluster_capacity_bytes', pod)}", "pct"),
+    ], links={"datastore_cluster": T_POD}, sort=("Used", True), desc="Storage DRS datastore clusters (StoragePod)."), 12, 7)
+    d.add(ts("Datastore cluster used space", [(f"1 - {m('vmware_datastore_cluster_free_bytes', pod)} / {m('vmware_datastore_cluster_capacity_bytes', pod)}",
+                                               "{{datastore_cluster}}")], "percentunit", min_=0, max_=1), 12, 7)
+
+    d.row("Performance (seen by the ESX hosts)")
+    d.add(ts("Latency (worst ESX host)", [
+        (f"max by (vcenter, ds_name) ({perf('total_read_latency_average_seconds')})", "{{ds_name}} read"),
+        (f"max by (vcenter, ds_name) ({perf('total_write_latency_average_seconds')})", "{{ds_name}} write"),
+    ], "s", links=[S_DS], desc=perf_desc), 8, 8)
+    d.add(ts("Throughput (all ESX hosts)", [
+        (f"sum by (vcenter, ds_name) ({perf('read_average_bytes_per_second')})", "{{ds_name}} read"),
+        (f"sum by (vcenter, ds_name) ({perf('write_average_bytes_per_second')})", "{{ds_name}} write"),
+    ], "Bps", links=[S_DS], desc=perf_desc), 8, 8)
+    d.add(ts("IOPS (all ESX hosts)", [
+        (f"sum by (vcenter, ds_name) ({perf('number_read_averaged_average')})", "{{ds_name}} read"),
+        (f"sum by (vcenter, ds_name) ({perf('number_write_averaged_average')})", "{{ds_name}} write"),
+    ], "iops", links=[S_DS], desc=perf_desc), 8, 8)
+    d.add(table("ESX hosts using the datastore (click a host to open it)", ["vcenter", "ds_name", "host_name"], [
+        col("Read latency", perf("total_read_latency_average_seconds"), unit="s", thresholds=T_LATENCY),
+        col("Write latency", perf("total_write_latency_average_seconds"), unit="s", thresholds=T_LATENCY),
+        col("Read", perf("read_average_bytes_per_second"), unit="Bps"),
+        col("Write", perf("write_average_bytes_per_second"), unit="Bps"),
+        col("Read IOPS", perf("number_read_averaged_average"), unit="iops"),
+        col("Write IOPS", perf("number_write_averaged_average"), unit="iops"),
+    ], links={"ds_name": T_DS, "host_name": T_HOST}, sort=("Read latency", True), filterable=True, desc=perf_desc), 24, 8)
+
+    d.row("Alarms")
+    d.add(alarms_table(f'(vmware_alarm_triggered{{{VC}, entity_type="Datastore"}} and on(vcenter, entity) '
+                       f'label_replace(vmware_datastore_info{{{info}}}, "entity", "$1", "ds_name", "(.*)")) '
+                       f'or (vmware_alarm_triggered{{{VC}, entity_type="StoragePod"}} and on(vcenter, entity) '
+                       f'label_replace(vmware_datastore_cluster_overall_status{{{pod}}}, "entity", "$1", "datastore_cluster", "(.*)"))',
+                       "Active alarms on the datastore(s) / datastore cluster(s)"), 24, 7)
+    return d
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
-    for build in (overview, clusters, hosts, vms):
+    for build in (overview, clusters, hosts, vms, datastores):
         d = build()
         path = os.path.join(here, DASHBOARDS[d.key][3])
         with open(path, "w", encoding="utf-8") as f:
