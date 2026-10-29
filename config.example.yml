@@ -1,11 +1,11 @@
 # =============================================================================
-# vmware-exporter - example configuration
+# vmware_exporter - example configuration
 # Compatible with vCenter 8.x and vCenter 9.x (VCF 9 / VVF 9).
 #
 # Never write secrets in clear text here: use password_file (recommended,
 # file mode 0600) or password_env. The ${VARIABLE} syntax is interpolated
 # from the environment everywhere.
-# Validate the file: vmware-exporter -config.file config.yml -config.check
+# Validate the file: vmware_exporter -config.file config.yml -config.check
 # =============================================================================
 
 listen_address: ":9272"        # HTTP listen address for /metrics
@@ -16,13 +16,13 @@ log_format: text               # text | json
 # Access to the HTTP endpoints. Without web_config_file they are public.
 # To require a password (and/or HTTPS), point to a Prometheus web configuration
 # file (see deploy/web-config.example.yml):
-# web_config_file: /etc/vmware-exporter/web-config.yml
+# web_config_file: /etc/vmware_exporter/web-config.yml
 
 # Alternative without authentication: serve over HTTPS only
 # (mutually exclusive with web_config_file, which can also set up TLS)
 # web_tls:
-#   cert_file: /etc/vmware-exporter/tls/exporter.crt
-#   key_file:  /etc/vmware-exporter/tls/exporter.key
+#   cert_file: /etc/vmware_exporter/tls/exporter.crt
+#   key_file:  /etc/vmware_exporter/tls/exporter.key
 
 # -----------------------------------------------------------------------------
 # Common settings inherited by every target (can be overridden per target)
@@ -32,11 +32,11 @@ defaults:
   # (VCF Identity Broker, ADFS, Entra ID...), use a LOCAL SSO account
   # (e.g. svc-prometheus@vsphere.local): the SOAP API does not accept federated accounts.
   username: ${VMWARE_EXPORTER_USER}
-  password_file: /etc/vmware-exporter/vcenter.pass
+  password_file: /etc/vmware_exporter/vcenter.pass
   # password_env: VMWARE_EXPORTER_PASSWORD
 
   # TLS: provide the CA (VMCA or enterprise PKI) rather than disabling verification.
-  ca_file: /etc/vmware-exporter/ca.pem
+  ca_file: /etc/vmware_exporter/ca.pem
   insecure_skip_verify: false
   tls_min_version: "1.2"       # "1.3" also possible (secure default on vCenter 9)
 
@@ -59,6 +59,7 @@ defaults:
     vsan: true           # vSAN health (cached health service results)
     appliance: true      # VAMI health, vCenter services, backups (REST API /api)
     pryorda: false       # also emit pryorda/vmware_exporter metric names/labels (existing dashboards)
+    exporter: true       # the collection's own metrics: durations, collectors, failures (vmware_up is always emitted)
 
   filters:
     # vm_exclude: "^(vCLS|SupervisorControlPlaneVM)"
@@ -99,7 +100,7 @@ targets:
 
   - name: vcf9-wld01
     url: vcf9-wld01-vc.example.local
-    password_file: /etc/vmware-exporter/vcf9-wld01.pass   # separate account for this domain
+    password_file: /etc/vmware_exporter/vcf9-wld01.pass   # separate account for this domain
     interval: 120s                                        # large workload domain: collect less often
     filters:
       exclude_system_vms: true

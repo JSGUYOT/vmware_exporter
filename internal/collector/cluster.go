@@ -13,7 +13,7 @@ func collectDatacenters(ctx context.Context, r *Run) error {
 		return err
 	}
 	for _, dc := range dcs {
-		l := L{"datacenter", dc.Name}
+		l := L{"dc_name", dc.Name}
 		r.Sink.Gauge(n("datacenter_overall_status"), "Overall status of the datacenter"+statusHelp+".", statusValue(dc.OverallStatus), l)
 	}
 	return nil
@@ -36,7 +36,7 @@ func collectClusters(ctx context.Context, r *Run) error {
 	s := r.Sink
 	for _, c := range cls {
 		dc := r.Topo.Datacenter(c.Self.Value)
-		l := L{"datacenter", dc, "cluster", c.Name}
+		l := L{"dc_name", dc, "cluster_name", c.Name}
 		s.Gauge(n("cluster_overall_status"), "Overall status of the cluster"+statusHelp+".", statusValue(c.OverallStatus), l)
 		s.Gauge(n("cluster_config_issues"), "Number of configuration issues reported on the cluster.", float64(len(c.ConfigIssue)), l)
 		s.Gauge(n("cluster_hosts"), "Number of hosts in the cluster.", float64(len(c.Host)), l)

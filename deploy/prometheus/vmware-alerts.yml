@@ -1,4 +1,4 @@
-# Prometheus alerting rules for vmware-exporter (vCenter 8.x / VCF 9.x).
+# Prometheus alerting rules for vmware_exporter (vCenter 8.x / VCF 9.x).
 #
 # Two complementary alert sources:
 #   1. Native vCenter alarms (vmware_alarm_triggered), forwarded as-is:
@@ -12,7 +12,7 @@
 
 groups:
   # ---------------------------------------------------------------------------
-  - name: vmware-exporter
+  - name: vmware_exporter
     rules:
       - alert: VMwareExporterTargetDown
         expr: vmware_up == 0
@@ -47,12 +47,12 @@ groups:
           description: "Collector {{ $labels.collector }} has been failing for 15 min (service account permissions, missing endpoint, timeout). Check the exporter logs."
 
       - alert: VMwareExporterSlowCollection
-        expr: vmware_collection_duration_seconds > 50
+        expr: vmware_collection_duration_seconds / vmware_collection_timeout_seconds > 0.8
         for: 15m
         labels: {severity: info}
         annotations:
-          summary: "Slow collection on {{ $labels.vcenter }} ({{ $value | humanize }}s)"
-          description: "Increase 'interval'/'timeout' or reduce the scope (filters, perf counters)."
+          summary: "Slow collection on {{ $labels.vcenter }} ({{ $value | humanizePercentage }} of the timeout)"
+          description: "The collection uses more than 80% of its timeout and risks being cut. Increase 'interval'/'timeout' or reduce the scope (filters, perf counters)."
 
   # ---------------------------------------------------------------------------
   - name: vmware-vcenter
@@ -63,7 +63,7 @@ groups:
         labels: {severity: critical, source: vcenter}
         annotations:
           summary: "[{{ $labels.vcenter }}] {{ $labels.alarm }} on {{ $labels.entity }}"
-          description: "RED vCenter alarm '{{ $labels.alarm }}' on {{ $labels.entity_type }} {{ $labels.entity }} (datacenter {{ $labels.datacenter }})."
+          description: "RED vCenter alarm '{{ $labels.alarm }}' on {{ $labels.entity_type }} {{ $labels.entity }} (datacenter {{ $labels.dc_name }})."
 
       - alert: VMwareVCenterAlarmWarning
         expr: vmware_alarm_triggered{status="yellow", acknowledged="false"} == 2
@@ -71,7 +71,7 @@ groups:
         labels: {severity: warning, source: vcenter}
         annotations:
           summary: "[{{ $labels.vcenter }}] {{ $labels.alarm }} on {{ $labels.entity }}"
-          description: "YELLOW vCenter alarm '{{ $labels.alarm }}' on {{ $labels.entity_type }} {{ $labels.entity }} (datacenter {{ $labels.datacenter }})."
+          description: "YELLOW vCenter alarm '{{ $labels.alarm }}' on {{ $labels.entity_type }} {{ $labels.entity }} (datacenter {{ $labels.dc_name }})."
 
       - alert: VMwareVCenterCertificateExpiringSoon
         expr: (vmware_vcenter_certificate_expiry_timestamp_seconds - time()) < 30 * 86400
@@ -154,16 +154,16 @@ groups:
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "Cluster {{ $labels.cluster }} status is red ({{ $labels.vcenter }})"
-          description: "Overall status of cluster {{ $labels.cluster }} is red."
+          summary: "Cluster {{ $labels.cluster_name }} status is red ({{ $labels.vcenter }})"
+          description: "Overall status of cluster {{ $labels.cluster_name }} is red."
 
       - alert: VMwareClusterHADisabled
         expr: vmware_cluster_ha_enabled == 0 and vmware_cluster_hosts > 1
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "vSphere HA disabled on {{ $labels.cluster }}"
-          description: "Cluster {{ $labels.cluster }} is not protected by vSphere HA."
+          summary: "vSphere HA disabled on {{ $labels.cluster_name }}"
+          description: "Cluster {{ $labels.cluster_name }} is not protected by vSphere HA."
 
       - alert: VMwareClusterHAFailoverCapacityLost
         # The *_configured metrics are only emitted when HA and admission control are enabled.
@@ -174,7 +174,7 @@ groups:
         for: 15m
         labels: {severity: critical}
         annotations:
-          summary: "Cluster {{ $labels.cluster }}: insufficient HA failover capacity"
+          summary: "Cluster {{ $labels.cluster_name }}: insufficient HA failover capacity"
           description: "Available failover capacity is below the reserve configured in HA admission control: the cluster can no longer guarantee VM restarts if a host fails."
 
       - alert: VMwareClusterHostsUnavailable
@@ -182,15 +182,15 @@ groups:
         for: 15m
         labels: {severity: warning}
         annotations:
-          summary: "{{ $value }} host(s) unavailable in {{ $labels.cluster }}"
-          description: "Hosts disconnected, in maintenance or not responding in cluster {{ $labels.cluster }}."
+          summary: "{{ $value }} host(s) unavailable in {{ $labels.cluster_name }}"
+          description: "Hosts disconnected, in maintenance or not responding in cluster {{ $labels.cluster_name }}."
 
       - alert: VMwareClusterMemoryPressure
         expr: vmware_cluster_memory_demand_bytes / vmware_cluster_memory_effective_bytes > 0.90
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "Cluster {{ $labels.cluster }} memory at {{ $value | humanizePercentage }}"
+          summary: "Cluster {{ $labels.cluster_name }} memory at {{ $value | humanizePercentage }}"
           description: "VM memory demand is approaching the cluster's effective capacity."
 
       - alert: VMwareClusterCpuPressure
@@ -198,7 +198,7 @@ groups:
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "Cluster {{ $labels.cluster }} CPU at {{ $value | humanizePercentage }}"
+          summary: "Cluster {{ $labels.cluster_name }} CPU at {{ $value | humanizePercentage }}"
           description: "VM CPU demand is approaching the cluster's effective capacity."
 
       - alert: VMwareClusterDrsScoreLow
@@ -206,7 +206,7 @@ groups:
         for: 1h
         labels: {severity: warning}
         annotations:
-          summary: "Low DRS score ({{ $value }}) on {{ $labels.cluster }}"
+          summary: "Low DRS score ({{ $value }}) on {{ $labels.cluster_name }}"
           description: "VMs in the cluster are not getting the resources they demand (contention)."
 
       - alert: VMwareClusterConfigIssues
@@ -214,7 +214,7 @@ groups:
         for: 1h
         labels: {severity: info}
         annotations:
-          summary: "{{ $value }} configuration issue(s) on {{ $labels.cluster }}"
+          summary: "{{ $value }} configuration issue(s) on {{ $labels.cluster_name }}"
           description: "See the cluster's Summary > Configuration Issues in the vSphere Client."
 
   # ---------------------------------------------------------------------------
@@ -225,31 +225,31 @@ groups:
         for: 3m
         labels: {severity: critical}
         annotations:
-          summary: "Host {{ $labels.host }} not responding ({{ $labels.cluster }})"
-          description: "vCenter {{ $labels.vcenter }} is no longer receiving heartbeats from host {{ $labels.host }}."
+          summary: "Host {{ $labels.host_name }} not responding ({{ $labels.cluster_name }})"
+          description: "vCenter {{ $labels.vcenter }} is no longer receiving heartbeats from host {{ $labels.host_name }}."
 
       - alert: VMwareHostDisconnected
         expr: vmware_host_connection_status == 0 and vmware_host_in_maintenance == 0
         for: 10m
         labels: {severity: warning}
         annotations:
-          summary: "Host {{ $labels.host }} disconnected from vCenter"
-          description: "Host {{ $labels.host }} is disconnected while not in maintenance mode."
+          summary: "Host {{ $labels.host_name }} disconnected from vCenter"
+          description: "Host {{ $labels.host_name }} is disconnected while not in maintenance mode."
 
       - alert: VMwareHostStatusRed
         expr: vmware_host_overall_status == 3
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "Host {{ $labels.host }} status is red"
-          description: "Overall status of host {{ $labels.host }} ({{ $labels.cluster }}) is red."
+          summary: "Host {{ $labels.host_name }} status is red"
+          description: "Overall status of host {{ $labels.host_name }} ({{ $labels.cluster_name }}) is red."
 
       - alert: VMwareHostMaintenanceMode
         expr: vmware_host_in_maintenance == 1
         for: 24h
         labels: {severity: info}
         annotations:
-          summary: "Host {{ $labels.host }} in maintenance mode for over 24h"
+          summary: "Host {{ $labels.host_name }} in maintenance mode for over 24h"
           description: "Remember to exit maintenance mode once the work is done."
 
       - alert: VMwareHostQuarantine
@@ -257,15 +257,15 @@ groups:
         for: 5m
         labels: {severity: warning}
         annotations:
-          summary: "Host {{ $labels.host }} in quarantine mode (Proactive HA)"
+          summary: "Host {{ $labels.host_name }} in quarantine mode (Proactive HA)"
           description: "The hardware vendor reported a partial hardware failure."
 
       - alert: VMwareHostHAAgentProblem
-        expr: vmware_host_ha_state{state!~"master|connectedToMaster|election"} == 1 and on(vcenter, host) (vmware_host_in_maintenance == 0)
+        expr: vmware_host_ha_state{state!~"master|connectedToMaster|election"} == 1 and on(vcenter, host_name) (vmware_host_in_maintenance == 0)
         for: 10m
         labels: {severity: warning}
         annotations:
-          summary: "HA agent on {{ $labels.host }} in state {{ $labels.state }}"
+          summary: "HA agent on {{ $labels.host_name }} in state {{ $labels.state }}"
           description: "The FDM agent is unhealthy (isolation, network partition or initialization error)."
 
       - alert: VMwareHostSensorCritical
@@ -273,7 +273,7 @@ groups:
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "Sensor {{ $labels.sensor }} critical on {{ $labels.host }}"
+          summary: "Sensor {{ $labels.sensor }} critical on {{ $labels.host_name }}"
           description: "Hardware sensor of type {{ $labels.type }} is red."
 
       - alert: VMwareHostSensorWarning
@@ -281,7 +281,7 @@ groups:
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "Sensor {{ $labels.sensor }} warning on {{ $labels.host }}"
+          summary: "Sensor {{ $labels.sensor }} warning on {{ $labels.host_name }}"
           description: "Hardware sensor of type {{ $labels.type }} is yellow."
 
       - alert: VMwareHostHardwareComponentFailed
@@ -289,7 +289,7 @@ groups:
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "Component {{ $labels.component }} failed on {{ $labels.host }}"
+          summary: "Component {{ $labels.component }} failed on {{ $labels.host_name }}"
           description: "{{ $labels.name }} reported in error."
 
       - alert: VMwareHostStorageLunNoPath
@@ -297,7 +297,7 @@ groups:
         for: 3m
         labels: {severity: critical}
         annotations:
-          summary: "{{ $value }} LUN(s) with no live path on {{ $labels.host }}"
+          summary: "{{ $value }} LUN(s) with no live path on {{ $labels.host_name }}"
           description: "Storage access lost (likely APD/PDL)."
 
       - alert: VMwareHostStoragePathRedundancyLost
@@ -305,7 +305,7 @@ groups:
         for: 10m
         labels: {severity: warning}
         annotations:
-          summary: "{{ $value }} LUN(s) with a single live path on {{ $labels.host }}"
+          summary: "{{ $value }} LUN(s) with a single live path on {{ $labels.host_name }}"
           description: "Multipath redundancy lost (fiber, switch, controller...)."
 
       - alert: VMwareHostStoragePathDead
@@ -313,15 +313,15 @@ groups:
         for: 10m
         labels: {severity: warning}
         annotations:
-          summary: "{{ $value }} dead storage path(s) on {{ $labels.host }}"
+          summary: "{{ $value }} dead storage path(s) on {{ $labels.host_name }}"
           description: "Check the host's SAN zoning / links."
 
       - alert: VMwareHostUplinkDown
-        expr: vmware_host_pnic_link_up{used="true"} == 0 and on(vcenter, host) (vmware_host_connection_status == 1)
+        expr: vmware_host_pnic_link_up{used="true"} == 0 and on(vcenter, host_name) (vmware_host_connection_status == 1)
         for: 5m
         labels: {severity: warning}
         annotations:
-          summary: "Uplink {{ $labels.nic }} down on {{ $labels.host }}"
+          summary: "Uplink {{ $labels.nic }} down on {{ $labels.host_name }}"
           description: "A physical NIC used by a vSwitch/vDS lost its link."
 
       - alert: VMwareHostCertificateExpiringSoon
@@ -329,7 +329,7 @@ groups:
         for: 1h
         labels: {severity: warning}
         annotations:
-          summary: "Certificate of host {{ $labels.host }} expires in {{ $value | humanizeDuration }}"
+          summary: "Certificate of host {{ $labels.host_name }} expires in {{ $value | humanizeDuration }}"
           description: "Renew the host certificate (VMCA or custom certificate)."
 
       - alert: VMwareHostSSHEnabled
@@ -337,7 +337,7 @@ groups:
         for: 4h
         labels: {severity: info}
         annotations:
-          summary: "SSH enabled on {{ $labels.host }} for over 4h"
+          summary: "SSH enabled on {{ $labels.host_name }} for over 4h"
           description: "SSH should be stopped outside maintenance windows (hardening)."
 
       - alert: VMwareHostNTPStopped
@@ -345,7 +345,7 @@ groups:
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "NTP service stopped on {{ $labels.host }}"
+          summary: "NTP service stopped on {{ $labels.host_name }}"
           description: "Clock drift can break HA, vSAN, authentication and certificates."
 
       - alert: VMwareHostRebootRequired
@@ -353,7 +353,7 @@ groups:
         for: 24h
         labels: {severity: info}
         annotations:
-          summary: "Reboot required on {{ $labels.host }}"
+          summary: "Reboot required on {{ $labels.host_name }}"
           description: "A patch or configuration change is pending a reboot."
 
       - alert: VMwareHostCpuHigh
@@ -361,7 +361,7 @@ groups:
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "CPU on {{ $labels.host }} at {{ $value | humanizePercentage }}"
+          summary: "CPU on {{ $labels.host_name }} at {{ $value | humanizePercentage }}"
           description: "Sustained CPU load on the host."
 
       - alert: VMwareHostMemoryHigh
@@ -369,15 +369,15 @@ groups:
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "Memory on {{ $labels.host }} at {{ $value | humanizePercentage }}"
+          summary: "Memory on {{ $labels.host_name }} at {{ $value | humanizePercentage }}"
           description: "Risk of ballooning / hypervisor swapping."
 
       - alert: VMwareHostDatastoreLatencyHigh
-        expr: max by (vcenter, cluster, host, perf_instance) ({__name__=~"vmware_host_perf_datastore_total_(read|write)_latency_average_seconds"}) > 0.030
+        expr: max by (vcenter, cluster_name, host_name, perf_instance) ({__name__=~"vmware_host_perf_datastore_total_(read|write)_latency_average_seconds"}) > 0.030
         for: 15m
         labels: {severity: warning}
         annotations:
-          summary: "High datastore latency on {{ $labels.host }} ({{ $value | humanizeDuration }})"
+          summary: "High datastore latency on {{ $labels.host_name }} ({{ $value | humanizeDuration }})"
           description: "Average latency > 30 ms to datastore {{ $labels.perf_instance }} (UUID)."
 
       - alert: VMwareHostNetworkDrops
@@ -385,7 +385,7 @@ groups:
         for: 15m
         labels: {severity: warning}
         annotations:
-          summary: "Dropped packets on {{ $labels.host }}"
+          summary: "Dropped packets on {{ $labels.host_name }}"
           description: "{{ $value }} packets dropped per 20 s interval."
 
   # ---------------------------------------------------------------------------
@@ -396,7 +396,7 @@ groups:
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "VM {{ $labels.vm }}: guest heartbeat lost"
+          summary: "VM {{ $labels.vm_name }}: guest heartbeat lost"
           description: "The VM is powered on but the guest OS no longer responds to VMware Tools (hung OS?)."
 
       - alert: VMwareVMToolsNotRunning
@@ -404,7 +404,7 @@ groups:
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "VMware Tools not running on {{ $labels.vm }}"
+          summary: "VMware Tools not running on {{ $labels.vm_name }}"
           description: "Without VMware Tools: no clean shutdown, no guest monitoring, no quiescing."
 
       - alert: VMwareVMToolsOutdated
@@ -412,7 +412,7 @@ groups:
         for: 24h
         labels: {severity: info}
         annotations:
-          summary: "VMware Tools need updating on {{ $labels.vm }} ({{ $labels.status }})"
+          summary: "VMware Tools need updating on {{ $labels.vm_name }} ({{ $labels.status }})"
           description: "VMware Tools version is outdated."
 
       - alert: VMwareVMQuestionPending
@@ -420,7 +420,7 @@ groups:
         for: 2m
         labels: {severity: critical}
         annotations:
-          summary: "VM {{ $labels.vm }} blocked on a pending question"
+          summary: "VM {{ $labels.vm_name }} blocked on a pending question"
           description: "The VM is waiting for an answer in the vSphere Client (often after a copy or a full datastore)."
 
       - alert: VMwareVMConsolidationNeeded
@@ -428,7 +428,7 @@ groups:
         for: 1h
         labels: {severity: warning}
         annotations:
-          summary: "Disk consolidation needed on {{ $labels.vm }}"
+          summary: "Disk consolidation needed on {{ $labels.vm_name }}"
           description: "Orphaned delta files remain (interrupted backup?)."
 
       - alert: VMwareVMSnapshotTooOld
@@ -436,7 +436,7 @@ groups:
         for: 1h
         labels: {severity: warning}
         annotations:
-          summary: "Snapshot older than 3 days on {{ $labels.vm }}"
+          summary: "Snapshot older than 3 days on {{ $labels.vm_name }}"
           description: "The oldest snapshot is {{ $value | humanizeDuration }} old. Snapshots are not backups."
 
       - alert: VMwareVMTooManySnapshots
@@ -444,7 +444,7 @@ groups:
         for: 1h
         labels: {severity: warning}
         annotations:
-          summary: "{{ $value }} snapshots on {{ $labels.vm }}"
+          summary: "{{ $value }} snapshots on {{ $labels.vm_name }}"
           description: "Long snapshot chains degrade disk performance."
 
       - alert: VMwareVMGuestDiskFull
@@ -452,7 +452,7 @@ groups:
         for: 10m
         labels: {severity: critical}
         annotations:
-          summary: "Disk {{ $labels.disk_path }} on {{ $labels.vm }} almost full"
+          summary: "Disk {{ $labels.disk_path }} on {{ $labels.vm_name }} almost full"
           description: "Less than 5% free ({{ $value | humanizePercentage }})."
 
       - alert: VMwareVMGuestDiskLow
@@ -460,7 +460,7 @@ groups:
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "Disk {{ $labels.disk_path }} on {{ $labels.vm }} below 10% free"
+          summary: "Disk {{ $labels.disk_path }} on {{ $labels.vm_name }} below 10% free"
           description: "Free space: {{ $value | humanizePercentage }}."
 
       - alert: VMwareVMCpuReadyHigh
@@ -468,7 +468,7 @@ groups:
         for: 15m
         labels: {severity: warning}
         annotations:
-          summary: "High CPU ready on {{ $labels.vm }} ({{ $value | humanizePercentage }} per vCPU)"
+          summary: "High CPU ready on {{ $labels.vm_name }} ({{ $value | humanizePercentage }} per vCPU)"
           description: "The VM is waiting on the ESXi scheduler: CPU contention or too many vCPUs."
 
       - alert: VMwareVMCoStopHigh
@@ -476,7 +476,7 @@ groups:
         for: 15m
         labels: {severity: warning}
         annotations:
-          summary: "High co-stop on {{ $labels.vm }} ({{ $value | humanizePercentage }})"
+          summary: "High co-stop on {{ $labels.vm_name }} ({{ $value | humanizePercentage }})"
           description: "Too many vCPUs for the workload: reduce the vCPU count."
 
       - alert: VMwareVMMemorySwapped
@@ -484,7 +484,7 @@ groups:
         for: 15m
         labels: {severity: warning}
         annotations:
-          summary: "{{ $value | humanize1024 }}B of {{ $labels.vm }} memory swapped by the hypervisor"
+          summary: "{{ $value | humanize1024 }}B of {{ $labels.vm_name }} memory swapped by the hypervisor"
           description: "Hypervisor swapping: severe VM performance degradation."
 
       - alert: VMwareVMMemoryBallooned
@@ -492,7 +492,7 @@ groups:
         for: 30m
         labels: {severity: info}
         annotations:
-          summary: "Ballooning active on {{ $labels.vm }}"
+          summary: "Ballooning active on {{ $labels.vm_name }}"
           description: "{{ $value | humanize1024 }}B reclaimed by the balloon driver."
 
       - alert: VMwareVMDiskLatencyHigh
@@ -500,15 +500,15 @@ groups:
         for: 15m
         labels: {severity: warning}
         annotations:
-          summary: "High disk latency on {{ $labels.vm }} ({{ $value | humanizeDuration }})"
+          summary: "High disk latency on {{ $labels.vm_name }} ({{ $value | humanizeDuration }})"
           description: "Maximum disk latency > 50 ms."
 
       - alert: VMwareVMNotHAProtected
-        expr: vmware_vm_ha_protected == 0 and on(vcenter, vm_moid) (vmware_vm_power_status == 1) and on(vcenter, vm_moid) (vmware_vm_info * on(vcenter, datacenter, cluster) group_left() (vmware_cluster_ha_enabled == 1))
+        expr: vmware_vm_ha_protected == 0 and on(vcenter, vm_moid) (vmware_vm_power_status == 1) and on(vcenter, vm_moid) (vmware_vm_info * on(vcenter, dc_name, cluster_name) group_left() (vmware_cluster_ha_enabled == 1))
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "VM {{ $labels.vm }} not protected by HA"
+          summary: "VM {{ $labels.vm_name }} not protected by HA"
           description: "The VM is powered on in an HA cluster but is not protected."
 
       - alert: VMwareVMConnectionProblem
@@ -516,7 +516,7 @@ groups:
         for: 10m
         labels: {severity: warning}
         annotations:
-          summary: "VM {{ $labels.vm }} in abnormal connection state ({{ $value }})"
+          summary: "VM {{ $labels.vm_name }} in abnormal connection state ({{ $value }})"
           description: "1=disconnected, 2=orphaned, 3=inaccessible, 4=invalid."
 
   # ---------------------------------------------------------------------------
@@ -527,7 +527,7 @@ groups:
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "Datastore {{ $labels.datastore }} {{ $value | humanizePercentage }} full"
+          summary: "Datastore {{ $labels.ds_name }} {{ $value | humanizePercentage }} full"
           description: "VMs at risk of stopping (thin provisioning, snapshots)."
 
       - alert: VMwareDatastoreUsageHigh
@@ -535,7 +535,7 @@ groups:
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "Datastore {{ $labels.datastore }} {{ $value | humanizePercentage }} full"
+          summary: "Datastore {{ $labels.ds_name }} {{ $value | humanizePercentage }} full"
           description: "Plan to free up space or extend the datastore."
 
       - alert: VMwareDatastoreFullIn7Days
@@ -543,7 +543,7 @@ groups:
         for: 1h
         labels: {severity: warning}
         annotations:
-          summary: "Datastore {{ $labels.datastore }} full in less than 7 days"
+          summary: "Datastore {{ $labels.ds_name }} full in less than 7 days"
           description: "Linear projection based on the last 24 h of usage."
 
       - alert: VMwareDatastoreOverprovisioned
@@ -551,7 +551,7 @@ groups:
         for: 6h
         labels: {severity: info}
         annotations:
-          summary: "Datastore {{ $labels.datastore }} overprovisioned ({{ $value | humanize }}x)"
+          summary: "Datastore {{ $labels.ds_name }} overprovisioned ({{ $value | humanize }}x)"
           description: "Thin provisioning exceeds 200% of capacity."
 
       - alert: VMwareDatastoreInaccessible
@@ -559,7 +559,7 @@ groups:
         for: 2m
         labels: {severity: critical}
         annotations:
-          summary: "Datastore {{ $labels.datastore }} inaccessible"
+          summary: "Datastore {{ $labels.ds_name }} inaccessible"
           description: "The datastore is no longer accessible from vCenter {{ $labels.vcenter }}."
 
       - alert: VMwareDatastoreInaccessibleFromHosts
@@ -567,7 +567,7 @@ groups:
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "Datastore {{ $labels.datastore }} inaccessible from {{ $value }} host(s)"
+          summary: "Datastore {{ $labels.ds_name }} inaccessible from {{ $value }} host(s)"
           description: "Some hosts lost access to the datastore (APD/PDL, storage network)."
 
       - alert: VMwareDatastoreStatusRed
@@ -575,7 +575,7 @@ groups:
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "Datastore {{ $labels.datastore }} status is red"
+          summary: "Datastore {{ $labels.ds_name }} status is red"
           description: "Check the related alarms in the vSphere Client."
 
   # ---------------------------------------------------------------------------
@@ -594,7 +594,7 @@ groups:
         for: 10m
         labels: {severity: warning}
         annotations:
-          summary: "Host {{ $labels.host }} out of sync with vDS {{ $labels.dvs }}"
+          summary: "Host {{ $labels.host_name }} out of sync with vDS {{ $labels.dvs }}"
           description: "The host is outOfSync, down or in warning state on the vDS."
 
       - alert: VMwareNetworkInaccessible
@@ -613,7 +613,7 @@ groups:
         for: 5m
         labels: {severity: critical}
         annotations:
-          summary: "vSAN health red on {{ $labels.cluster }}"
+          summary: "vSAN health red on {{ $labels.cluster_name }}"
           description: "See vmware_vsan_health_group / vmware_vsan_health_test for details."
 
       - alert: VMwareVSANHealthYellow
@@ -621,7 +621,7 @@ groups:
         for: 1h
         labels: {severity: warning}
         annotations:
-          summary: "vSAN health yellow on {{ $labels.cluster }}"
+          summary: "vSAN health yellow on {{ $labels.cluster_name }}"
           description: "At least one vSAN health test is in warning."
 
       - alert: VMwareVSANTestFailed
@@ -629,7 +629,7 @@ groups:
         for: 15m
         labels: {severity: warning}
         annotations:
-          summary: "vSAN {{ $labels.cluster }}: health test \"{{ $labels.test }}\" failed"
+          summary: "vSAN {{ $labels.cluster_name }}: health test \"{{ $labels.test }}\" failed"
           description: "Group {{ $labels.group }}."
 
       - alert: VMwareVSANHealthUnavailable
@@ -637,7 +637,7 @@ groups:
         for: 30m
         labels: {severity: warning}
         annotations:
-          summary: "vSAN health unreadable on {{ $labels.cluster }}"
+          summary: "vSAN health unreadable on {{ $labels.cluster_name }}"
           description: "The vSAN health service is not responding or the account lacks permissions."
 
       - alert: VMwareVSANHealthStale
@@ -645,5 +645,5 @@ groups:
         for: 30m
         labels: {severity: info}
         annotations:
-          summary: "Stale vSAN health results on {{ $labels.cluster }}"
+          summary: "Stale vSAN health results on {{ $labels.cluster_name }}"
           description: "The last vSAN health check ran {{ $value | humanizeDuration }} ago (check the health service schedule)."

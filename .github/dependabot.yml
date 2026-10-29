@@ -1,10 +1,10 @@
 # Weekly dependency updates, proposed as pull requests on the development
-# branch (V1.0); they reach main through the usual V1.0 -> main merge.
+# branch (dev); they reach main through the usual dev -> main merge.
 version: 2
 updates:
   - package-ecosystem: gomod
     directory: /
-    target-branch: V1.0
+    target-branch: dev
     vendor: true          # vendor/ is regenerated in the same pull request
     schedule:
       interval: weekly
@@ -14,12 +14,12 @@ updates:
 
   - package-ecosystem: github-actions
     directory: /
-    target-branch: V1.0
+    target-branch: dev
     schedule:
       interval: weekly
 
   - package-ecosystem: docker
     directory: /
-    target-branch: V1.0
+    target-branch: dev
     schedule:
       interval: weekly

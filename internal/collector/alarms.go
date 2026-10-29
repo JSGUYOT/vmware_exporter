@@ -88,7 +88,7 @@ func collectAlarms(ctx context.Context, r *Run) error {
 		l := L{
 			"alarm", name, "alarm_moid", st.Alarm.Value,
 			"entity", ename, "entity_type", st.Entity.Type, "entity_moid", st.Entity.Value,
-			"datacenter", dc, "status", status, "acknowledged", ack,
+			"dc_name", dc, "status", status, "acknowledged", ack,
 		}
 		r.Sink.Gauge(n("alarm_triggered"), "Active vCenter alarm on an entity, value = severity"+statusHelp+".", statusValue(st.OverallStatus), l)
 		r.Sink.Gauge(n("alarm_triggered_timestamp_seconds"), "Time the vCenter alarm was triggered.", float64(st.Time.Unix()), l)

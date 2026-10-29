@@ -3,7 +3,7 @@
 #   make build DEPS=online   -> modules downloaded from the Go proxy (proxy.golang.org
 #                               or $$GOPROXY), checked against go.sum; vendor/ is ignored
 DEPS ?= vendor
-BINARY  := vmware-exporter
+BINARY  := vmware_exporter
 VERSION ?= $(shell cat VERSION)
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo local)
 LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT)
@@ -19,13 +19,13 @@ GOFLAGS := $(MODFLAG) -trimpath
 .PHONY: build build-windows promu promu-tarball release-tarballs test lint check-rules test-rules sim vendor clean
 
 build:
-	CGO_ENABLED=0 go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o dist/$(BINARY) ./cmd/vmware-exporter
+	CGO_ENABLED=0 go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o dist/$(BINARY) ./cmd/vmware_exporter
 
 build-windows:
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o dist/$(BINARY).exe ./cmd/vmware-exporter
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o dist/$(BINARY).exe ./cmd/vmware_exporter
 
 # Same build through promu (https://github.com/prometheus/promu), configured in .promu.yml.
-# Produces ./vmware-exporter; DEPS applies as above.
+# Produces ./vmware_exporter; DEPS applies as above.
 promu:
 	GOFLAGS=$(MODFLAG) promu build
 
@@ -70,4 +70,4 @@ vendor:
 	go mod vendor
 
 clean:
-	rm -rf dist vmware-exporter .build .tarballs
+	rm -rf dist vmware_exporter .build .tarballs

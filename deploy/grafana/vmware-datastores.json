@@ -1,0 +1,2460 @@
+{
+ "title": "VMware vSphere / VCF - Datastores",
+ "uid": "vmware-datastores",
+ "description": "Selected datastore(s) / datastore cluster(s): capacity, provisioning, accessibility, performance seen by the ESX hosts.",
+ "tags": [
+  "vmware_exporter",
+  "vmware",
+  "vsphere",
+  "vcf"
+ ],
+ "links": [
+  {
+   "title": "VMware dashboards",
+   "type": "dashboards",
+   "tags": [
+    "vmware_exporter"
+   ],
+   "asDropdown": false,
+   "includeVars": true,
+   "keepTime": true,
+   "targetBlank": false,
+   "icon": "external link",
+   "tooltip": "",
+   "url": ""
+  }
+ ],
+ "timezone": "browser",
+ "schemaVersion": 39,
+ "version": 1,
+ "editable": true,
+ "graphTooltip": 1,
+ "refresh": "1m",
+ "time": {
+  "from": "now-6h",
+  "to": "now"
+ },
+ "templating": {
+  "list": [
+   {
+    "name": "datasource",
+    "label": "Data source",
+    "type": "datasource",
+    "query": "prometheus",
+    "current": {},
+    "refresh": 1,
+    "regex": ""
+   },
+   {
+    "name": "vcenter",
+    "label": "vCenter",
+    "type": "query",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "${datasource}"
+    },
+    "refresh": 2,
+    "includeAll": true,
+    "multi": true,
+    "allValue": ".*",
+    "current": {
+     "selected": true,
+     "text": [
+      "All"
+     ],
+     "value": [
+      "$__all"
+     ]
+    },
+    "query": {
+     "query": "label_values(vmware_up, vcenter)",
+     "refId": "vcenter",
+     "qryType": 1
+    },
+    "definition": "label_values(vmware_up, vcenter)",
+    "sort": 1,
+    "regex": "",
+    "options": []
+   },
+   {
+    "name": "dc_name",
+    "label": "Datacenter",
+    "type": "query",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "${datasource}"
+    },
+    "refresh": 2,
+    "includeAll": true,
+    "multi": true,
+    "allValue": ".*",
+    "current": {
+     "selected": true,
+     "text": [
+      "All"
+     ],
+     "value": [
+      "$__all"
+     ]
+    },
+    "query": {
+     "query": "label_values(vmware_datacenter_overall_status{vcenter=~\"$vcenter\"}, dc_name)",
+     "refId": "dc_name",
+     "qryType": 1
+    },
+    "definition": "label_values(vmware_datacenter_overall_status{vcenter=~\"$vcenter\"}, dc_name)",
+    "sort": 1,
+    "regex": "",
+    "options": []
+   },
+   {
+    "name": "datastore_cluster",
+    "label": "Datastore cluster",
+    "type": "query",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "${datasource}"
+    },
+    "refresh": 2,
+    "includeAll": true,
+    "multi": true,
+    "allValue": ".*",
+    "current": {
+     "selected": true,
+     "text": [
+      "All"
+     ],
+     "value": [
+      "$__all"
+     ]
+    },
+    "query": {
+     "query": "label_values(vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"}, datastore_cluster)",
+     "refId": "datastore_cluster",
+     "qryType": 1
+    },
+    "definition": "label_values(vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\"}, datastore_cluster)",
+    "sort": 1,
+    "regex": "",
+    "options": []
+   },
+   {
+    "name": "ds_name",
+    "label": "Datastore",
+    "type": "query",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "${datasource}"
+    },
+    "refresh": 2,
+    "includeAll": true,
+    "multi": true,
+    "allValue": ".*",
+    "current": {
+     "selected": true,
+     "text": [
+      "All"
+     ],
+     "value": [
+      "$__all"
+     ]
+    },
+    "query": {
+     "query": "label_values(vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", datastore_cluster=~\"$datastore_cluster\"}, ds_name)",
+     "refId": "ds_name",
+     "qryType": 1
+    },
+    "definition": "label_values(vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", datastore_cluster=~\"$datastore_cluster\"}, ds_name)",
+    "sort": 1,
+    "regex": "",
+    "options": []
+   }
+  ]
+ },
+ "annotations": {
+  "list": []
+ },
+ "panels": [
+  {
+   "type": "row",
+   "title": "Summary",
+   "collapsed": false,
+   "panels": [],
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 1
+   },
+   "id": 1
+  },
+  {
+   "type": "stat",
+   "title": "Datastores",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "count((vmware_datastore_capacity_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"})) or vector(0)",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "mappings": [],
+     "links": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "auto",
+    "textMode": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 1,
+    "w": 3,
+    "h": 4
+   },
+   "id": 2
+  },
+  {
+   "type": "stat",
+   "title": "Capacity",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum((vmware_datastore_capacity_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "bytes",
+     "mappings": [],
+     "links": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "auto",
+    "textMode": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   },
+   "gridPos": {
+    "x": 3,
+    "y": 1,
+    "w": 3,
+    "h": 4
+   },
+   "id": 3
+  },
+  {
+   "type": "stat",
+   "title": "Free",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum((vmware_datastore_free_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "bytes",
+     "mappings": [],
+     "links": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "auto",
+    "textMode": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   },
+   "gridPos": {
+    "x": 6,
+    "y": 1,
+    "w": 3,
+    "h": 4
+   },
+   "id": 4
+  },
+  {
+   "type": "stat",
+   "title": "Used",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "1 - sum((vmware_datastore_free_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"})) / sum((vmware_datastore_capacity_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "mappings": [],
+     "links": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 0.85
+       },
+       {
+        "color": "red",
+        "value": 0.95
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "justifyMode": "auto",
+    "textMode": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   },
+   "gridPos": {
+    "x": 9,
+    "y": 1,
+    "w": 3,
+    "h": 4
+   },
+   "id": 5
+  },
+  {
+   "type": "stat",
+   "title": "Provisioned / capacity",
+   "description": "> 100%: thin provisioning overcommitment.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum((vmware_datastore_provisioned_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"})) / sum((vmware_datastore_capacity_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "mappings": [],
+     "links": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       },
+       {
+        "color": "red",
+        "value": 1.5
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "justifyMode": "auto",
+    "textMode": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 1,
+    "w": 3,
+    "h": 4
+   },
+   "id": 6
+  },
+  {
+   "type": "stat",
+   "title": "Datastores > 85%",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "count((1 - (vmware_datastore_free_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}) / (vmware_datastore_capacity_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"})) > 0.85) or vector(0)",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "mappings": [],
+     "links": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "justifyMode": "auto",
+    "textMode": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   },
+   "gridPos": {
+    "x": 15,
+    "y": 1,
+    "w": 3,
+    "h": 4
+   },
+   "id": 7
+  },
+  {
+   "type": "stat",
+   "title": "Not accessible",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "count((vmware_datastore_is_accessible{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}) == 0) or vector(0)",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "mappings": [],
+     "links": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "justifyMode": "auto",
+    "textMode": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   },
+   "gridPos": {
+    "x": 18,
+    "y": 1,
+    "w": 3,
+    "h": 4
+   },
+   "id": 8
+  },
+  {
+   "type": "stat",
+   "title": "Hosts without access",
+   "description": "Sum over the datastores of the ESX hosts that mount it but cannot access it (APD / PDL...).",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum((vmware_datastore_hosts_inaccessible{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"})) or vector(0)",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "mappings": [],
+     "links": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "justifyMode": "auto",
+    "textMode": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   },
+   "gridPos": {
+    "x": 21,
+    "y": 1,
+    "w": 3,
+    "h": 4
+   },
+   "id": 9
+  },
+  {
+   "type": "row",
+   "title": "Datastores",
+   "collapsed": false,
+   "panels": [],
+   "gridPos": {
+    "x": 0,
+    "y": 5,
+    "w": 24,
+    "h": 1
+   },
+   "id": 10
+  },
+  {
+   "type": "table",
+   "title": "Datastores (click a datastore / datastore cluster to open it)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max by (vcenter, dc_name, ds_name, type, shared, datastore_cluster) (vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "B",
+     "expr": "max by (vcenter, dc_name, ds_name) ((vmware_datastore_overall_status{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "C",
+     "expr": "max by (vcenter, dc_name, ds_name) ((vmware_datastore_is_accessible{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "D",
+     "expr": "max by (vcenter, dc_name, ds_name) ((vmware_datastore_in_maintenance{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "E",
+     "expr": "max by (vcenter, dc_name, ds_name) ((vmware_datastore_capacity_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "F",
+     "expr": "max by (vcenter, dc_name, ds_name) ((vmware_datastore_free_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "G",
+     "expr": "max by (vcenter, dc_name, ds_name) ((1 - (vmware_datastore_free_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}) / (vmware_datastore_capacity_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"})))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "H",
+     "expr": "max by (vcenter, dc_name, ds_name) ((vmware_datastore_provisioned_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}) / (vmware_datastore_capacity_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "I",
+     "expr": "max by (vcenter, dc_name, ds_name) ((vmware_datastore_uncommitted_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "J",
+     "expr": "max by (vcenter, dc_name, ds_name) ((vmware_datastore_hosts_mounted{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "K",
+     "expr": "max by (vcenter, dc_name, ds_name) ((vmware_datastore_hosts_inaccessible{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "L",
+     "expr": "max by (vcenter, dc_name, ds_name) ((vmware_datastore_vms_hosted{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "merge",
+     "options": {}
+    },
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true,
+       "Value #A": true
+      },
+      "renameByName": {
+       "Value #B": "Status",
+       "Value #C": "Accessible",
+       "Value #D": "Maintenance",
+       "Value #E": "Capacity",
+       "Value #F": "Free",
+       "Value #G": "Used",
+       "Value #H": "Provisioned",
+       "Value #I": "Uncommitted (thin)",
+       "Value #J": "Hosts mounting",
+       "Value #K": "Hosts without access",
+       "Value #L": "VMs"
+      },
+      "indexByName": {
+       "vcenter": 0,
+       "dc_name": 1,
+       "ds_name": 2,
+       "type": 3,
+       "shared": 4,
+       "datastore_cluster": 5,
+       "Value #B": 7,
+       "Value #C": 8,
+       "Value #D": 9,
+       "Value #E": 10,
+       "Value #F": 11,
+       "Value #G": 12,
+       "Value #H": 13,
+       "Value #I": 14,
+       "Value #J": 15,
+       "Value #K": 16,
+       "Value #L": 17
+      }
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Status"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "gray",
+            "color": "#8e8e8e",
+            "index": 0
+           },
+           "1": {
+            "text": "green",
+            "color": "green",
+            "index": 1
+           },
+           "2": {
+            "text": "yellow",
+            "color": "orange",
+            "index": 2
+           },
+           "3": {
+            "text": "red",
+            "color": "red",
+            "index": 3
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Accessible"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "no",
+            "color": "orange",
+            "index": 0
+           },
+           "1": {
+            "text": "yes",
+            "color": "green",
+            "index": 1
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Maintenance"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "no",
+            "color": "green",
+            "index": 0
+           },
+           "1": {
+            "text": "yes",
+            "color": "orange",
+            "index": 1
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Capacity"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "bytes"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Free"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "bytes"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Used"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "percentunit"
+       },
+       {
+        "id": "min",
+        "value": 0
+       },
+       {
+        "id": "max",
+        "value": 1
+       },
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "green",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 0.85
+          },
+          {
+           "color": "red",
+           "value": 0.95
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "gauge",
+         "mode": "basic",
+         "valueDisplayMode": "text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Provisioned"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "percentunit"
+       },
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "green",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 1
+          },
+          {
+           "color": "red",
+           "value": 1.5
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Uncommitted (thin)"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "bytes"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Hosts without access"
+      },
+      "properties": [
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "green",
+           "value": null
+          },
+          {
+           "color": "red",
+           "value": 1
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "ds_name"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Open datastore ${__value.raw}",
+          "url": "/d/vmware-datastores/vmware-vsphere-vcf-datastores?var-datasource=${datasource}&var-vcenter=${__data.fields.vcenter}&var-ds_name=${__value.raw}&${__url_time_range}"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "datastore_cluster"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Open datastore cluster ${__value.raw}",
+          "url": "/d/vmware-datastores/vmware-vsphere-vcf-datastores?var-datasource=${datasource}&var-vcenter=${__data.fields.vcenter}&var-datastore_cluster=${__value.raw}&${__url_time_range}"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    },
+    "sortBy": [
+     {
+      "displayName": "Used",
+      "desc": true
+     }
+    ]
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 6,
+    "w": 24,
+    "h": 9
+   },
+   "id": 11
+  },
+  {
+   "type": "row",
+   "title": "Capacity",
+   "collapsed": false,
+   "panels": [],
+   "gridPos": {
+    "x": 0,
+    "y": 15,
+    "w": 24,
+    "h": 1
+   },
+   "id": 12
+  },
+  {
+   "type": "timeseries",
+   "title": "Used space",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "(1 - (vmware_datastore_free_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}) / (vmware_datastore_capacity_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{ds_name}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "links": [
+      {
+       "title": "Open datastore ${__field.labels.ds_name}",
+       "url": "/d/vmware-datastores/vmware-vsphere-vcf-datastores?var-datasource=${datasource}&var-vcenter=${__field.labels.vcenter}&var-ds_name=${__field.labels.ds_name}&${__url_time_range}"
+      }
+     ],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true,
+      "axisSoftMin": 0,
+      "axisSoftMax": 1
+     },
+     "max": 1,
+     "min": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 16,
+    "w": 12,
+    "h": 8
+   },
+   "id": 13
+  },
+  {
+   "type": "timeseries",
+   "title": "Free space",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "(vmware_datastore_free_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{ds_name}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "bytes",
+     "links": [
+      {
+       "title": "Open datastore ${__field.labels.ds_name}",
+       "url": "/d/vmware-datastores/vmware-vsphere-vcf-datastores?var-datasource=${datasource}&var-vcenter=${__field.labels.vcenter}&var-ds_name=${__field.labels.ds_name}&${__url_time_range}"
+      }
+     ],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "min"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 16,
+    "w": 12,
+    "h": 8
+   },
+   "id": 14
+  },
+  {
+   "type": "timeseries",
+   "title": "Provisioned / capacity",
+   "description": "Thin provisioning: above 100%, the VMs could fill the datastore if they grew to their full size.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "(vmware_datastore_provisioned_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}) / (vmware_datastore_capacity_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{ds_name}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "links": [
+      {
+       "title": "Open datastore ${__field.labels.ds_name}",
+       "url": "/d/vmware-datastores/vmware-vsphere-vcf-datastores?var-datasource=${datasource}&var-vcenter=${__field.labels.vcenter}&var-ds_name=${__field.labels.ds_name}&${__url_time_range}"
+      }
+     ],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true,
+      "axisSoftMin": 0,
+      "axisSoftMax": 1
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 24,
+    "w": 12,
+    "h": 8
+   },
+   "id": 15
+  },
+  {
+   "type": "bargauge",
+   "title": "Used space (now)",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "(1 - (vmware_datastore_free_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}) / (vmware_datastore_capacity_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\"} and on(vcenter, datastore_moid) vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{ds_name}}",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "min": 0,
+     "max": 1,
+     "links": [
+      {
+       "title": "Open datastore ${__field.labels.ds_name}",
+       "url": "/d/vmware-datastores/vmware-vsphere-vcf-datastores?var-datasource=${datasource}&var-vcenter=${__field.labels.vcenter}&var-ds_name=${__field.labels.ds_name}&${__url_time_range}"
+      }
+     ],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 0.85
+       },
+       {
+        "color": "red",
+        "value": 0.95
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "displayMode": "gradient",
+    "orientation": "horizontal",
+    "showUnfilled": true,
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 24,
+    "w": 12,
+    "h": 8
+   },
+   "id": 16
+  },
+  {
+   "type": "row",
+   "title": "Datastore clusters",
+   "collapsed": false,
+   "panels": [],
+   "gridPos": {
+    "x": 0,
+    "y": 32,
+    "w": 24,
+    "h": 1
+   },
+   "id": 17
+  },
+  {
+   "type": "table",
+   "title": "Datastore clusters (click one to open it)",
+   "description": "Storage DRS datastore clusters (StoragePod).",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max by (vcenter, dc_name, datastore_cluster) (vmware_datastore_cluster_overall_status{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", datastore_cluster=~\"$datastore_cluster\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "B",
+     "expr": "max by (vcenter, dc_name, datastore_cluster) (vmware_datastore_cluster_datastores{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", datastore_cluster=~\"$datastore_cluster\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "C",
+     "expr": "max by (vcenter, dc_name, datastore_cluster) (vmware_datastore_cluster_capacity_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", datastore_cluster=~\"$datastore_cluster\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "D",
+     "expr": "max by (vcenter, dc_name, datastore_cluster) (vmware_datastore_cluster_free_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", datastore_cluster=~\"$datastore_cluster\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "E",
+     "expr": "max by (vcenter, dc_name, datastore_cluster) (1 - vmware_datastore_cluster_free_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", datastore_cluster=~\"$datastore_cluster\"} / vmware_datastore_cluster_capacity_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", datastore_cluster=~\"$datastore_cluster\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "merge",
+     "options": {}
+    },
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true
+      },
+      "renameByName": {
+       "Value #A": "Status",
+       "Value #B": "Datastores",
+       "Value #C": "Capacity",
+       "Value #D": "Free",
+       "Value #E": "Used"
+      },
+      "indexByName": {
+       "vcenter": 0,
+       "dc_name": 1,
+       "datastore_cluster": 2,
+       "Value #A": 3,
+       "Value #B": 4,
+       "Value #C": 5,
+       "Value #D": 6,
+       "Value #E": 7
+      }
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": false,
+      "align": "auto"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Status"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "gray",
+            "color": "#8e8e8e",
+            "index": 0
+           },
+           "1": {
+            "text": "green",
+            "color": "green",
+            "index": 1
+           },
+           "2": {
+            "text": "yellow",
+            "color": "orange",
+            "index": 2
+           },
+           "3": {
+            "text": "red",
+            "color": "red",
+            "index": 3
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Capacity"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "bytes"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Free"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "bytes"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Used"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "percentunit"
+       },
+       {
+        "id": "min",
+        "value": 0
+       },
+       {
+        "id": "max",
+        "value": 1
+       },
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "green",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 0.85
+          },
+          {
+           "color": "red",
+           "value": 0.95
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "gauge",
+         "mode": "basic",
+         "valueDisplayMode": "text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "datastore_cluster"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Open datastore cluster ${__value.raw}",
+          "url": "/d/vmware-datastores/vmware-vsphere-vcf-datastores?var-datasource=${datasource}&var-vcenter=${__data.fields.vcenter}&var-datastore_cluster=${__value.raw}&${__url_time_range}"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    },
+    "sortBy": [
+     {
+      "displayName": "Used",
+      "desc": true
+     }
+    ]
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 33,
+    "w": 12,
+    "h": 7
+   },
+   "id": 18
+  },
+  {
+   "type": "timeseries",
+   "title": "Datastore cluster used space",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "1 - vmware_datastore_cluster_free_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", datastore_cluster=~\"$datastore_cluster\"} / vmware_datastore_cluster_capacity_bytes{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", datastore_cluster=~\"$datastore_cluster\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{datastore_cluster}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "links": [],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true,
+      "axisSoftMin": 0,
+      "axisSoftMax": 1
+     },
+     "max": 1,
+     "min": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 33,
+    "w": 12,
+    "h": 7
+   },
+   "id": 19
+  },
+  {
+   "type": "row",
+   "title": "Performance (seen by the ESX hosts)",
+   "collapsed": false,
+   "panels": [],
+   "gridPos": {
+    "x": 0,
+    "y": 40,
+    "w": 24,
+    "h": 1
+   },
+   "id": 20
+  },
+  {
+   "type": "timeseries",
+   "title": "Latency (worst ESX host)",
+   "description": "From the ESX datastore.* real-time counters, per datastore instance (UUID resolved through the datastore URL): VMFS and vSAN datastores; empty for datastores without a .../volumes/<uuid>/ URL.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max by (vcenter, ds_name) (vmware_host_perf_datastore_total_read_latency_average_seconds{vcenter=~\"$vcenter\", perf_instance!=\"\"} * on(vcenter, perf_instance) group_left(ds_name) max by (vcenter, perf_instance, ds_name) (label_replace(vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\", url=~\".*/volumes/.+\"}, \"perf_instance\", \"$1\", \"url\", \".*/volumes/([^/]+)/?\")))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{ds_name}} read"
+    },
+    {
+     "refId": "B",
+     "expr": "max by (vcenter, ds_name) (vmware_host_perf_datastore_total_write_latency_average_seconds{vcenter=~\"$vcenter\", perf_instance!=\"\"} * on(vcenter, perf_instance) group_left(ds_name) max by (vcenter, perf_instance, ds_name) (label_replace(vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\", url=~\".*/volumes/.+\"}, \"perf_instance\", \"$1\", \"url\", \".*/volumes/([^/]+)/?\")))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{ds_name}} write"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "links": [
+      {
+       "title": "Open datastore ${__field.labels.ds_name}",
+       "url": "/d/vmware-datastores/vmware-vsphere-vcf-datastores?var-datasource=${datasource}&var-vcenter=${__field.labels.vcenter}&var-ds_name=${__field.labels.ds_name}&${__url_time_range}"
+      }
+     ],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 41,
+    "w": 8,
+    "h": 8
+   },
+   "id": 21
+  },
+  {
+   "type": "timeseries",
+   "title": "Throughput (all ESX hosts)",
+   "description": "From the ESX datastore.* real-time counters, per datastore instance (UUID resolved through the datastore URL): VMFS and vSAN datastores; empty for datastores without a .../volumes/<uuid>/ URL.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (vcenter, ds_name) (vmware_host_perf_datastore_read_average_bytes_per_second{vcenter=~\"$vcenter\", perf_instance!=\"\"} * on(vcenter, perf_instance) group_left(ds_name) max by (vcenter, perf_instance, ds_name) (label_replace(vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\", url=~\".*/volumes/.+\"}, \"perf_instance\", \"$1\", \"url\", \".*/volumes/([^/]+)/?\")))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{ds_name}} read"
+    },
+    {
+     "refId": "B",
+     "expr": "sum by (vcenter, ds_name) (vmware_host_perf_datastore_write_average_bytes_per_second{vcenter=~\"$vcenter\", perf_instance!=\"\"} * on(vcenter, perf_instance) group_left(ds_name) max by (vcenter, perf_instance, ds_name) (label_replace(vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\", url=~\".*/volumes/.+\"}, \"perf_instance\", \"$1\", \"url\", \".*/volumes/([^/]+)/?\")))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{ds_name}} write"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "Bps",
+     "links": [
+      {
+       "title": "Open datastore ${__field.labels.ds_name}",
+       "url": "/d/vmware-datastores/vmware-vsphere-vcf-datastores?var-datasource=${datasource}&var-vcenter=${__field.labels.vcenter}&var-ds_name=${__field.labels.ds_name}&${__url_time_range}"
+      }
+     ],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 41,
+    "w": 8,
+    "h": 8
+   },
+   "id": 22
+  },
+  {
+   "type": "timeseries",
+   "title": "IOPS (all ESX hosts)",
+   "description": "From the ESX datastore.* real-time counters, per datastore instance (UUID resolved through the datastore URL): VMFS and vSAN datastores; empty for datastores without a .../volumes/<uuid>/ URL.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (vcenter, ds_name) (vmware_host_perf_datastore_number_read_averaged_average{vcenter=~\"$vcenter\", perf_instance!=\"\"} * on(vcenter, perf_instance) group_left(ds_name) max by (vcenter, perf_instance, ds_name) (label_replace(vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\", url=~\".*/volumes/.+\"}, \"perf_instance\", \"$1\", \"url\", \".*/volumes/([^/]+)/?\")))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{ds_name}} read"
+    },
+    {
+     "refId": "B",
+     "expr": "sum by (vcenter, ds_name) (vmware_host_perf_datastore_number_write_averaged_average{vcenter=~\"$vcenter\", perf_instance!=\"\"} * on(vcenter, perf_instance) group_left(ds_name) max by (vcenter, perf_instance, ds_name) (label_replace(vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\", url=~\".*/volumes/.+\"}, \"perf_instance\", \"$1\", \"url\", \".*/volumes/([^/]+)/?\")))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "legendFormat": "{{ds_name}} write"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "iops",
+     "links": [
+      {
+       "title": "Open datastore ${__field.labels.ds_name}",
+       "url": "/d/vmware-datastores/vmware-vsphere-vcf-datastores?var-datasource=${datasource}&var-vcenter=${__field.labels.vcenter}&var-ds_name=${__field.labels.ds_name}&${__url_time_range}"
+      }
+     ],
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ],
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 41,
+    "w": 8,
+    "h": 8
+   },
+   "id": 23
+  },
+  {
+   "type": "table",
+   "title": "ESX hosts using the datastore (click a host to open it)",
+   "description": "From the ESX datastore.* real-time counters, per datastore instance (UUID resolved through the datastore URL): VMFS and vSAN datastores; empty for datastores without a .../volumes/<uuid>/ URL.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max by (vcenter, ds_name, host_name) (vmware_host_perf_datastore_total_read_latency_average_seconds{vcenter=~\"$vcenter\", perf_instance!=\"\"} * on(vcenter, perf_instance) group_left(ds_name) max by (vcenter, perf_instance, ds_name) (label_replace(vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\", url=~\".*/volumes/.+\"}, \"perf_instance\", \"$1\", \"url\", \".*/volumes/([^/]+)/?\")))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "B",
+     "expr": "max by (vcenter, ds_name, host_name) (vmware_host_perf_datastore_total_write_latency_average_seconds{vcenter=~\"$vcenter\", perf_instance!=\"\"} * on(vcenter, perf_instance) group_left(ds_name) max by (vcenter, perf_instance, ds_name) (label_replace(vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\", url=~\".*/volumes/.+\"}, \"perf_instance\", \"$1\", \"url\", \".*/volumes/([^/]+)/?\")))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "C",
+     "expr": "max by (vcenter, ds_name, host_name) (vmware_host_perf_datastore_read_average_bytes_per_second{vcenter=~\"$vcenter\", perf_instance!=\"\"} * on(vcenter, perf_instance) group_left(ds_name) max by (vcenter, perf_instance, ds_name) (label_replace(vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\", url=~\".*/volumes/.+\"}, \"perf_instance\", \"$1\", \"url\", \".*/volumes/([^/]+)/?\")))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "D",
+     "expr": "max by (vcenter, ds_name, host_name) (vmware_host_perf_datastore_write_average_bytes_per_second{vcenter=~\"$vcenter\", perf_instance!=\"\"} * on(vcenter, perf_instance) group_left(ds_name) max by (vcenter, perf_instance, ds_name) (label_replace(vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\", url=~\".*/volumes/.+\"}, \"perf_instance\", \"$1\", \"url\", \".*/volumes/([^/]+)/?\")))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "E",
+     "expr": "max by (vcenter, ds_name, host_name) (vmware_host_perf_datastore_number_read_averaged_average{vcenter=~\"$vcenter\", perf_instance!=\"\"} * on(vcenter, perf_instance) group_left(ds_name) max by (vcenter, perf_instance, ds_name) (label_replace(vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\", url=~\".*/volumes/.+\"}, \"perf_instance\", \"$1\", \"url\", \".*/volumes/([^/]+)/?\")))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "F",
+     "expr": "max by (vcenter, ds_name, host_name) (vmware_host_perf_datastore_number_write_averaged_average{vcenter=~\"$vcenter\", perf_instance!=\"\"} * on(vcenter, perf_instance) group_left(ds_name) max by (vcenter, perf_instance, ds_name) (label_replace(vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\", url=~\".*/volumes/.+\"}, \"perf_instance\", \"$1\", \"url\", \".*/volumes/([^/]+)/?\")))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "merge",
+     "options": {}
+    },
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true
+      },
+      "renameByName": {
+       "Value #A": "Read latency",
+       "Value #B": "Write latency",
+       "Value #C": "Read",
+       "Value #D": "Write",
+       "Value #E": "Read IOPS",
+       "Value #F": "Write IOPS"
+      },
+      "indexByName": {
+       "vcenter": 0,
+       "ds_name": 1,
+       "host_name": 2,
+       "Value #A": 3,
+       "Value #B": 4,
+       "Value #C": 5,
+       "Value #D": 6,
+       "Value #E": 7,
+       "Value #F": 8
+      }
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Read latency"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "s"
+       },
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "green",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 0.02
+          },
+          {
+           "color": "red",
+           "value": 0.05
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Write latency"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "s"
+       },
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "green",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 0.02
+          },
+          {
+           "color": "red",
+           "value": 0.05
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Read"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "Bps"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Write"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "Bps"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Read IOPS"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "iops"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Write IOPS"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "iops"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "ds_name"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Open datastore ${__value.raw}",
+          "url": "/d/vmware-datastores/vmware-vsphere-vcf-datastores?var-datasource=${datasource}&var-vcenter=${__data.fields.vcenter}&var-ds_name=${__value.raw}&${__url_time_range}"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "host_name"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Open ESX host ${__value.raw}",
+          "url": "/d/vmware-hosts/vmware-vsphere-vcf-esx-hosts?var-datasource=${datasource}&var-vcenter=${__data.fields.vcenter}&var-host_name=${__value.raw}&${__url_time_range}"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    },
+    "sortBy": [
+     {
+      "displayName": "Read latency",
+      "desc": true
+     }
+    ]
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 49,
+    "w": 24,
+    "h": 8
+   },
+   "id": 24
+  },
+  {
+   "type": "row",
+   "title": "Alarms",
+   "collapsed": false,
+   "panels": [],
+   "gridPos": {
+    "x": 0,
+    "y": 57,
+    "w": 24,
+    "h": 1
+   },
+   "id": 25
+  },
+  {
+   "type": "table",
+   "title": "Active alarms on the datastore(s) / datastore cluster(s)",
+   "description": "Active (triggered) vCenter alarms. Only present when an alarm is active.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "(vmware_alarm_triggered{vcenter=~\"$vcenter\", entity_type=\"Datastore\"} and on(vcenter, entity) label_replace(vmware_datastore_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", ds_name=~\"$ds_name\", datastore_cluster=~\"$datastore_cluster\"}, \"entity\", \"$1\", \"ds_name\", \"(.*)\")) or (vmware_alarm_triggered{vcenter=~\"$vcenter\", entity_type=\"StoragePod\"} and on(vcenter, entity) label_replace(vmware_datastore_cluster_overall_status{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", datastore_cluster=~\"$datastore_cluster\"}, \"entity\", \"$1\", \"datastore_cluster\", \"(.*)\"))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true,
+       "__name__": true,
+       "job": true,
+       "instance": true,
+       "alarm_moid": true,
+       "entity_moid": true
+      },
+      "renameByName": {
+       "Value": "Severity"
+      },
+      "indexByName": {
+       "vcenter": 0,
+       "dc_name": 1,
+       "status": 2,
+       "alarm": 3,
+       "entity_type": 4,
+       "entity": 5,
+       "acknowledged": 6
+      }
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Severity"
+      },
+      "properties": [
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "gray",
+            "color": "#8e8e8e",
+            "index": 0
+           },
+           "1": {
+            "text": "green",
+            "color": "green",
+            "index": 1
+           },
+           "2": {
+            "text": "yellow",
+            "color": "orange",
+            "index": 2
+           },
+           "3": {
+            "text": "red",
+            "color": "red",
+            "index": 3
+           }
+          }
+         }
+        ]
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "basic"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    },
+    "sortBy": [
+     {
+      "displayName": "Severity",
+      "desc": true
+     }
+    ]
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 58,
+    "w": 24,
+    "h": 7
+   },
+   "id": 26
+  }
+ ]
+}

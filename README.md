@@ -1,4 +1,4 @@
-# vmware-exporter
+# vmware_exporter
 
 [![CI](https://github.com/JSGUYOT/vmware_exporter/actions/workflows/ci.yml/badge.svg)](https://github.com/JSGUYOT/vmware_exporter/actions/workflows/ci.yml)
 
@@ -21,7 +21,7 @@ for dashboards (Grafana) **and** alerting (Prometheus / Alertmanager).
 
 ## Why a new exporter
 
-| | pryorda/vmware_exporter | prezhdarov/vmware-exporter | **vmware-exporter** |
+| | pryorda/vmware_exporter | prezhdarov/vmware-exporter | **vmware_exporter** |
 |---|---|---|---|
 | Language | Python (pyVmomi) | Go | Go (govmomi 0.56) |
 | Maintained / VCF 9 | no / no | partial | yes, 8/9 version negotiation |
@@ -75,15 +75,19 @@ The automated tests replay a full collection against the govmomi simulator adver
 Full reference: [docs/METRICS.md](docs/METRICS.md).
 Status convention: `0 = gray/unknown, 1 = green, 2 = yellow, 3 = red`.
 
-VM series are identified by `vcenter`, `datacenter`, `vm` and `vm_moid` only: `host` and
-`cluster` change on every vMotion and would break graph continuity and alert `for` durations.
-They are carried by `vmware_vm_info`, to be joined when needed:
-`vmware_vm_cpu_usage_mhz * on(vcenter, vm_moid) group_left(cluster, host) vmware_vm_info`.
+Inventory labels: `dc_name`, `cluster_name`, `host_name`, `ds_name`, `vm_name` (the same names as
+pryorda/vmware_exporter).
+
+VM series are identified by `vcenter`, `dc_name`, `folder_name`, `vm_name` and `vm_moid` only
+(`folder_name` = name of the VM's folder, `""` at the datacenter root VM folder or in a vApp):
+`host_name` and `cluster_name` change on every vMotion and would break graph continuity and
+alert `for` durations. They are carried by `vmware_vm_info`, to be joined when needed:
+`vmware_vm_cpu_usage_mhz * on(vcenter, vm_moid) group_left(cluster_name, host_name) vmware_vm_info`.
 
 ## Architecture
 
 ```
-            ┌──────────── vmware-exporter ────────────┐
+            ┌──────────── vmware_exporter ────────────┐
 vCenter 8 ◄─┤ collection loop (interval)               │
 vCenter 9 ◄─┤   1. connect / resume session            │      GET /metrics
    ...      │   2. ContainerView + PropertyCollector   ├──►  (cache, instant)     ◄── Prometheus
@@ -104,16 +108,16 @@ Dependencies can come from the repository or from the Internet, chosen at build 
 
 ```bash
 # On a machine with Go >= 1.25
-make build                 # -> dist/vmware-exporter (Linux amd64, static), from vendor/: no network needed
+make build                 # -> dist/vmware_exporter (Linux amd64, static), from vendor/: no network needed
 make build DEPS=online     # same, modules downloaded from the Go proxy and checked against go.sum
-make build-windows         # -> dist/vmware-exporter.exe (DEPS works the same way)
+make build-windows         # -> dist/vmware_exporter.exe (DEPS works the same way)
 ```
 
 - `DEPS=vendor` (default) builds with `-mod=vendor`: everything comes from `vendor/`, which
   suits air-gapped environments.
 - `DEPS=online` builds with `-mod=readonly`: `vendor/` is ignored and modules are downloaded
   from `proxy.golang.org` (or `$GOPROXY`); `go.mod` / `go.sum` are never modified.
-- Without make: `go build -mod=vendor ./cmd/vmware-exporter` or `go build -mod=readonly ./cmd/vmware-exporter`.
+- Without make: `go build -mod=vendor ./cmd/vmware_exporter` or `go build -mod=readonly ./cmd/vmware_exporter`.
 - After changing dependencies, `make vendor` refreshes `vendor/` (needs network access).
 
 The exporter can also be built with [promu](https://github.com/prometheus/promu), the build tool
@@ -121,7 +125,7 @@ of the official Prometheus exporters, configured in [.promu.yml](.promu.yml); th
 from the `VERSION` file:
 
 ```bash
-promu build                          # ./vmware-exporter, from vendor/ (no network needed)
+promu build                          # ./vmware_exporter, from vendor/ (no network needed)
 GOFLAGS=-mod=readonly promu build    # modules downloaded from the Go proxy
 promu tarball --prefix dist .        # dist/vmware_exporter-<version>.linux-amd64.tar.gz
 promu crossbuild                     # linux/amd64, linux/arm64, windows/amd64 (needs Docker)
@@ -134,25 +138,41 @@ Prebuilt archives are attached to each [GitHub release](https://github.com/JSGUY
 
 ```bash
 # Deployment
-useradd --system --no-create-home --shell /usr/sbin/nologin vmware-exporter
-install -m 0755 dist/vmware-exporter /usr/local/bin/
-install -d -m 0750 -o root -g vmware-exporter /etc/vmware-exporter
-install -m 0640 -o root -g vmware-exporter config.example.yml /etc/vmware-exporter/config.yml
+useradd --system --no-create-home --shell /usr/sbin/nologin vmware_exporter
+install -m 0755 dist/vmware_exporter /usr/local/bin/
+install -d -m 0750 -o root -g vmware_exporter /etc/vmware_exporter
+install -m 0640 -o root -g vmware_exporter config.example.yml /etc/vmware_exporter/config.yml
 # Service account password (never in the YAML)
-printf '%s' 'ThePassword' > /etc/vmware-exporter/vcenter.pass
-chown root:vmware-exporter /etc/vmware-exporter/vcenter.pass && chmod 0640 /etc/vmware-exporter/vcenter.pass
-echo 'VMWARE_EXPORTER_USER=svc-prometheus@vsphere.local' > /etc/vmware-exporter/vmware-exporter.env
+printf '%s' 'ThePassword' > /etc/vmware_exporter/vcenter.pass
+chown root:vmware_exporter /etc/vmware_exporter/vcenter.pass && chmod 0640 /etc/vmware_exporter/vcenter.pass
+echo 'VMWARE_EXPORTER_USER=svc-prometheus@vsphere.local' > /etc/vmware_exporter/vmware_exporter.env
 # vCenter CA (VMCA: https://<vcenter>/certs/download.zip) or your own PKI
-cp ca.pem /etc/vmware-exporter/ca.pem
+cp ca.pem /etc/vmware_exporter/ca.pem
 
-vmware-exporter -config.file /etc/vmware-exporter/config.yml -config.check
-install -m 0644 deploy/systemd/vmware-exporter.service /etc/systemd/system/
-systemctl daemon-reload && systemctl enable --now vmware-exporter
+vmware_exporter -config.file /etc/vmware_exporter/config.yml -config.check
+install -m 0644 deploy/systemd/vmware_exporter.service /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now vmware_exporter
 curl -s localhost:9272/metrics | grep '^vmware_up'
 ```
 
-Container image (optional): `docker build -t vmware-exporter:1.0.0 .` (built from `vendor/`;
+Container image (optional): `docker build -t vmware_exporter:$(cat VERSION) .` (built from `vendor/`;
 add `--build-arg GO_MOD=readonly` to download modules instead).
+
+### Upgrading from 1.x (`vmware-exporter` → `vmware_exporter`)
+
+Since 2.0.0 every name uses an underscore: binary, systemd unit, system user and group,
+`/etc/vmware_exporter` and the environment file. To migrate an existing installation:
+
+```bash
+systemctl disable --now vmware-exporter
+rm /etc/systemd/system/vmware-exporter.service /usr/local/bin/vmware-exporter
+usermod -l vmware_exporter vmware-exporter && groupmod -n vmware_exporter vmware-exporter
+mv /etc/vmware-exporter /etc/vmware_exporter
+mv /etc/vmware_exporter/vmware-exporter.env /etc/vmware_exporter/vmware_exporter.env
+# Update the paths inside config.yml (password_file, ca_file, web_config_file, ...)
+sed -i 's#/etc/vmware-exporter/#/etc/vmware_exporter/#g' /etc/vmware_exporter/*.yml
+# Then install the new binary and unit as above, and run -config.check
+```
 
 ## Service account and permissions
 
@@ -175,7 +195,8 @@ See [config.example.yml](config.example.yml) (fully commented). Key points:
 - `defaults:` is inherited by every target; everything can be overridden per target.
 - Secrets: `password_file` (recommended) or `password_env`; `${VAR}` is interpolated everywhere.
 - `interval` (default 60 s, minimum 20 s) and `timeout` (default `interval - 5s`).
-- `collectors:` enables/disables each family; `filters:` restricts by regex.
+- `collectors:` enables/disables each family; `filters:` restricts by regex. `exporter: false`
+  drops the collection's own metrics (durations, collectors, failures); `vmware_up` stays.
 - `perf.host_counters` / `perf.vm_counters`: vSphere counters as `group.counter.rollup`,
   with a `:*` suffix for all instances (e.g. `datastore.totalReadLatency.average:*`).
 - `extra_labels:` adds static labels (site, env…) to every series.
@@ -184,7 +205,8 @@ Counters collected by default:
 
 - **ESX**: cpu.usage/utilization/coreUtilization, mem.usage/active/consumed/vmmemctl/swapinRate/swapoutRate,
   disk.maxTotalLatency/read/write/commandsAborted/busResets, net.received/transmitted/droppedRx/droppedTx/errorsRx/errorsTx,
-  power.power, datastore.totalReadLatency/totalWriteLatency (per datastore)
+  power.power, datastore.totalReadLatency/totalWriteLatency, read/write, numberReadAveraged/numberWriteAveraged
+  (per datastore)
 - **VM**: cpu.usage/ready/costop/latency/readiness, mem.usage/active/vmmemctl/swapped/swapinRate,
   disk.maxTotalLatency/read/write, net.received/transmitted/droppedRx/droppedTx
 
@@ -250,15 +272,15 @@ configuration file ([exporter-toolkit](https://github.com/prometheus/exporter-to
 format, as for node_exporter), which enables basic authentication and/or HTTPS:
 
 ```yaml
-# /etc/vmware-exporter/config.yml
-web_config_file: /etc/vmware-exporter/web-config.yml
+# /etc/vmware_exporter/config.yml
+web_config_file: /etc/vmware_exporter/web-config.yml
 ```
 
 ```yaml
-# /etc/vmware-exporter/web-config.yml  (example: deploy/web-config.example.yml)
+# /etc/vmware_exporter/web-config.yml  (example: deploy/web-config.example.yml)
 tls_server_config:                     # optional
-  cert_file: /etc/vmware-exporter/tls/exporter.crt
-  key_file: /etc/vmware-exporter/tls/exporter.key
+  cert_file: /etc/vmware_exporter/tls/exporter.crt
+  key_file: /etc/vmware_exporter/tls/exporter.key
 basic_auth_users:
   prometheus: $2y$10$...               # bcrypt hash: htpasswd -nBC 10 "" | tr -d ':\n'
 ```
@@ -274,7 +296,7 @@ On the Prometheus side, add the credentials to the scrape job:
 - job_name: vmware
   basic_auth:
     username: prometheus
-    password_file: /etc/prometheus/vmware-exporter.pass
+    password_file: /etc/prometheus/vmware_exporter.pass
   static_configs:
     - targets: ['exporter-host.example.local:9272']
 ```
@@ -302,10 +324,42 @@ Prometheus configuration snippet: [deploy/prometheus/prometheus-scrape.yml](depl
 
 ## Grafana
 
-Import [deploy/grafana/vmware-overview.json](deploy/grafana/vmware-overview.json) (Grafana ≥ 10):
-overview, active vCenter alarms, clusters, ESX, datastores, VMs (top CPU ready, latencies,
-snapshots, guest disks), vSAN, exporter health. Variables: datasource, vCenter, datacenter, cluster.
-The JSON is generated by `deploy/grafana/build_dashboard.py` to make changes easier.
+Five linked dashboards (Grafana >= 10, no plugin), in `deploy/grafana/`:
+
+| File | Dashboard | Content |
+|---|---|---|
+| `vmware-overview.json` | Overview (uid `vmware-overview`) | vCenters, active alarms, health counters, clusters, top ESX / VMs, datastores, vSAN, exporter |
+| `vmware-clusters.json` | Clusters (uid `vmware-clusters`) | status, CPU / memory capacity, N-1, HA / DRS, ESX hosts, resource pools, vSAN, alarms |
+| `vmware-hosts.json` | ESX hosts (uid `vmware-hosts`) | status, hardware, CPU / memory, storage and datastore latency, NICs, sensors, services, VMs of the host |
+| `vmware-vms.json` | VMs (uid `vmware-vms`) | placement, CPU (ready, co-stop), memory, disks, guest file systems, snapshots, network, alarms |
+| `vmware-datastores.json` | Datastores (uid `vmware-datastores`) | capacity, thin provisioning, accessibility, datastore clusters, latency / throughput / IOPS per datastore and per ESX host, alarms |
+
+- Navigation: the header links (tag `vmware_exporter`) switch between the dashboards, keeping
+  the time range and the variables.
+- Drill-down: click a cluster, ESX host, VM or datastore name in a table or a graph to open it
+  (overview → cluster → ESX host → VM); the VMs dashboard links back to the VM's ESX host and
+  cluster, and every datastore (or datastore cluster) opens the datastores dashboard.
+- Variables: `datasource`, `vcenter`, `dc_name`, `cluster_name`, `host_name`, `folder_name`,
+  `vm_name`, `datastore_cluster`, `ds_name` (chained).
+- Import: *Dashboards > New > Import*, upload each JSON file and choose your Prometheus data
+  source (or `POST /api/dashboards/db`). Import all five so the links work. The overview's uid
+  changed from `vmware-exporter-overview` to `vmware-overview`: delete the old dashboard.
+- To modify them, edit `deploy/grafana/build_dashboard.py` and regenerate the five files with
+  `python3 build_dashboard.py` (CI checks they are in sync).
+- The datastore performance panels use the ESX `datastore.*` counters, whose instance (the
+  datastore UUID) is resolved through the datastore URL (`.../volumes/<uuid>/`): VMFS and vSAN
+  datastores.
+
+Screenshots (simulated vCenter from `make sim`, so the values are synthetic and some panels
+are empty: no alarms, no vSAN, no datastore counters):
+
+![Overview](docs/images/dashboard-overview.png)
+
+| Clusters | ESX hosts |
+|---|---|
+| [![Clusters](docs/images/dashboard-clusters.png)](docs/images/dashboard-clusters.png) | [![ESX hosts](docs/images/dashboard-hosts.png)](docs/images/dashboard-hosts.png) |
+| **VMs** | **Datastores** |
+| [![VMs](docs/images/dashboard-vms.png)](docs/images/dashboard-vms.png) | [![Datastores](docs/images/dashboard-datastores.png)](docs/images/dashboard-datastores.png) |
 
 ## Migrating from pryorda/vmware_exporter
 
@@ -344,6 +398,10 @@ Differences:
 - pryorda's `esxi.json` dashboard queries names that pryorda itself never produced
   (`vmware_host_net_bytesRX_average`, `vmware_host_mem_usage_average`…): those panels stay empty.
 
+The native series use the same label names as pryorda (`vm_name`, `host_name`, `cluster_name`,
+`dc_name`, `ds_name`); the metric names and units differ (e.g. bytes instead of MB for memory), and native series
+add a few labels of their own (`vm_moid`, `folder_name`, `datastore_moid`; pryorda's `ds_cluster`
+is `datastore_cluster` natively).
 To avoid any clash, the native metrics that had the same name as a pryorda metric are named:
 
 | pryorda name (pryorda labels) | native name (native labels) |
@@ -394,32 +452,33 @@ infrastructure: `make sim VERSION_SIM=8.0.3 API_SIM=8.0.3.0`, then point a targe
 ## Repository layout
 
 ```
-cmd/vmware-exporter/     entry point (HTTP, registry, signals)
+cmd/vmware_exporter/     entry point (HTTP, registry, signals)
 internal/config/         YAML loading / validation, secrets, defaults
 internal/vsphere/        SOAP connection (version negotiation, session recovery), /api REST client
 internal/collector/      collectors (vcenter, alarms, cluster, host, vm, datastore, network,
                          resourcepool, perf, vsan, appliance, pryorda) + cache + tests
 deploy/prometheus/       alerting rules (native + pryorda-compatible), promtool tests, scrape snippet
-deploy/grafana/          dashboard (JSON + generator)
+deploy/grafana/          5 linked dashboards (JSON + generator)
 deploy/systemd/          hardened systemd unit
 deploy/web-config.example.yml  optional authentication / HTTPS for the endpoints
 hack/vcsim/              simulated vCenter (8.x / 9.x) for testing
 docs/METRICS.md          metrics reference
+docs/images/             dashboard screenshots (simulated vCenter)
 vendor/                  dependencies (offline build, make build; DEPS=online ignores it)
 ```
 
 ## Development workflow
 
-- Development happens on the `V1.0` branch; `main` is protected and only receives changes
-  through pull requests from `V1.0` whose CI checks pass.
+- Development happens on the `dev` branch; `main` is protected and only receives changes
+  through pull requests from `dev` whose CI checks pass.
 - CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs on every push and pull request:
   lint, Go tests, `vendor/` consistency, builds with `DEPS=vendor` and `DEPS=online`, promu
   release archives, promtool rule checks and tests, dashboard generator sync, Docker image.
 - Dependabot ([.github/dependabot.yml](.github/dependabot.yml)) proposes weekly updates of the
-  Go modules (with `vendor/` regenerated), GitHub Actions and the Docker base image, on `V1.0`.
+  Go modules (with `vendor/` regenerated), GitHub Actions and the Docker base image, on `dev`.
 - Releases: set the version in `VERSION`, add its entry to [CHANGELOG.md](CHANGELOG.md)
   (checked by `promu check changelog`), merge into `main`, then push the matching tag
-  (`git tag v1.0.0 && git push origin v1.0.0`). The release workflow builds the archives
+  (`git tag v$(cat VERSION) && git push origin v$(cat VERSION)`). The release workflow builds the archives
   (Linux amd64/arm64, Windows amd64, SHA-256 checksums) and publishes the GitHub release,
   with the changelog entry as release notes.
   `make release-tarballs` builds the same archives locally (needs promu).

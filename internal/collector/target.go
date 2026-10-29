@@ -126,15 +126,20 @@ func (t *Target) collectOnce(parent context.Context) {
 
 	sink := NewSink(t.cfg.Name, t.cfg.ExtraLabels)
 	sink.Log = t.log
+	self := *t.cfg.Collectors.Exporter
 	up := 0.0
 	defer func() {
 		sink.Gauge(n("up"), "1 if the last collection of the vCenter succeeded (connection + inventory).", up, nil)
-		sink.Gauge(n("collection_duration_seconds"), "Total duration of the last collection.", time.Since(start).Seconds(), nil)
-		sink.Gauge(n("collection_timestamp_seconds"), "Timestamp of the last collection.", float64(time.Now().Unix()), nil)
-		sink.Counter(n("collections_total"), "Number of collections performed.", float64(t.scrapes.Load()), nil)
-		sink.Counter(n("collection_failures_total"), "Number of failed collections (vCenter unreachable / authentication).", float64(t.failures.Load()), nil)
-		sink.Gauge(n("exporter_invalid_series"), "Invalid series dropped (e.g. label name conflict).", float64(sink.Errors()), nil)
-		sink.Gauge(n("exporter_duplicate_series"), "Series dropped as duplicates (objects with the same name).", float64(sink.Duplicates()), nil)
+		if self {
+			sink.Gauge(n("collection_duration_seconds"), "Total duration of the last collection.", time.Since(start).Seconds(), nil)
+			sink.Gauge(n("collection_timestamp_seconds"), "Timestamp of the last collection.", float64(time.Now().Unix()), nil)
+			sink.Gauge(n("collection_interval_seconds"), "Configured collection interval.", t.cfg.Interval.Seconds(), nil)
+			sink.Gauge(n("collection_timeout_seconds"), "Configured collection timeout.", t.cfg.Timeout.Seconds(), nil)
+			sink.Counter(n("collections_total"), "Number of collections performed.", float64(t.scrapes.Load()), nil)
+			sink.Counter(n("collection_failures_total"), "Number of failed collections (vCenter unreachable / authentication).", float64(t.failures.Load()), nil)
+			sink.Gauge(n("exporter_invalid_series"), "Invalid series dropped (e.g. label name conflict).", float64(sink.Errors()), nil)
+			sink.Gauge(n("exporter_duplicate_series"), "Series dropped as duplicates (objects with the same name).", float64(sink.Duplicates()), nil)
+		}
 		t.mu.Lock()
 		t.snapshot = sink.Metrics()
 		t.mu.Unlock()
@@ -192,16 +197,20 @@ func (t *Target) collectOnce(parent context.Context) {
 					ok = 0
 					t.log.Warn("collector failed", "collector", c.name, "err", err)
 				}
-				sink.Gauge(n("collector_success"), "1 if the collector succeeded during the last collection.", ok, L{"collector", c.name})
-				sink.Gauge(n("collector_duration_seconds"), "Duration of the collector during the last collection.", time.Since(cs).Seconds(), L{"collector", c.name})
+				if self {
+					sink.Gauge(n("collector_success"), "1 if the collector succeeded during the last collection.", ok, L{"collector", c.name})
+					sink.Gauge(n("collector_duration_seconds"), "Duration of the collector during the last collection.", time.Since(cs).Seconds(), L{"collector", c.name})
+				}
 			}(c)
 		}
 		wg.Wait()
 	}
 	runPhase(1)
 	runPhase(2)
-	sink.Gauge(n("exporter_unsupported_properties"), "Properties skipped because the vCenter API version does not provide them.", float64(r.unsupported.Load()), nil)
-	sink.Gauge(n("exporter_missing_properties"), "Properties unavailable on some objects during the last collection (permissions, unreachable ESX host...).", float64(r.missing.Load()), nil)
+	if self {
+		sink.Gauge(n("exporter_unsupported_properties"), "Properties skipped because the vCenter API version does not provide them.", float64(r.unsupported.Load()), nil)
+		sink.Gauge(n("exporter_missing_properties"), "Properties unavailable on some objects during the last collection (permissions, unreachable ESX host...).", float64(r.missing.Load()), nil)
+	}
 	t.log.Debug("collection finished", "duration", time.Since(start), "series", len(sink.Metrics()))
 }
 

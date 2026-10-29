@@ -15,7 +15,7 @@ func collectResourcePools(ctx context.Context, r *Run) error {
 	}
 	s := r.Sink
 	for _, p := range pools {
-		l := L{"datacenter", r.Topo.Datacenter(p.Self.Value), "cluster", r.Topo.ClusterOfPool(p.Self.Value),
+		l := L{"dc_name", r.Topo.Datacenter(p.Self.Value), "cluster_name", r.Topo.ClusterOfPool(p.Self.Value),
 			"resource_pool", p.Name, "resource_pool_moid", p.Self.Value}
 		s.Gauge(n("resourcepool_overall_status"), "Overall status of the resource pool"+statusHelp+".", statusValue(p.OverallStatus), l)
 		s.Gauge(n("resourcepool_vms"), "Number of VMs directly in the resource pool.", float64(len(p.Vm)), l)

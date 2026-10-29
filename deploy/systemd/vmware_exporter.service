@@ -1,17 +1,17 @@
 [Unit]
 Description=Prometheus exporter for VMware vCenter 8.x / VCF 9.x
-Documentation=file:///usr/share/doc/vmware-exporter/README.md
+Documentation=file:///usr/share/doc/vmware_exporter/README.md
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=vmware-exporter
-Group=vmware-exporter
+User=vmware_exporter
+Group=vmware_exporter
 # Optional variables (e.g. VMWARE_EXPORTER_USER=svc-prometheus@vsphere.local)
-EnvironmentFile=-/etc/vmware-exporter/vmware-exporter.env
-ExecStartPre=/usr/local/bin/vmware-exporter -config.file /etc/vmware-exporter/config.yml -config.check
-ExecStart=/usr/local/bin/vmware-exporter -config.file /etc/vmware-exporter/config.yml
+EnvironmentFile=-/etc/vmware_exporter/vmware_exporter.env
+ExecStartPre=/usr/local/bin/vmware_exporter -config.file /etc/vmware_exporter/config.yml -config.check
+ExecStart=/usr/local/bin/vmware_exporter -config.file /etc/vmware_exporter/config.yml
 Restart=on-failure
 RestartSec=10s
 
@@ -29,7 +29,7 @@ RestrictNamespaces=true
 LockPersonality=true
 MemoryDenyWriteExecute=true
 CapabilityBoundingSet=
-ReadOnlyPaths=/etc/vmware-exporter
+ReadOnlyPaths=/etc/vmware_exporter
 
 [Install]
 WantedBy=multi-user.target
