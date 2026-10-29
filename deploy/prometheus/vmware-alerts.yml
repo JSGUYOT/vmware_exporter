@@ -1,4 +1,4 @@
-# Prometheus alerting rules for vmware-exporter (vCenter 8.x / VCF 9.x).
+# Prometheus alerting rules for vmware_exporter (vCenter 8.x / VCF 9.x).
 #
 # Two complementary alert sources:
 #   1. Native vCenter alarms (vmware_alarm_triggered), forwarded as-is:
@@ -12,7 +12,7 @@
 
 groups:
   # ---------------------------------------------------------------------------
-  - name: vmware-exporter
+  - name: vmware_exporter
     rules:
       - alert: VMwareExporterTargetDown
         expr: vmware_up == 0

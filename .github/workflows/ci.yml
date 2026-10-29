@@ -83,5 +83,5 @@ jobs:
         go_mod: [vendor, readonly]
     steps:
       - uses: actions/checkout@v7
-      - run: docker build --build-arg GO_MOD=${{ matrix.go_mod }} -t vmware-exporter:ci .
-      - run: docker run --rm vmware-exporter:ci -version
+      - run: docker build --build-arg GO_MOD=${{ matrix.go_mod }} -t vmware_exporter:ci .
+      - run: docker run --rm vmware_exporter:ci -version

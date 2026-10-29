@@ -1,7 +1,9 @@
 ## main / unreleased
 
-* [CHANGE] The binary is now named `vmware_exporter` (was `vmware-exporter`); the systemd
-  service name, system user and `/etc/vmware-exporter` are unchanged.
+* [CHANGE] `vmware-exporter` is renamed `vmware_exporter` everywhere: binary, systemd unit
+  (`vmware_exporter.service`), system user and group, configuration directory
+  (`/etc/vmware_exporter`, also the default `-config.file`), environment file, container
+  image, alert group and dashboard tag. Existing installations must be migrated (see README).
 * [CHANGE] Native labels renamed: `host` → `host_name`, `cluster` → `cluster_name`,
   `datacenter` → `dc_name`, `datastore` → `ds_name`, `vm` → `vm_name`. Queries, alerts and
   dashboards built on the old names must be updated (the shipped ones are). `host` is no

@@ -3,7 +3,7 @@
  "uid": "vmware-vms",
  "description": "Selected VM(s): placement (links back to the ESX host / cluster), CPU, memory, disks, network, snapshots, tools.",
  "tags": [
-  "vmware-exporter",
+  "vmware_exporter",
   "vmware",
   "vsphere",
   "vcf"
@@ -13,7 +13,7 @@
    "title": "VMware dashboards",
    "type": "dashboards",
    "tags": [
-    "vmware-exporter"
+    "vmware_exporter"
    ],
    "asDropdown": false,
    "includeVars": true,

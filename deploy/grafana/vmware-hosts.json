@@ -3,7 +3,7 @@
  "uid": "vmware-hosts",
  "description": "Selected ESX host(s): status, CPU / memory, storage, network, hardware, VMs (click a VM to open it).",
  "tags": [
-  "vmware-exporter",
+  "vmware_exporter",
   "vmware",
   "vsphere",
   "vcf"
@@ -13,7 +13,7 @@
    "title": "VMware dashboards",
    "type": "dashboards",
    "tags": [
-    "vmware-exporter"
+    "vmware_exporter"
    ],
    "asDropdown": false,
    "includeVars": true,

@@ -6,7 +6,7 @@
     vmware-hosts.json      one or more ESX hosts and their VMs       (uid vmware-hosts)
     vmware-vms.json        one or more VMs                           (uid vmware-vms)
 
-The dashboards share the tag "vmware-exporter": the header links (keeping time range and
+The dashboards share the tag "vmware_exporter": the header links (keeping time range and
 variables) navigate between them. Data links drill down overview -> cluster -> ESX -> VM
 (and back from a VM to its ESX host / cluster).
 
@@ -16,7 +16,7 @@ import json
 import os
 
 DS = {"type": "prometheus", "uid": "${datasource}"}
-TAG = "vmware-exporter"
+TAG = "vmware_exporter"
 TITLE = "VMware vSphere / VCF - "
 
 # key -> (uid, slug, title suffix, output file)

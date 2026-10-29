@@ -32,7 +32,7 @@ var (
 )
 
 func main() {
-	cfgPath := flag.String("config.file", "/etc/vmware-exporter/config.yml", "YAML configuration file.")
+	cfgPath := flag.String("config.file", "/etc/vmware_exporter/config.yml", "YAML configuration file.")
 	check := flag.Bool("config.check", false, "Validate the configuration and exit.")
 	showVersion := flag.Bool("version", false, "Print the version.")
 	flag.Parse()

@@ -138,25 +138,41 @@ Prebuilt archives are attached to each [GitHub release](https://github.com/JSGUY
 
 ```bash
 # Deployment
-useradd --system --no-create-home --shell /usr/sbin/nologin vmware-exporter
+useradd --system --no-create-home --shell /usr/sbin/nologin vmware_exporter
 install -m 0755 dist/vmware_exporter /usr/local/bin/
-install -d -m 0750 -o root -g vmware-exporter /etc/vmware-exporter
-install -m 0640 -o root -g vmware-exporter config.example.yml /etc/vmware-exporter/config.yml
+install -d -m 0750 -o root -g vmware_exporter /etc/vmware_exporter
+install -m 0640 -o root -g vmware_exporter config.example.yml /etc/vmware_exporter/config.yml
 # Service account password (never in the YAML)
-printf '%s' 'ThePassword' > /etc/vmware-exporter/vcenter.pass
-chown root:vmware-exporter /etc/vmware-exporter/vcenter.pass && chmod 0640 /etc/vmware-exporter/vcenter.pass
-echo 'VMWARE_EXPORTER_USER=svc-prometheus@vsphere.local' > /etc/vmware-exporter/vmware-exporter.env
+printf '%s' 'ThePassword' > /etc/vmware_exporter/vcenter.pass
+chown root:vmware_exporter /etc/vmware_exporter/vcenter.pass && chmod 0640 /etc/vmware_exporter/vcenter.pass
+echo 'VMWARE_EXPORTER_USER=svc-prometheus@vsphere.local' > /etc/vmware_exporter/vmware_exporter.env
 # vCenter CA (VMCA: https://<vcenter>/certs/download.zip) or your own PKI
-cp ca.pem /etc/vmware-exporter/ca.pem
+cp ca.pem /etc/vmware_exporter/ca.pem
 
-vmware_exporter -config.file /etc/vmware-exporter/config.yml -config.check
-install -m 0644 deploy/systemd/vmware-exporter.service /etc/systemd/system/
-systemctl daemon-reload && systemctl enable --now vmware-exporter
+vmware_exporter -config.file /etc/vmware_exporter/config.yml -config.check
+install -m 0644 deploy/systemd/vmware_exporter.service /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now vmware_exporter
 curl -s localhost:9272/metrics | grep '^vmware_up'
 ```
 
-Container image (optional): `docker build -t vmware-exporter:$(cat VERSION) .` (built from `vendor/`;
+Container image (optional): `docker build -t vmware_exporter:$(cat VERSION) .` (built from `vendor/`;
 add `--build-arg GO_MOD=readonly` to download modules instead).
+
+### Upgrading from 1.x (`vmware-exporter` → `vmware_exporter`)
+
+Since 2.0.0 every name uses an underscore: binary, systemd unit, system user and group,
+`/etc/vmware_exporter` and the environment file. To migrate an existing installation:
+
+```bash
+systemctl disable --now vmware-exporter
+rm /etc/systemd/system/vmware-exporter.service /usr/local/bin/vmware-exporter
+usermod -l vmware_exporter vmware-exporter && groupmod -n vmware_exporter vmware-exporter
+mv /etc/vmware-exporter /etc/vmware_exporter
+mv /etc/vmware_exporter/vmware-exporter.env /etc/vmware_exporter/vmware_exporter.env
+# Update the paths inside config.yml (password_file, ca_file, web_config_file, ...)
+sed -i 's#/etc/vmware-exporter/#/etc/vmware_exporter/#g' /etc/vmware_exporter/*.yml
+# Then install the new binary and unit as above, and run -config.check
+```
 
 ## Service account and permissions
 
@@ -254,15 +270,15 @@ configuration file ([exporter-toolkit](https://github.com/prometheus/exporter-to
 format, as for node_exporter), which enables basic authentication and/or HTTPS:
 
 ```yaml
-# /etc/vmware-exporter/config.yml
-web_config_file: /etc/vmware-exporter/web-config.yml
+# /etc/vmware_exporter/config.yml
+web_config_file: /etc/vmware_exporter/web-config.yml
 ```
 
 ```yaml
-# /etc/vmware-exporter/web-config.yml  (example: deploy/web-config.example.yml)
+# /etc/vmware_exporter/web-config.yml  (example: deploy/web-config.example.yml)
 tls_server_config:                     # optional
-  cert_file: /etc/vmware-exporter/tls/exporter.crt
-  key_file: /etc/vmware-exporter/tls/exporter.key
+  cert_file: /etc/vmware_exporter/tls/exporter.crt
+  key_file: /etc/vmware_exporter/tls/exporter.key
 basic_auth_users:
   prometheus: $2y$10$...               # bcrypt hash: htpasswd -nBC 10 "" | tr -d ':\n'
 ```
@@ -278,7 +294,7 @@ On the Prometheus side, add the credentials to the scrape job:
 - job_name: vmware
   basic_auth:
     username: prometheus
-    password_file: /etc/prometheus/vmware-exporter.pass
+    password_file: /etc/prometheus/vmware_exporter.pass
   static_configs:
     - targets: ['exporter-host.example.local:9272']
 ```
@@ -315,7 +331,7 @@ Four linked dashboards (Grafana >= 10, no plugin), in `deploy/grafana/`:
 | `vmware-hosts.json` | ESX hosts (uid `vmware-hosts`) | status, hardware, CPU / memory, storage and datastore latency, NICs, sensors, services, VMs of the host |
 | `vmware-vms.json` | VMs (uid `vmware-vms`) | placement, CPU (ready, co-stop), memory, disks, guest file systems, snapshots, network, alarms |
 
-- Navigation: the header links (tag `vmware-exporter`) switch between the dashboards, keeping
+- Navigation: the header links (tag `vmware_exporter`) switch between the dashboards, keeping
   the time range and the variables.
 - Drill-down: click a cluster, ESX host or VM name in a table or a graph to open it
   (overview → cluster → ESX host → VM); the VMs dashboard links back to the VM's ESX host and cluster.
