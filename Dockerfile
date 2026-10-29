@@ -1,5 +1,5 @@
-# Built from vendor/ (offline):      docker build -t vmware-exporter:1.0.0 .
-# Modules downloaded from the proxy:  docker build --build-arg GO_MOD=readonly -t vmware-exporter:1.0.0 .
+# Built from vendor/ (offline):      docker build -t vmware-exporter:$(cat VERSION) .
+# Modules downloaded from the proxy:  docker build --build-arg GO_MOD=readonly -t vmware-exporter:$(cat VERSION) .
 FROM golang:1.25 AS build
 ARG GO_MOD=vendor
 WORKDIR /src

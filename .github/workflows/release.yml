@@ -1,7 +1,7 @@
 name: Release
 
 # Push a tag matching the VERSION file to publish a release, e.g.:
-#   git tag v1.0.0 && git push origin v1.0.0
+#   git tag v$(cat VERSION) && git push origin v$(cat VERSION)
 on:
   push:
     tags: ["v*"]
