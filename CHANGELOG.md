@@ -8,24 +8,24 @@
   `datacenter` → `dc_name`, `datastore` → `ds_name`, `vm` → `vm_name`. Queries, alerts and
   dashboards built on the old names must be updated (the shipped ones are). `host` is no
   longer reserved, so it can be set through `extra_labels` or relabeling.
+* [CHANGE] `VMwareExporterSlowCollection` now fires when a collection uses more than 80% of its
+  timeout (was a fixed 50 s, wrong for intervals other than 60 s).
 * [FEATURE] `folder_name` label (VM folder) on every native VM series.
-* [FEATURE] Four linked Grafana dashboards: overview, clusters, ESX hosts, VMs, with
-  drill-down links (cluster → host → VM). The overview's uid changed from
+* [FEATURE] Five linked Grafana dashboards: overview, clusters, ESX hosts, VMs, datastores, with
+  drill-down links (cluster → host → VM, datastore names → datastores). The datastores dashboard
+  shows capacity, thin provisioning, accessibility, datastore clusters, latency / throughput /
+  IOPS per datastore and per ESX host. The overview's uid changed from
   `vmware-exporter-overview` to `vmware-overview`: delete the old dashboard after importing.
-* [FEATURE] Fifth dashboard, Datastores: capacity, thin provisioning, accessibility, datastore
-  clusters, latency / throughput / IOPS per datastore and per ESX host, alarms. Datastore names
-  link to it from the other dashboards. Screenshots in the README.
-* [ENHANCEMENT] ESX counters collected by default: `datastore.read`, `datastore.write`,
-  `datastore.numberReadAveraged`, `datastore.numberWriteAveraged` (per datastore).
+  Screenshots in the README.
 * [FEATURE] `vmware_collection_interval_seconds` and `vmware_collection_timeout_seconds`
   (configured interval / timeout per vCenter).
-* [ENHANCEMENT] Overview dashboard: "Collection per vCenter" section (last / max duration,
-  duration / timeout, data age, collections and failures, duration per collector).
 * [FEATURE] `collectors.exporter` (default `true`): set it to `false` to drop the collection's
   own metrics (`vmware_collection_*`, `vmware_collector_*`, `vmware_exporter_*` properties and
   series counters); `vmware_up` is always emitted.
-* [CHANGE] `VMwareExporterSlowCollection` now fires when a collection uses more than 80% of its
-  timeout (was a fixed 50 s, wrong for intervals other than 60 s).
+* [ENHANCEMENT] ESX counters collected by default: `datastore.read`, `datastore.write`,
+  `datastore.numberReadAveraged`, `datastore.numberWriteAveraged` (per datastore).
+* [ENHANCEMENT] Overview dashboard: "Collection per vCenter" section (last / max duration,
+  duration / timeout, data age, collections and failures, duration per collector).
 
 ## 1.0.0 / 2026-10-16
 
