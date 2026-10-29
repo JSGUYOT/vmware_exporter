@@ -434,13 +434,13 @@ vendor/                  dependencies (offline build, make build; DEPS=online ig
 
 ## Development workflow
 
-- Development happens on the `V1.0` branch; `main` is protected and only receives changes
-  through pull requests from `V1.0` whose CI checks pass.
+- Development happens on the `dev` branch; `main` is protected and only receives changes
+  through pull requests from `dev` whose CI checks pass.
 - CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs on every push and pull request:
   lint, Go tests, `vendor/` consistency, builds with `DEPS=vendor` and `DEPS=online`, promu
   release archives, promtool rule checks and tests, dashboard generator sync, Docker image.
 - Dependabot ([.github/dependabot.yml](.github/dependabot.yml)) proposes weekly updates of the
-  Go modules (with `vendor/` regenerated), GitHub Actions and the Docker base image, on `V1.0`.
+  Go modules (with `vendor/` regenerated), GitHub Actions and the Docker base image, on `dev`.
 - Releases: set the version in `VERSION`, add its entry to [CHANGELOG.md](CHANGELOG.md)
   (checked by `promu check changelog`), merge into `main`, then push the matching tag
   (`git tag v$(cat VERSION) && git push origin v$(cat VERSION)`). The release workflow builds the archives
