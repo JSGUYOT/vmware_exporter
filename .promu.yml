@@ -1,5 +1,5 @@
 # Build with promu (https://github.com/prometheus/promu), like the official exporters:
-#   promu build                     -> ./vmware-exporter (from vendor/, no network)
+#   promu build                     -> ./vmware_exporter (from vendor/, no network)
 #   GOFLAGS=-mod=readonly promu build  -> modules downloaded from the Go proxy
 #   promu crossbuild && promu crossbuild tarballs   (needs Docker)
 # The version comes from the VERSION file.
@@ -10,8 +10,8 @@ repository:
   path: github.com/JSGUYOT/vmware_exporter
 build:
   binaries:
-    - name: vmware-exporter
-      path: ./cmd/vmware-exporter
+    - name: vmware_exporter
+      path: ./cmd/vmware_exporter
   flags: -a -trimpath
   ldflags: |
     -s -w

@@ -9,7 +9,7 @@ config.yml
 *.pass
 
 # Binary built by promu at the repository root
-/vmware-exporter
+/vmware_exporter
 
 # Release builds (make release-tarballs)
 /.build/

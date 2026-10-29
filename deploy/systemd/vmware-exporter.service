@@ -10,8 +10,8 @@ User=vmware-exporter
 Group=vmware-exporter
 # Optional variables (e.g. VMWARE_EXPORTER_USER=svc-prometheus@vsphere.local)
 EnvironmentFile=-/etc/vmware-exporter/vmware-exporter.env
-ExecStartPre=/usr/local/bin/vmware-exporter -config.file /etc/vmware-exporter/config.yml -config.check
-ExecStart=/usr/local/bin/vmware-exporter -config.file /etc/vmware-exporter/config.yml
+ExecStartPre=/usr/local/bin/vmware_exporter -config.file /etc/vmware-exporter/config.yml -config.check
+ExecStart=/usr/local/bin/vmware_exporter -config.file /etc/vmware-exporter/config.yml
 Restart=on-failure
 RestartSec=10s
 

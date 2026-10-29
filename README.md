@@ -1,4 +1,4 @@
-# vmware-exporter
+# vmware_exporter
 
 [![CI](https://github.com/JSGUYOT/vmware_exporter/actions/workflows/ci.yml/badge.svg)](https://github.com/JSGUYOT/vmware_exporter/actions/workflows/ci.yml)
 
@@ -21,7 +21,7 @@ for dashboards (Grafana) **and** alerting (Prometheus / Alertmanager).
 
 ## Why a new exporter
 
-| | pryorda/vmware_exporter | prezhdarov/vmware-exporter | **vmware-exporter** |
+| | pryorda/vmware_exporter | prezhdarov/vmware-exporter | **vmware_exporter** |
 |---|---|---|---|
 | Language | Python (pyVmomi) | Go | Go (govmomi 0.56) |
 | Maintained / VCF 9 | no / no | partial | yes, 8/9 version negotiation |
@@ -83,7 +83,7 @@ They are carried by `vmware_vm_info`, to be joined when needed:
 ## Architecture
 
 ```
-            ┌──────────── vmware-exporter ────────────┐
+            ┌──────────── vmware_exporter ────────────┐
 vCenter 8 ◄─┤ collection loop (interval)               │
 vCenter 9 ◄─┤   1. connect / resume session            │      GET /metrics
    ...      │   2. ContainerView + PropertyCollector   ├──►  (cache, instant)     ◄── Prometheus
@@ -104,16 +104,16 @@ Dependencies can come from the repository or from the Internet, chosen at build 
 
 ```bash
 # On a machine with Go >= 1.25
-make build                 # -> dist/vmware-exporter (Linux amd64, static), from vendor/: no network needed
+make build                 # -> dist/vmware_exporter (Linux amd64, static), from vendor/: no network needed
 make build DEPS=online     # same, modules downloaded from the Go proxy and checked against go.sum
-make build-windows         # -> dist/vmware-exporter.exe (DEPS works the same way)
+make build-windows         # -> dist/vmware_exporter.exe (DEPS works the same way)
 ```
 
 - `DEPS=vendor` (default) builds with `-mod=vendor`: everything comes from `vendor/`, which
   suits air-gapped environments.
 - `DEPS=online` builds with `-mod=readonly`: `vendor/` is ignored and modules are downloaded
   from `proxy.golang.org` (or `$GOPROXY`); `go.mod` / `go.sum` are never modified.
-- Without make: `go build -mod=vendor ./cmd/vmware-exporter` or `go build -mod=readonly ./cmd/vmware-exporter`.
+- Without make: `go build -mod=vendor ./cmd/vmware_exporter` or `go build -mod=readonly ./cmd/vmware_exporter`.
 - After changing dependencies, `make vendor` refreshes `vendor/` (needs network access).
 
 The exporter can also be built with [promu](https://github.com/prometheus/promu), the build tool
@@ -121,7 +121,7 @@ of the official Prometheus exporters, configured in [.promu.yml](.promu.yml); th
 from the `VERSION` file:
 
 ```bash
-promu build                          # ./vmware-exporter, from vendor/ (no network needed)
+promu build                          # ./vmware_exporter, from vendor/ (no network needed)
 GOFLAGS=-mod=readonly promu build    # modules downloaded from the Go proxy
 promu tarball --prefix dist .        # dist/vmware_exporter-<version>.linux-amd64.tar.gz
 promu crossbuild                     # linux/amd64, linux/arm64, windows/amd64 (needs Docker)
@@ -135,7 +135,7 @@ Prebuilt archives are attached to each [GitHub release](https://github.com/JSGUY
 ```bash
 # Deployment
 useradd --system --no-create-home --shell /usr/sbin/nologin vmware-exporter
-install -m 0755 dist/vmware-exporter /usr/local/bin/
+install -m 0755 dist/vmware_exporter /usr/local/bin/
 install -d -m 0750 -o root -g vmware-exporter /etc/vmware-exporter
 install -m 0640 -o root -g vmware-exporter config.example.yml /etc/vmware-exporter/config.yml
 # Service account password (never in the YAML)
@@ -145,7 +145,7 @@ echo 'VMWARE_EXPORTER_USER=svc-prometheus@vsphere.local' > /etc/vmware-exporter/
 # vCenter CA (VMCA: https://<vcenter>/certs/download.zip) or your own PKI
 cp ca.pem /etc/vmware-exporter/ca.pem
 
-vmware-exporter -config.file /etc/vmware-exporter/config.yml -config.check
+vmware_exporter -config.file /etc/vmware-exporter/config.yml -config.check
 install -m 0644 deploy/systemd/vmware-exporter.service /etc/systemd/system/
 systemctl daemon-reload && systemctl enable --now vmware-exporter
 curl -s localhost:9272/metrics | grep '^vmware_up'
@@ -394,7 +394,7 @@ infrastructure: `make sim VERSION_SIM=8.0.3 API_SIM=8.0.3.0`, then point a targe
 ## Repository layout
 
 ```
-cmd/vmware-exporter/     entry point (HTTP, registry, signals)
+cmd/vmware_exporter/     entry point (HTTP, registry, signals)
 internal/config/         YAML loading / validation, secrets, defaults
 internal/vsphere/        SOAP connection (version negotiation, session recovery), /api REST client
 internal/collector/      collectors (vcenter, alarms, cluster, host, vm, datastore, network,

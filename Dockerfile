@@ -4,11 +4,11 @@ FROM golang:1.25 AS build
 ARG GO_MOD=vendor
 WORKDIR /src
 COPY . .
-RUN CGO_ENABLED=0 go build -mod=${GO_MOD} -trimpath -ldflags "-s -w -X main.version=$(cat VERSION)" -o /out/vmware-exporter ./cmd/vmware-exporter
+RUN CGO_ENABLED=0 go build -mod=${GO_MOD} -trimpath -ldflags "-s -w -X main.version=$(cat VERSION)" -o /out/vmware_exporter ./cmd/vmware_exporter
 
 FROM gcr.io/distroless/static-debian12:nonroot
-COPY --from=build /out/vmware-exporter /usr/local/bin/vmware-exporter
+COPY --from=build /out/vmware_exporter /usr/local/bin/vmware_exporter
 EXPOSE 9272
 USER nonroot
-ENTRYPOINT ["/usr/local/bin/vmware-exporter"]
+ENTRYPOINT ["/usr/local/bin/vmware_exporter"]
 CMD ["-config.file", "/etc/vmware-exporter/config.yml"]

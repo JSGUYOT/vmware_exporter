@@ -1,11 +1,11 @@
 # =============================================================================
-# vmware-exporter - example configuration
+# vmware_exporter - example configuration
 # Compatible with vCenter 8.x and vCenter 9.x (VCF 9 / VVF 9).
 #
 # Never write secrets in clear text here: use password_file (recommended,
 # file mode 0600) or password_env. The ${VARIABLE} syntax is interpolated
 # from the environment everywhere.
-# Validate the file: vmware-exporter -config.file config.yml -config.check
+# Validate the file: vmware_exporter -config.file config.yml -config.check
 # =============================================================================
 
 listen_address: ":9272"        # HTTP listen address for /metrics

@@ -43,7 +43,7 @@ jobs:
           go-version-file: go.mod
       - run: make build DEPS=${{ matrix.deps }}
       - run: make build-windows DEPS=${{ matrix.deps }}
-      - run: dist/vmware-exporter -version
+      - run: dist/vmware_exporter -version
 
   promu:
     name: promu release archives

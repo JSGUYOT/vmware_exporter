@@ -1,4 +1,4 @@
-// Command vmware-exporter exposes, in Prometheus format, the full state of one
+// Command vmware_exporter exposes, in Prometheus format, the full state of one
 // or more vCenter 8.x / 9.x (VCF 9) servers: resources, health and alarms.
 package main
 
@@ -38,7 +38,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("vmware-exporter %s (commit %s, govmomi vim25 %s)\n", version, commit, vim25.Version)
+		fmt.Printf("vmware_exporter %s (commit %s, govmomi vim25 %s)\n", version, commit, vim25.Version)
 		return
 	}
 
@@ -58,7 +58,7 @@ func main() {
 		return
 	}
 	log := newLogger(cfg.LogLevel, cfg.LogFormat)
-	log.Info("starting vmware-exporter", "version", version, "targets", len(cfg.Targets), "listen", cfg.ListenAddress)
+	log.Info("starting vmware_exporter", "version", version, "targets", len(cfg.Targets), "listen", cfg.ListenAddress)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
