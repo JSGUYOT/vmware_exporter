@@ -316,6 +316,8 @@ On the Prometheus side, add the credentials to the scrape job:
   (datastore full within 7 days), redundancy (multipath, uplinks), CPU ready, old snapshots,
   vCenter backups, failed collections…
 - Severities: `critical`, `warning`, `info`. Thresholds are starting values to be tuned.
+- [docs/ALERTS.md](docs/ALERTS.md) explains each alert: what it is for, why it fires, and whether
+  vCenter shows it (and why it may not appear in the vSphere Client).
 
 ```bash
 promtool check rules deploy/prometheus/vmware-alerts.yml deploy/prometheus/vmware-alerts-supervised.yml deploy/prometheus/pryorda-alerts.yml deploy/prometheus/pryorda-alerts-supervised.yml
@@ -527,6 +529,7 @@ deploy/systemd/          hardened systemd unit
 deploy/web-config.example.yml  optional authentication / HTTPS for the endpoints
 hack/vcsim/              simulated vCenter (8.x / 9.x) for testing
 docs/METRICS.md          metrics reference
+docs/ALERTS.md           each alert explained, compared with what vCenter shows
 docs/images/             dashboard screenshots (simulated vCenter)
 vendor/                  dependencies (offline build, make build; DEPS=online ignores it)
 ```
