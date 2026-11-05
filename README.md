@@ -16,7 +16,7 @@ for dashboards (Grafana) **and** alerting (Prometheus / Alertmanager).
 - Go 1.25, **govmomi v0.56.0** (vim25 API 9.1), client_golang 1.23
 - Single static binary, no system dependencies, 100 % offline build (`vendor/`)
 - Multi-vCenter (8 and 9 side by side), background collection with a cache: a Prometheus scrape never triggers a call to vCenter
-- Ships with 77 tested alerting rules and a Grafana dashboard
+- Ships with 78 tested alerting rules and a Grafana dashboard
 - Optional [pryorda/vmware_exporter compatibility](#migrating-from-pryordavmware_exporter): same metric names and labels, so existing dashboards keep working
 
 ## Why a new exporter
@@ -28,7 +28,7 @@ for dashboards (Grafana) **and** alerting (Prometheus / Alertmanager).
 | Scope | VM, ESX | resources (perf) | VM, ESX, clusters, datastores, vDS, resource pools, vSAN, vCenter appliance |
 | vCenter alarms | alarm counts per VM/host/datastore (optional) | no | **yes** (all entities, a single request) |
 | Hardware health (IPMI), multipath, uplinks, certificates | no | no | **yes** |
-| Bundled alerting rules | 5 (VM memory, snapshots) | no | **77 rules + promtool tests**, plus pryorda's 5 |
+| Bundled alerting rules | 5 (VM memory, snapshots) | no | **78 rules + promtool tests**, plus pryorda's 5 |
 | Reuse pryorda dashboards | — | no | **yes** (optional `pryorda` collector) |
 
 ## vCenter 8 / vCenter 9 compatibility: what is handled
@@ -70,7 +70,7 @@ The automated tests replay a full collection against the govmomi simulator adver
 | Datastores | capacity, free, provisioned, accessibility per ESX, maintenance | > 85/95 %, full within 7 days, inaccessible |
 | Network | vDS (per-ESX synchronization), portgroups | ESX outOfSync |
 | vSAN | overall health, per group, per test | red health, failed test |
-| Real-time performance | CPU ready/co-stop/latency, disk/datastore latency, network, packet drops, power | datastore latency > 30 ms, network drops |
+| Real-time performance | CPU ready/co-stop/latency, disk/datastore latency, network, packet drops, power | datastore latency > 30 ms, packet loss > 0.5 %, network errors |
 
 Full reference: [docs/METRICS.md](docs/METRICS.md).
 Status convention: `0 = gray/unknown, 1 = green, 2 = yellow, 3 = red`.
@@ -199,12 +199,14 @@ See [config.example.yml](config.example.yml) (fully commented). Key points:
   drops the collection's own metrics (durations, collectors, failures); `vmware_up` stays.
 - `perf.host_counters` / `perf.vm_counters`: vSphere counters as `group.counter.rollup`,
   with a `:*` suffix for all instances (e.g. `datastore.totalReadLatency.average:*`).
+  A custom `host_counters` replaces the default list: keep `net.packetsRx.summation` and
+  `net.packetsTx.summation`, or `VMwareHostNetworkDrops` cannot fire.
 - `extra_labels:` adds static labels (site, env…) to every series.
 
 Counters collected by default:
 
 - **ESX**: cpu.usage/utilization/coreUtilization, mem.usage/active/consumed/vmmemctl/swapinRate/swapoutRate,
-  disk.maxTotalLatency/read/write/commandsAborted/busResets, net.received/transmitted/droppedRx/droppedTx/errorsRx/errorsTx,
+  disk.maxTotalLatency/read/write/commandsAborted/busResets, net.received/transmitted/droppedRx/droppedTx/errorsRx/errorsTx/packetsRx/packetsTx,
   power.power, datastore.totalReadLatency/totalWriteLatency, read/write, numberReadAveraged/numberWriteAveraged
   (per datastore)
 - **VM**: cpu.usage/ready/costop/latency/readiness, mem.usage/active/vmmemctl/swapped/swapinRate,
@@ -303,7 +305,7 @@ On the Prometheus side, add the credentials to the scrape job:
 
 ## Alerting
 
-[deploy/prometheus/vmware-alerts.yml](deploy/prometheus/vmware-alerts.yml): 77 rules in 8 groups
+[deploy/prometheus/vmware-alerts.yml](deploy/prometheus/vmware-alerts.yml): 78 rules in 8 groups
 (exporter, vCenter + appliance, cluster, ESX + performance, VM, datastore, network, vSAN).
 
 - **vCenter alarm relay**: `VMwareVCenterAlarmCritical` / `VMwareVCenterAlarmWarning`

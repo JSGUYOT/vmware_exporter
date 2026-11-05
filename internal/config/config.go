@@ -315,6 +315,8 @@ var DefaultHostCounters = []string{
 	"net.droppedTx.summation",
 	"net.errorsRx.summation",
 	"net.errorsTx.summation",
+	"net.packetsRx.summation",
+	"net.packetsTx.summation",
 	"power.power.average",
 	"datastore.totalReadLatency.average:*",
 	"datastore.totalWriteLatency.average:*",

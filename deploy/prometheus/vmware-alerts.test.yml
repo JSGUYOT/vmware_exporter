@@ -363,3 +363,67 @@ tests:
             exp_annotations:
               summary: "Low DRS score (40) on C1"
               description: "VMs in the cluster are not getting the resources they demand (contention)."
+
+  # Packet loss rate (above 0.5%) and physical errors
+  - interval: 1m
+    input_series:
+      # esx01: 8800 drops, a lot in absolute terms, but 0.088% of the traffic: no alert
+      - series: 'vmware_host_perf_net_dropped_rx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx01",perf_instance=""}'
+        values: '8800x20'
+      - series: 'vmware_host_perf_net_dropped_tx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx01",perf_instance=""}'
+        values: '0x20'
+      - series: 'vmware_host_perf_net_packets_rx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx01",perf_instance=""}'
+        values: '9000000x20'
+      - series: 'vmware_host_perf_net_packets_tx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx01",perf_instance=""}'
+        values: '1000000x20'
+      # esx02: 1000 drops only, but 1% of the traffic: alert
+      - series: 'vmware_host_perf_net_dropped_rx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx02",perf_instance=""}'
+        values: '800x20'
+      - series: 'vmware_host_perf_net_dropped_tx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx02",perf_instance=""}'
+        values: '200x20'
+      - series: 'vmware_host_perf_net_packets_rx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx02",perf_instance=""}'
+        values: '50000x20'
+      - series: 'vmware_host_perf_net_packets_tx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx02",perf_instance=""}'
+        values: '50000x20'
+      # esx03: a burst of a few minutes at 50%: no alert
+      - series: 'vmware_host_perf_net_dropped_rx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx03",perf_instance=""}'
+        values: '0x5 50000x3 0x12'
+      - series: 'vmware_host_perf_net_dropped_tx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx03",perf_instance=""}'
+        values: '0x20'
+      - series: 'vmware_host_perf_net_packets_rx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx03",perf_instance=""}'
+        values: '50000x20'
+      - series: 'vmware_host_perf_net_packets_tx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx03",perf_instance=""}'
+        values: '50000x20'
+      # no traffic at all (0 / 0): no alert
+      - series: 'vmware_host_perf_net_dropped_rx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx04",perf_instance=""}'
+        values: '0x20'
+      - series: 'vmware_host_perf_net_dropped_tx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx04",perf_instance=""}'
+        values: '0x20'
+      - series: 'vmware_host_perf_net_packets_rx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx04",perf_instance=""}'
+        values: '0x20'
+      - series: 'vmware_host_perf_net_packets_tx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx04",perf_instance=""}'
+        values: '0x20'
+      # esx01: 12 errors: alert. esx02: 2 errors: no alert
+      - series: 'vmware_host_perf_net_errors_rx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx01",perf_instance=""}'
+        values: '10x20'
+      - series: 'vmware_host_perf_net_errors_tx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx01",perf_instance=""}'
+        values: '2x20'
+      - series: 'vmware_host_perf_net_errors_rx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx02",perf_instance=""}'
+        values: '2x20'
+      - series: 'vmware_host_perf_net_errors_tx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx02",perf_instance=""}'
+        values: '0x20'
+    alert_rule_test:
+      - eval_time: 18m
+        alertname: VMwareHostNetworkDrops
+        exp_alerts:
+          - exp_labels: {severity: warning, vcenter: vc1, dc_name: DC1, cluster_name: C1, host_name: esx02}
+            exp_annotations:
+              summary: "1% of packets dropped on esx02"
+              description: "Sustained packet loss: network saturation, or guests not emptying their receive buffers fast enough."
+      - eval_time: 18m
+        alertname: VMwareHostNetworkErrors
+        exp_alerts:
+          - exp_labels: {severity: warning, vcenter: vc1, dc_name: DC1, cluster_name: C1, host_name: esx01}
+            exp_annotations:
+              summary: "Network errors on esx01"
+              description: "12 physical errors per 20 s interval: check cable, SFP and switch port."

@@ -1,5 +1,8 @@
 ## main / unreleased
 
+* [CHANGE] `VMwareHostNetworkDrops` fires above 0.5% of packets dropped (was a fixed 100 packets
+  per 20 s, noisy on bursts). A custom `perf.host_counters` must include `net.packetsRx.summation`
+  and `net.packetsTx.summation`, otherwise the alert cannot fire.
 * [FEATURE] vSphere tags of the VMs: `collectors.tags` and `tags.categories` emit `vmware_vm_tag`
   (read through `/api/cis/tagging`, last known tags kept if a read fails), with
   `vmware_tags_read_success` and `vmware_tags_last_read_timestamp_seconds`.
@@ -7,8 +10,11 @@
   `vmware-alerts.yml` and `pryorda-alerts.yml`, but VM rules and vCenter alarms on a VM only fire
   for the VMs tagged `supervision=true`.
 * [FEATURE] `VMwareExporterTagsReadFailing` alert.
+* [FEATURE] `VMwareHostNetworkErrors` alert: physical network errors.
 * [FEATURE] `latency_sensitivity` label on `vmware_vm_info`, `vmware_vm_cpu_reservation_mhz` and
   `vmware_vm_memory_reservation_bytes`.
+* [ENHANCEMENT] ESX counters collected by default: `net.packetsRx.summation`,
+  `net.packetsTx.summation`.
 * [ENHANCEMENT] Overview and VMs dashboards: VMs without a valid supervision tag.
 * [ENHANCEMENT] `VMwareHostCpuHigh` and `VMwareClusterCpuPressure` leave out the VMs with dedicated
   CPUs (latency sensitivity `high`, full CPU reservation, powered on), from load and capacity.

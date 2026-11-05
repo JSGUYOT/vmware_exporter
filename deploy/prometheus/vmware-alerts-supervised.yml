@@ -409,12 +409,20 @@ groups:
           description: "Average latency > 30 ms to datastore {{ $labels.perf_instance }} (UUID)."
 
       - alert: VMwareHostNetworkDrops
-        expr: vmware_host_perf_net_dropped_rx_summation + vmware_host_perf_net_dropped_tx_summation > 100
+        expr: (vmware_host_perf_net_dropped_rx_summation + vmware_host_perf_net_dropped_tx_summation) / (vmware_host_perf_net_packets_rx_summation + vmware_host_perf_net_packets_tx_summation) > 0.005
         for: 15m
         labels: {severity: warning}
         annotations:
-          summary: "Dropped packets on {{ $labels.host_name }}"
-          description: "{{ $value }} packets dropped per 20 s interval."
+          summary: "{{ $value | humanizePercentage }} of packets dropped on {{ $labels.host_name }}"
+          description: "Sustained packet loss: network saturation, or guests not emptying their receive buffers fast enough."
+
+      - alert: VMwareHostNetworkErrors
+        expr: vmware_host_perf_net_errors_rx_summation + vmware_host_perf_net_errors_tx_summation > 10
+        for: 15m
+        labels: {severity: warning}
+        annotations:
+          summary: "Network errors on {{ $labels.host_name }}"
+          description: "{{ $value }} physical errors per 20 s interval: check cable, SFP and switch port."
 
   # ---------------------------------------------------------------------------
   - name: vmware-vm

@@ -224,6 +224,7 @@ func TestCompatibilityMatrix(t *testing.T) {
 				"vmware_dvs_overall_status", "vmware_network_overall_status", "vmware_resourcepool_overall_status",
 				"vmware_datacenter_overall_status", "vmware_inventory_objects",
 				"vmware_host_perf_cpu_usage_average_percent", "vmware_vm_perf_cpu_ready_summation_seconds",
+				"vmware_host_perf_net_packets_rx_summation", "vmware_host_perf_net_packets_tx_summation",
 			}
 			for _, name := range mustHave {
 				if _, ok := g.fams[name]; !ok {
