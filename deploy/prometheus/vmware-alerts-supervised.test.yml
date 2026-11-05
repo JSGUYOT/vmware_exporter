@@ -1,0 +1,83 @@
+# Rule unit tests: promtool test rules vmware-alerts-supervised.test.yml
+rule_files:
+  - vmware-alerts-supervised.yml
+evaluation_interval: 1m
+tests:
+  # VM rule: only the VM tagged supervision=true alerts (not false, not untagged, not another category).
+  - interval: 1m
+    input_series:
+      - series: 'vmware_vm_question_pending{vcenter="vc1",dc_name="DC1",vm_name="on",folder_name="",vm_moid="vm-1"}'
+        values: '1x20'
+      - series: 'vmware_vm_question_pending{vcenter="vc1",dc_name="DC1",vm_name="off",folder_name="",vm_moid="vm-2"}'
+        values: '1x20'
+      - series: 'vmware_vm_question_pending{vcenter="vc1",dc_name="DC1",vm_name="untagged",folder_name="",vm_moid="vm-3"}'
+        values: '1x20'
+      - series: 'vmware_vm_question_pending{vcenter="vc1",dc_name="DC1",vm_name="other",folder_name="",vm_moid="vm-4"}'
+        values: '1x20'
+      - series: 'vmware_vm_question_pending{vcenter="vc2",dc_name="DC1",vm_name="same-moid",folder_name="",vm_moid="vm-1"}'
+        values: '1x20'
+      - series: 'vmware_vm_tag{vcenter="vc1",dc_name="DC1",vm_name="on",folder_name="",vm_moid="vm-1",category="supervision",tag="true"}'
+        values: '1x20'
+      - series: 'vmware_vm_tag{vcenter="vc1",dc_name="DC1",vm_name="off",folder_name="",vm_moid="vm-2",category="supervision",tag="false"}'
+        values: '1x20'
+      - series: 'vmware_vm_tag{vcenter="vc1",dc_name="DC1",vm_name="other",folder_name="",vm_moid="vm-4",category="owner",tag="true"}'
+        values: '1x20'
+    promql_expr_test:
+      - expr: ALERTS{alertname="VMwareVMQuestionPending", alertstate="firing"}
+        eval_time: 15m
+        exp_samples:
+          - labels: 'ALERTS{alertname="VMwareVMQuestionPending", alertstate="firing", severity="critical", vcenter="vc1", dc_name="DC1", vm_name="on", folder_name="", vm_moid="vm-1"}'
+            value: 1
+
+  # Rule with an inner "and": the filter applies to the whole expression.
+  - interval: 1m
+    input_series:
+      - series: 'vmware_vm_guest_disk_free_bytes{vcenter="vc1",vm_name="on",vm_moid="vm-1",disk_path="/"}'
+        values: '1x60'
+      - series: 'vmware_vm_guest_disk_capacity_bytes{vcenter="vc1",vm_name="on",vm_moid="vm-1",disk_path="/"}'
+        values: '100x60'
+      - series: 'vmware_vm_guest_disk_free_bytes{vcenter="vc1",vm_name="off",vm_moid="vm-2",disk_path="/"}'
+        values: '1x60'
+      - series: 'vmware_vm_guest_disk_capacity_bytes{vcenter="vc1",vm_name="off",vm_moid="vm-2",disk_path="/"}'
+        values: '100x60'
+      - series: 'vmware_vm_tag{vcenter="vc1",vm_moid="vm-1",category="supervision",tag="true"}'
+        values: '1x60'
+    promql_expr_test:
+      - expr: count(ALERTS{alertstate="firing", vm_moid="vm-1"}) > 0
+        eval_time: 45m
+        exp_samples:
+          - labels: '{}'
+            value: 2
+      - expr: count(ALERTS{vm_moid="vm-2"})
+        eval_time: 45m
+        exp_samples: []
+
+  # vCenter alarms: on a VM, filtered by the tag; on anything else, unchanged.
+  - interval: 1m
+    input_series:
+      - series: 'vmware_alarm_triggered{vcenter="vc1",alarm="a",entity="on",entity_type="VirtualMachine",entity_moid="vm-1",alarm_moid="a-1",dc_name="DC1",status="red",acknowledged="false"}'
+        values: '3x20'
+      - series: 'vmware_alarm_triggered{vcenter="vc1",alarm="a",entity="off",entity_type="VirtualMachine",entity_moid="vm-2",alarm_moid="a-1",dc_name="DC1",status="red",acknowledged="false"}'
+        values: '3x20'
+      - series: 'vmware_alarm_triggered{vcenter="vc1",alarm="a",entity="untagged",entity_type="VirtualMachine",entity_moid="vm-3",alarm_moid="a-1",dc_name="DC1",status="red",acknowledged="false"}'
+        values: '3x20'
+      - series: 'vmware_alarm_triggered{vcenter="vc1",alarm="b",entity="esx01",entity_type="HostSystem",entity_moid="host-1",alarm_moid="a-2",dc_name="DC1",status="red",acknowledged="false"}'
+        values: '3x20'
+      - series: 'vmware_alarm_triggered{vcenter="vc1",alarm="y",entity="off",entity_type="VirtualMachine",entity_moid="vm-2",alarm_moid="a-3",dc_name="DC1",status="yellow",acknowledged="false"}'
+        values: '2x20'
+      - series: 'vmware_alarm_triggered{vcenter="vc1",alarm="y",entity="on",entity_type="VirtualMachine",entity_moid="vm-1",alarm_moid="a-3",dc_name="DC1",status="yellow",acknowledged="false"}'
+        values: '2x20'
+      - series: 'vmware_vm_tag{vcenter="vc1",vm_moid="vm-1",category="supervision",tag="true"}'
+        values: '1x20'
+      - series: 'vmware_vm_tag{vcenter="vc1",vm_moid="vm-2",category="supervision",tag="false"}'
+        values: '1x20'
+    promql_expr_test:
+      - expr: count by (entity, status) (ALERTS{alertname=~"VMwareVCenterAlarm.*", alertstate="firing"})
+        eval_time: 12m
+        exp_samples:
+          - labels: '{entity="on", status="red"}'
+            value: 1
+          - labels: '{entity="esx01", status="red"}'
+            value: 1
+          - labels: '{entity="on", status="yellow"}'
+            value: 1

@@ -16,7 +16,7 @@ for dashboards (Grafana) **and** alerting (Prometheus / Alertmanager).
 - Go 1.25, **govmomi v0.56.0** (vim25 API 9.1), client_golang 1.23
 - Single static binary, no system dependencies, 100 % offline build (`vendor/`)
 - Multi-vCenter (8 and 9 side by side), background collection with a cache: a Prometheus scrape never triggers a call to vCenter
-- Ships with 76 tested alerting rules and a Grafana dashboard
+- Ships with 77 tested alerting rules and a Grafana dashboard
 - Optional [pryorda/vmware_exporter compatibility](#migrating-from-pryordavmware_exporter): same metric names and labels, so existing dashboards keep working
 
 ## Why a new exporter
@@ -28,7 +28,7 @@ for dashboards (Grafana) **and** alerting (Prometheus / Alertmanager).
 | Scope | VM, ESX | resources (perf) | VM, ESX, clusters, datastores, vDS, resource pools, vSAN, vCenter appliance |
 | vCenter alarms | alarm counts per VM/host/datastore (optional) | no | **yes** (all entities, a single request) |
 | Hardware health (IPMI), multipath, uplinks, certificates | no | no | **yes** |
-| Bundled alerting rules | 5 (VM memory, snapshots) | no | **76 rules + promtool tests**, plus pryorda's 5 |
+| Bundled alerting rules | 5 (VM memory, snapshots) | no | **77 rules + promtool tests**, plus pryorda's 5 |
 | Reuse pryorda dashboards | — | no | **yes** (optional `pryorda` collector) |
 
 ## vCenter 8 / vCenter 9 compatibility: what is handled
@@ -303,7 +303,7 @@ On the Prometheus side, add the credentials to the scrape job:
 
 ## Alerting
 
-[deploy/prometheus/vmware-alerts.yml](deploy/prometheus/vmware-alerts.yml): 76 rules in 8 groups
+[deploy/prometheus/vmware-alerts.yml](deploy/prometheus/vmware-alerts.yml): 77 rules in 8 groups
 (exporter, vCenter + appliance, cluster, ESX + performance, VM, datastore, network, vSAN).
 
 - **vCenter alarm relay**: `VMwareVCenterAlarmCritical` / `VMwareVCenterAlarmWarning`
@@ -316,8 +316,8 @@ On the Prometheus side, add the credentials to the scrape job:
 - Severities: `critical`, `warning`, `info`. Thresholds are starting values to be tuned.
 
 ```bash
-promtool check rules deploy/prometheus/vmware-alerts.yml deploy/prometheus/pryorda-alerts.yml
-cd deploy/prometheus && promtool test rules vmware-alerts.test.yml pryorda-alerts.test.yml
+promtool check rules deploy/prometheus/vmware-alerts.yml deploy/prometheus/vmware-alerts-supervised.yml deploy/prometheus/pryorda-alerts.yml
+cd deploy/prometheus && promtool test rules vmware-alerts.test.yml vmware-alerts-supervised.test.yml pryorda-alerts.test.yml
 ```
 
 Prometheus configuration snippet: [deploy/prometheus/prometheus-scrape.yml](deploy/prometheus/prometheus-scrape.yml).
@@ -360,6 +360,39 @@ are empty: no alarms, no vSAN, no datastore counters):
 | [![Clusters](docs/images/dashboard-clusters.png)](docs/images/dashboard-clusters.png) | [![ESX hosts](docs/images/dashboard-hosts.png)](docs/images/dashboard-hosts.png) |
 | **VMs** | **Datastores** |
 | [![VMs](docs/images/dashboard-vms.png)](docs/images/dashboard-vms.png) | [![Datastores](docs/images/dashboard-datastores.png)](docs/images/dashboard-datastores.png) |
+
+## Alerting only on the VMs tagged for supervision
+
+To alert only on some VMs, based on a vSphere tag. Create a tag category `supervision`
+(*One tag per object*, for virtual machines) with the tags `true` and `false`, attach them to the VMs, then:
+
+```yaml
+defaults:
+  collectors:
+    tags: true
+  tags:
+    categories: [supervision]
+    refresh_interval: 5m      # a tag change is seen within this delay
+```
+
+Load [deploy/prometheus/vmware-alerts-supervised.yml](deploy/prometheus/vmware-alerts-supervised.yml)
+**instead of** `vmware-alerts.yml`. It has the same rules, except that the rules of the `vmware-vm`
+group and the vCenter alarms raised on a VM only fire for the VMs tagged `supervision=true`.
+For another category or tag: `python3 build_supervised_alerts.py --category <c> --tag <t>`.
+pryorda's rules are not filtered.
+
+| VM | Alerts |
+|---|---|
+| `supervision=true` | yes |
+| `supervision=false` | no |
+| no tag, or another value | no, but listed as an anomaly in the Overview and VMs dashboards |
+
+- Tags are read through the Automation API (`/api/cis/tagging`). The service account must be able
+  to read the category and its tags; the API silently omits what it may not read.
+- If a read fails or a category cannot be found, the last known tags are kept and
+  `VMwareExporterTagsReadFailing` fires. If the tags were never read since the exporter started,
+  the filtered rules stay silent until that alert is resolved.
+- Template VMs and VMs excluded by `filters:` have no `vmware_vm_tag` series.
 
 ## Migrating from pryorda/vmware_exporter
 
@@ -457,7 +490,7 @@ internal/config/         YAML loading / validation, secrets, defaults
 internal/vsphere/        SOAP connection (version negotiation, session recovery), /api REST client
 internal/collector/      collectors (vcenter, alarms, cluster, host, vm, datastore, network,
                          resourcepool, perf, vsan, appliance, pryorda) + cache + tests
-deploy/prometheus/       alerting rules (native + pryorda-compatible), promtool tests, scrape snippet
+deploy/prometheus/       alerting rules (native, filtered on a VM tag, pryorda-compatible), promtool tests, scrape snippet
 deploy/grafana/          5 linked dashboards (JSON + generator)
 deploy/systemd/          hardened systemd unit
 deploy/web-config.example.yml  optional authentication / HTTPS for the endpoints

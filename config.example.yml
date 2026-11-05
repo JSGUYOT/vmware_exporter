@@ -60,6 +60,11 @@ defaults:
     appliance: true      # VAMI health, vCenter services, backups (REST API /api)
     pryorda: false       # also emit pryorda/vmware_exporter metric names/labels (existing dashboards)
     exporter: true       # the collection's own metrics: durations, collectors, failures (vmware_up is always emitted)
+    tags: false          # vSphere tags of the VMs, for the categories listed under tags: below (REST API)
+
+  # tags:
+  #   categories: [supervision]   # required with collectors.tags
+  #   refresh_interval: 5m        # how often tags are read; the last known tags are kept if a read fails
 
   filters:
     # vm_exclude: "^(vCLS|SupervisorControlPlaneVM)"

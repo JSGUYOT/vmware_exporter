@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -666,5 +667,187 @@ func TestExporterMetricsDisabled(t *testing.T) {
 		if len(g.fams[name].GetMetric()) == 0 {
 			t.Errorf("%s missing with collectors.exporter false", name)
 		}
+	}
+}
+
+// fakeTagging serves the tagging part of the Automation API, as documented for
+// /api/cis/tagging; fail makes the category listing fail.
+func fakeTagging(t *testing.T, fail *atomic.Bool) *httptest.Server {
+	t.Helper()
+	api := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/session" {
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode("tok")
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		action := r.URL.Query().Get("action")
+		switch {
+		case r.URL.Path == "/api/cis/tagging/category" && fail.Load():
+			w.WriteHeader(http.StatusInternalServerError)
+		case r.URL.Path == "/api/cis/tagging/category":
+			_, _ = io.WriteString(w, `["urn:cat:sup","urn:cat:other","urn:cat:denied"]`)
+		case r.URL.Path == "/api/cis/tagging/category/urn:cat:sup":
+			_, _ = io.WriteString(w, `{"id":"urn:cat:sup","name":"Supervision"}`)
+		case r.URL.Path == "/api/cis/tagging/category/urn:cat:other":
+			_, _ = io.WriteString(w, `{"id":"urn:cat:other","name":"owner"}`)
+		case r.URL.Path == "/api/cis/tagging/category/urn:cat:denied":
+			w.WriteHeader(http.StatusForbidden)
+		case r.URL.Path == "/api/cis/tagging/tag" && action == "list-tags-for-category":
+			var body struct {
+				CategoryID string `json:"category_id"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.CategoryID != "urn:cat:sup" {
+				t.Errorf("list-tags-for-category body: %+v, %v", body, err)
+			}
+			_, _ = io.WriteString(w, `["urn:tag:true","urn:tag:false"]`)
+		case r.URL.Path == "/api/cis/tagging/tag/urn:tag:true":
+			_, _ = io.WriteString(w, `{"id":"urn:tag:true","name":"true"}`)
+		case r.URL.Path == "/api/cis/tagging/tag/urn:tag:false":
+			_, _ = io.WriteString(w, `{"id":"urn:tag:false","name":"false"}`)
+		case r.URL.Path == "/api/cis/tagging/tag-association" && action == "list-attached-objects-on-tags":
+			_, _ = io.WriteString(w, `[{"tag_id":"urn:tag:true","object_ids":[{"type":"VirtualMachine","id":"vm-1"},{"type":"HostSystem","id":"host-1"},{"type":"VirtualMachine","id":"vm-unmonitored"}]},
+				{"tag_id":"urn:tag:false","object_ids":[{"type":"VirtualMachine","id":"vm-2"}]}]`)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(api.Close)
+	return api
+}
+
+func tagRun(t *testing.T, cfg *config.Target, api *httptest.Server, cache *tagCache) *Run {
+	t.Helper()
+	restCfg := *cfg
+	restCfg.URL = api.URL + "/sdk"
+	return &Run{
+		Cfg: cfg, Log: testLogger(), Sink: NewSink("vc-test", nil), Client: newTestClientWithREST(t, &restCfg), tags: cache,
+		vmLabels: map[string]L{"vm-1": {"vm_name", "app01", "vm_moid", "vm-1"}, "vm-2": {"vm_name", "app02", "vm_moid", "vm-2"}, "vm-3": {"vm_name", "app03", "vm_moid", "vm-3"}},
+	}
+}
+
+func tagMetrics(r *Run) (tags map[string]string, success, last float64) {
+	tags = map[string]string{}
+	for _, m := range r.Sink.Metrics() {
+		var d dto.Metric
+		_ = m.Write(&d)
+		switch descName(m.Desc().String()) {
+		case "vmware_vm_tag":
+			tags[label(&d, "vm_moid")] = label(&d, "category") + "=" + label(&d, "tag")
+		case "vmware_tags_read_success":
+			success = value(&d)
+		case "vmware_tags_last_read_timestamp_seconds":
+			last = value(&d)
+		}
+	}
+	return tags, success, last
+}
+
+// TestTags: only monitored VMs get their tags; the category keeps its configured
+// name; unreadable categories are skipped.
+func TestTags(t *testing.T) {
+	_, s := newModel(t, "9.0.0", "9.0.0.0")
+	var fail atomic.Bool
+	api := fakeTagging(t, &fail)
+	cfg := targetFor(t, s, func(c *config.Target) { c.Tags.Categories = []string{"supervision"} })
+	r := tagRun(t, cfg, api, &tagCache{})
+	if err := collectTags(context.Background(), r); err != nil {
+		t.Fatal(err)
+	}
+	tags, success, last := tagMetrics(r)
+	want := map[string]string{"vm-1": "supervision=true", "vm-2": "supervision=false"}
+	if len(tags) != len(want) || tags["vm-1"] != want["vm-1"] || tags["vm-2"] != want["vm-2"] {
+		t.Errorf("tags = %v, want %v", tags, want)
+	}
+	if success != 1 || last == 0 {
+		t.Errorf("success = %v, last read = %v", success, last)
+	}
+}
+
+// TestTagsMissingCategory: a category the account cannot see is a failure, not "no tag".
+func TestTagsMissingCategory(t *testing.T) {
+	_, s := newModel(t, "9.0.0", "9.0.0.0")
+	var fail atomic.Bool
+	api := fakeTagging(t, &fail)
+	cfg := targetFor(t, s, func(c *config.Target) { c.Tags.Categories = []string{"nope"} })
+	r := tagRun(t, cfg, api, &tagCache{})
+	if err := collectTags(context.Background(), r); err == nil {
+		t.Error("no error for a missing category")
+	}
+	tags, success, last := tagMetrics(r)
+	if len(tags) != 0 || success != 0 || last != 0 {
+		t.Errorf("tags = %v, success = %v, last read = %v", tags, success, last)
+	}
+}
+
+// TestTagsKeptOnFailure: a failed read keeps the last known tags and reports the failure;
+// within refresh_interval, vCenter is not called.
+func TestTagsKeptOnFailure(t *testing.T) {
+	_, s := newModel(t, "9.0.0", "9.0.0.0")
+	var fail atomic.Bool
+	api := fakeTagging(t, &fail)
+	cfg := targetFor(t, s, func(c *config.Target) {
+		c.Tags.Categories = []string{"supervision"}
+		c.Tags.RefreshInterval = time.Hour
+	})
+	cache := &tagCache{}
+	r := tagRun(t, cfg, api, cache)
+	if err := collectTags(context.Background(), r); err != nil {
+		t.Fatal(err)
+	}
+	fail.Store(true)
+	r = tagRun(t, cfg, api, cache)
+	if err := collectTags(context.Background(), r); err != nil {
+		t.Errorf("vCenter called within refresh_interval: %v", err)
+	}
+	cache.read = time.Now().Add(-2 * time.Hour)
+	r = tagRun(t, cfg, api, cache)
+	if err := collectTags(context.Background(), r); err == nil {
+		t.Error("no error for a failed read")
+	}
+	tags, success, last := tagMetrics(r)
+	if tags["vm-1"] != "supervision=true" || success != 0 || last != float64(cache.read.Unix()) {
+		t.Errorf("tags = %v, success = %v, last read = %v", tags, success, last)
+	}
+}
+
+// TestTagsCollection: full collection. The simulator has no /api tagging, so the read
+// fails without affecting the other series; cached tags get the labels of the VM series.
+func TestTagsCollection(t *testing.T) {
+	_, s := newModel(t, "9.0.0", "9.0.0.0")
+	cfg := targetFor(t, s, func(c *config.Target) {
+		on := true
+		c.Collectors.Tags = &on
+		c.Tags.Categories = []string{"supervision"}
+	})
+	tg := NewTarget(cfg, testLogger())
+	ctx := context.Background()
+	tg.collectOnce(ctx)
+	g := gather(t, tg)
+	if m := g.fams["vmware_tags_read_success"].GetMetric(); len(m) != 1 || value(m[0]) != 0 {
+		t.Errorf("vmware_tags_read_success = %v, want 0", m)
+	}
+	if ok := g.find("vmware_collector_success", map[string]string{"collector": "tags"}); len(ok) != 1 || value(ok[0]) != 0 {
+		t.Errorf("tags collector success = %v, want 0", ok)
+	}
+	infos := g.fams["vmware_vm_info"].GetMetric()
+	if len(infos) == 0 {
+		t.Fatal("no vmware_vm_info")
+	}
+	moid := label(infos[0], "vm_moid")
+	tg.tags = tagCache{byVM: map[string][]vmTag{moid: {{"supervision", "true"}}, "vm-gone": {{"supervision", "true"}}}, read: time.Now()}
+	tg.collectOnce(ctx)
+	g = gather(t, tg)
+	tags := g.fams["vmware_vm_tag"].GetMetric()
+	if len(tags) != 1 {
+		t.Fatalf("vmware_vm_tag: %d series, want 1", len(tags))
+	}
+	for _, l := range []string{"dc_name", "vm_name", "vm_moid"} {
+		if label(tags[0], l) != label(infos[0], l) {
+			t.Errorf("label %s = %q, want %q", l, label(tags[0], l), label(infos[0], l))
+		}
+	}
+	if label(tags[0], "category") != "supervision" || label(tags[0], "tag") != "true" {
+		t.Errorf("tag labels: %v", tags[0])
 	}
 }

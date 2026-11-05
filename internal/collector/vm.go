@@ -79,6 +79,9 @@ func collectVMs(ctx context.Context, r *Run) error {
 		// series continuity and alert "for:" durations. They are carried only
 		// by vmware_vm_info (join on(vcenter, vm_moid)).
 		l := L{"dc_name", dc, "vm_name", vm.Name, "vm_moid", vm.Self.Value, "folder_name", r.Topo.FolderOf(vm.Parent)}
+		if *r.Cfg.Collectors.Tags {
+			r.vmLabels[vm.Self.Value] = l
+		}
 		powered := vm.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn
 		if powered {
 			on++

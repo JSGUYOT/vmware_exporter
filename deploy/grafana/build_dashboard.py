@@ -382,6 +382,29 @@ def vm_cols(vs, info):
     ]
 
 
+# Tag category driving the supervised alerting rules (deploy/prometheus/build_supervised_alerts.py).
+SUPERVISION = 'category="supervision"'
+
+
+def no_supervision_tag(info):
+    """VMs (vmware_vm_info) without a true / false tag, on the vCenters whose tags could be read."""
+    return (f'(vmware_vm_info{{{info}}} unless on(vcenter, vm_moid) vmware_vm_tag{{{SUPERVISION}, tag=~"true|false"}}) '
+            f"and on(vcenter) (vmware_tags_last_read_timestamp_seconds > 0)")
+
+
+def supervision_stats(d, info):
+    """Counters of the supervision tag, for the VMs matching a vmware_vm_info selector."""
+    def count(tag):
+        return f'count(vmware_vm_tag{{{SUPERVISION}, tag="{tag}"}} and on(vcenter, vm_moid) vmware_vm_info{{{info}}}) or vector(0)'
+
+    d.add(stat("VMs without supervision tag", f"count({no_supervision_tag(info)}) or vector(0)", T_ORANGE,
+               desc="No alert for these VMs: no tag, or a tag other than true / false in the supervision category. Stays at 0 when the tags collector is off."), 6, 4)
+    d.add(stat("VMs supervised (tag true)", count("true"), color_mode="value"), 6, 4)
+    d.add(stat("VMs not supervised (tag false)", count("false"), color_mode="value"), 6, 4)
+    d.add(stat("vCenters with tag read failing", f"count(vmware_tags_read_success{{{VC}}} == 0) or vector(0)", T_RED,
+               desc="The last known tags are kept: tag changes are ignored until the read works again."), 6, 4)
+
+
 def ds_map(info_sel):
     """perf_instance (datastore UUID, from the datastore URL .../volumes/<uuid>/) -> ds_name, for the ESX datastore.* counters."""
     return ('max by (vcenter, perf_instance, ds_name) (label_replace(vmware_datastore_info{' + info_sel + ', url=~".*/volumes/.+"}, '
@@ -451,6 +474,8 @@ def overview():
                thresholds=[{"color": "text", "value": None}, {"color": "green", "value": 1}, {"color": "orange", "value": 2}, {"color": "red", "value": 3}],
                desc="0 = no vSAN / unknown, 1 = green, 2 = yellow, 3 = red"), 4, 4)
     d.add(stat("Failing collectors", f"count(vmware_collector_success{{{VC}}} == 0) or vector(0)", T_ORANGE), 4, 4)
+
+    supervision_stats(d, SELC)
 
     d.row("vCenters")
     d.add(table("vCenters", ["vcenter"], [
@@ -751,6 +776,15 @@ def vms():
         col("Consolidation needed", m("vmware_vm_consolidation_needed", vs) + vf, M_YES_BAD),
         col("Question pending", m("vmware_vm_question_pending", vs) + vf, M_YES_BAD),
     ], links={"vm_name": T_VM, "host_name": T_HOST, "cluster_name": T_CLUSTER}, hide=("vm_moid",), filterable=True), 24, 9)
+
+    d.row("Supervision tag")
+    supervision_stats(d, info)
+    d.add(table("VMs without a valid supervision tag (no alert)", ["vcenter", "vm_name"], [
+        col("Placement", no_supervision_tag(info), by=("dc_name", "folder_name", "cluster_name", "host_name"), hide_value=True),
+    ], links={"vm_name": T_VM, "host_name": T_HOST, "cluster_name": T_CLUSTER}, filterable=True,
+        desc="Anomaly to fix: tag these VMs with supervision=true or false."), 12, 8)
+    d.add(raw_table("Supervision tags", f'vmware_vm_tag{{{vs}, {SUPERVISION}}}{vf}', ["vcenter", "vm_name", "tag"],
+                    value_name="Value", hide=("vm_moid", "dc_name", "folder_name", "category", "Value"), links={"vm_name": T_VM}), 12, 8)
 
     d.row("CPU")
     d.add(ts("CPU usage (MHz)", [(top(q("vmware_vm_cpu_usage_mhz")), "{{vm_name}} used"),

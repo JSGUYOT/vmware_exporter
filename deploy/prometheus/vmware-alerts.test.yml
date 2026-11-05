@@ -184,3 +184,18 @@ tests:
             exp_annotations:
               summary: "Slow collection on vc1 (90.91% of the timeout)"
               description: "The collection uses more than 80% of its timeout and risks being cut. Increase 'interval'/'timeout' or reduce the scope (filters, perf counters)."
+
+  - interval: 1m
+    input_series:
+      - series: 'vmware_tags_read_success{vcenter="vc1"}'
+        values: '0x20'
+      - series: 'vmware_tags_read_success{vcenter="vc2"}'
+        values: '1x20'
+    alert_rule_test:
+      - eval_time: 16m
+        alertname: VMwareExporterTagsReadFailing
+        exp_alerts:
+          - exp_labels: {severity: critical, vcenter: vc1}
+            exp_annotations:
+              summary: "Cannot read the vSphere tags of vc1"
+              description: "The last known tags are kept, but tag changes are ignored and, if the tags were never read since the exporter started, rules filtered on a tag stay silent. Check the exporter logs, the tag category names and the privileges of the service account."

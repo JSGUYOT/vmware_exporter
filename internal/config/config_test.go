@@ -66,10 +66,43 @@ func TestParseErrors(t *testing.T) {
 		"unknown field":          "targets: [{name: a, url: x, username: u, password: p, passwd: z}]",
 		"regex":                  "targets: [{name: a, url: x, username: u, password: p, filters: {vm_exclude: '('}}]",
 		"web tls and web config": "web_tls: {cert_file: c, key_file: k}\nweb_config_file: w\ntargets: [{name: a, url: x, username: u, password: p}]",
+		"tags without category":  "targets: [{name: a, url: x, username: u, password: p, collectors: {tags: true}}]",
 	}
 	for name, y := range cases {
 		if _, err := Parse([]byte(y)); err == nil {
 			t.Errorf("%s: expected an error", name)
 		}
+	}
+}
+
+func TestTagsConfig(t *testing.T) {
+	cfg, err := Parse([]byte(`
+defaults:
+  collectors: {tags: true}
+  tags: {categories: [supervision], refresh_interval: 10m}
+targets:
+  - {name: a, url: x, username: u, password: p}
+  - {name: b, url: y, username: u, password: p, collectors: {tags: false}, tags: {categories: [other]}}
+  - {name: c, url: z, username: u, password: p, tags: {refresh_interval: 1m}}
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, b, c := cfg.Targets[0], cfg.Targets[1], cfg.Targets[2]
+	if !*a.Collectors.Tags || a.Tags.Categories[0] != "supervision" || a.Tags.RefreshInterval != 10*time.Minute {
+		t.Errorf("a: %+v", a.Tags)
+	}
+	if *b.Collectors.Tags || b.Tags.Categories[0] != "other" {
+		t.Errorf("b: %+v", b.Tags)
+	}
+	if c.Tags.Categories[0] != "supervision" || c.Tags.RefreshInterval != time.Minute {
+		t.Errorf("c: %+v", c.Tags)
+	}
+	cfg, err = Parse([]byte("targets: [{name: a, url: x, username: u, password: p}]"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if *cfg.Targets[0].Collectors.Tags || cfg.Targets[0].Tags.RefreshInterval != 5*time.Minute {
+		t.Errorf("defaults: %+v", cfg.Targets[0].Tags)
 	}
 }

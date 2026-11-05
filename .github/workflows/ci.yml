@@ -66,6 +66,11 @@ jobs:
         run: |
           curl -sSfL "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz" \
             | tar xz --strip-components=1 -C /usr/local/bin "prometheus-${PROMETHEUS_VERSION}.linux-amd64/promtool"
+      - name: Supervised alerting rules are in sync with their generator
+        run: |
+          (cd deploy/prometheus && python3 build_supervised_alerts.py)
+          git status --porcelain -- deploy/prometheus
+          test -z "$(git status --porcelain -- deploy/prometheus)"
       - run: make check-rules
       - run: make test-rules
       - name: Grafana dashboards are in sync with their generator

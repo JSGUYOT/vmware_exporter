@@ -36,6 +36,10 @@ type Run struct {
 	// host and vm collectors (phase 1), read by pryorda and perf (phase 2).
 	pryHosts map[string]L
 	pryVMs   []*pryordaVM
+	// Labels of the monitored VMs by moid, filled by the vm collector (phase 1)
+	// when the tags collector (phase 2) is on.
+	vmLabels map[string]L
+	tags     *tagCache
 
 	vmExclude, vmInclude, hostExclude, dsExclude *regexp.Regexp
 	unsupported, missing                         atomic.Int64
@@ -62,7 +66,7 @@ var collectors = []collectorFunc{
 	{"datacenter", func(c *config.Collectors) bool { return *c.Datacenter }, collectDatacenters, 1},
 	{"cluster", func(c *config.Collectors) bool { return *c.Cluster }, collectClusters, 1},
 	{"host", func(c *config.Collectors) bool { return *c.Host || *c.Perf || *c.Pryorda }, collectHosts, 1},
-	{"vm", func(c *config.Collectors) bool { return *c.VM || *c.Perf || *c.Pryorda }, collectVMs, 1},
+	{"vm", func(c *config.Collectors) bool { return *c.VM || *c.Perf || *c.Pryorda || *c.Tags }, collectVMs, 1},
 	{"datastore", func(c *config.Collectors) bool { return *c.Datastore || *c.Pryorda }, collectDatastores, 1},
 	{"network", func(c *config.Collectors) bool { return *c.Network }, collectNetwork, 1},
 	{"resourcepool", func(c *config.Collectors) bool { return *c.ResourcePool }, collectResourcePools, 1},
@@ -70,6 +74,7 @@ var collectors = []collectorFunc{
 	{"appliance", func(c *config.Collectors) bool { return *c.Appliance }, collectAppliance, 1},
 	{"perf", func(c *config.Collectors) bool { return *c.Perf }, collectPerf, 2},
 	{"pryorda", func(c *config.Collectors) bool { return *c.Pryorda }, collectPryorda, 2},
+	{"tags", func(c *config.Collectors) bool { return *c.Tags }, collectTags, 2},
 }
 
 // Target periodically collects one vCenter and caches the latest result.
@@ -83,6 +88,8 @@ type Target struct {
 
 	scrapes  atomic.Int64
 	failures atomic.Int64
+
+	tags tagCache // only used by the collection goroutine
 }
 
 // NewTarget prepares a target.
@@ -170,6 +177,7 @@ func (t *Target) collectOnce(parent context.Context) {
 		Cfg: t.cfg, Log: t.log, Client: t.client, Vim: vc, View: v, Sink: sink,
 		vmExclude: t.compile(t.cfg.Filters.VMExclude), vmInclude: t.compile(t.cfg.Filters.VMInclude),
 		hostExclude: t.compile(t.cfg.Filters.HostExclude), dsExclude: t.compile(t.cfg.Filters.DatastoreExclude),
+		vmLabels: map[string]L{}, tags: &t.tags,
 	}
 	if err := r.loadTopology(ctx); err != nil {
 		t.failures.Add(1)

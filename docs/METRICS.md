@@ -9,6 +9,16 @@ Every VM series (`vmware_vm_*`, including `vmware_vm_info` and `vmware_vm_perf_*
 
 Real-time performance counters: `vmware_<host|vm>_perf_<group>_<counter>_<rollup>_<unit>` (e.g. `vmware_vm_perf_cpu_ready_summation_seconds`), label `perf_instance` (`""` = aggregate). Percentages as 0-100, bytes and seconds in base units.
 
+## Tags
+
+Only with `collectors: {tags: true}`, for the categories listed under `tags.categories`.
+
+| Metric | Type | Labels | Description |
+|---|---|---|---|
+| `vmware_vm_tag` | gauge | category, dc_name, folder_name, tag, vm_moid, vm_name | vSphere tag attached to the VM (value always 1). |
+| `vmware_tags_read_success` | gauge |  | 1 if the last read of the vSphere tags succeeded. |
+| `vmware_tags_last_read_timestamp_seconds` | gauge |  | Timestamp of the last successful read of the vSphere tags (0 = never). |
+
 ## Exporter
 
 Disabled by `collectors: {exporter: false}` (globally or per target), except `vmware_up`, always

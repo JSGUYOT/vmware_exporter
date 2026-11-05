@@ -57,6 +57,7 @@ type Target struct {
 	Filters    Filters    `yaml:"filters"`
 	Perf       Perf       `yaml:"perf"`
 	Host       HostOpts   `yaml:"host"`
+	Tags       Tags       `yaml:"tags"`
 	// Static labels added to every series of this vCenter (e.g. site, env).
 	ExtraLabels map[string]string `yaml:"extra_labels"`
 }
@@ -81,6 +82,8 @@ type Collectors struct {
 	// Exporter emits the collection's own metrics (durations, collectors,
 	// failures...); vmware_up is always emitted.
 	Exporter *bool `yaml:"exporter"`
+	// Tags emits the vSphere tags of the VMs (categories listed under tags:).
+	Tags *bool `yaml:"tags"`
 }
 
 // Filters narrows the scope (regexes on names).
@@ -102,6 +105,15 @@ type Perf struct {
 	MaxConcurrency int      `yaml:"max_concurrency"`
 }
 
+// Tags configures the reading of the vSphere tags attached to VMs.
+type Tags struct {
+	// Categories lists the tag categories to expose (required when the collector is on).
+	Categories []string `yaml:"categories"`
+	// RefreshInterval is how often tags are read from vCenter; in between, and
+	// when a read fails, the last known tags keep being emitted.
+	RefreshInterval time.Duration `yaml:"refresh_interval"`
+}
+
 // HostOpts holds ESX-specific options.
 type HostOpts struct {
 	StoragePaths *bool    `yaml:"storage_paths"`
@@ -113,7 +125,7 @@ type HostOpts struct {
 var reservedLabels = map[string]bool{}
 
 func init() {
-	for _, l := range strings.Fields(`acknowledged alarm alarm_moid api_version_server api_version_used bios_version build cluster_name collector commit component cpu_model dc_name ds_name datastore_cluster datastore_moid disk_path driver dvs endpoint entity entity_moid entity_type folder_name govmomi_api group guest_hostname guest_os host_name hw_version instance instance_uuid ip_address job managed_by model name network network_moid network_type nic perf_instance policy product product_line resource_pool resource_pool_moid sensor service shared startup_type state status template test tools_version type unit url used vcenter vendor version vm_moid vm_name`) {
+	for _, l := range strings.Fields(`acknowledged alarm alarm_moid api_version_server api_version_used bios_version build category cluster_name collector commit component cpu_model dc_name ds_name datastore_cluster datastore_moid disk_path driver dvs endpoint entity entity_moid entity_type folder_name govmomi_api group guest_hostname guest_os host_name hw_version instance instance_uuid ip_address job managed_by model name network network_moid network_type nic perf_instance policy product product_line resource_pool resource_pool_moid sensor service shared startup_type state status tag template test tools_version type unit url used vcenter vendor version vm_moid vm_name`) {
 		reservedLabels[l] = true
 	}
 }
@@ -237,6 +249,7 @@ func mergeDefaults(t, d *Target) {
 	bp(&c.Appliance, dc.Appliance)
 	bp(&c.Pryorda, dc.Pryorda)
 	bp(&c.Exporter, dc.Exporter)
+	bp(&c.Tags, dc.Tags)
 	f, df := &t.Filters, &d.Filters
 	str(&f.VMExclude, df.VMExclude)
 	str(&f.VMInclude, df.VMInclude)
@@ -255,6 +268,12 @@ func mergeDefaults(t, d *Target) {
 	}
 	if t.Perf.MaxConcurrency == 0 {
 		t.Perf.MaxConcurrency = d.Perf.MaxConcurrency
+	}
+	if len(t.Tags.Categories) == 0 {
+		t.Tags.Categories = d.Tags.Categories
+	}
+	if t.Tags.RefreshInterval == 0 {
+		t.Tags.RefreshInterval = d.Tags.RefreshInterval
 	}
 	bp(&t.Host.StoragePaths, d.Host.StoragePaths)
 	bp(&t.Host.Sensors, d.Host.Sensors)
@@ -402,6 +421,13 @@ func (t *Target) finalize() error {
 	on(&c.Appliance, true)
 	on(&c.Pryorda, false)
 	on(&c.Exporter, true)
+	on(&c.Tags, false)
+	if *c.Tags && len(t.Tags.Categories) == 0 {
+		return fmt.Errorf("collectors.tags needs at least one category in tags.categories")
+	}
+	if t.Tags.RefreshInterval == 0 {
+		t.Tags.RefreshInterval = 5 * time.Minute
+	}
 	on(&t.Filters.ExcludeSystemVMs, false)
 	on(&t.Filters.IncludeTemplates, false)
 	on(&t.Host.StoragePaths, true)
