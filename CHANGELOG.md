@@ -3,6 +3,9 @@
 * [CHANGE] `VMwareHostNetworkDrops` fires above 0.5% of packets dropped (was a fixed 100 packets
   per 20 s, noisy on bursts). A custom `perf.host_counters` must include `net.packetsRx.summation`
   and `net.packetsTx.summation`, otherwise the alert cannot fire.
+* [CHANGE] `VMwareVMMemorySwapped` is replaced by `VMwareVMMemorySwapping`, which fires on swap-in
+  activity. Swapped pages stay in the swap file until the guest reads them, so the old rule kept
+  firing long after the contention had ended. Residual swap stays visible in the dashboards.
 * [FEATURE] vSphere tags of the VMs: `collectors.tags` and `tags.categories` emit `vmware_vm_tag`
   (read through `/api/cis/tagging`, last known tags kept if a read fails), with
   `vmware_tags_read_success` and `vmware_tags_last_read_timestamp_seconds`.

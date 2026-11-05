@@ -513,13 +513,13 @@ groups:
           summary: "High co-stop on {{ $labels.vm_name }} ({{ $value | humanizePercentage }})"
           description: "Too many vCPUs for the workload: reduce the vCPU count."
 
-      - alert: VMwareVMMemorySwapped
-        expr: vmware_vm_memory_swapped_bytes > 0
+      - alert: VMwareVMMemorySwapping
+        expr: vmware_vm_perf_mem_swapin_rate_average_bytes_per_second > 0
         for: 15m
         labels: {severity: warning}
         annotations:
-          summary: "{{ $value | humanize1024 }}B of {{ $labels.vm_name }} memory swapped by the hypervisor"
-          description: "Hypervisor swapping: severe VM performance degradation."
+          summary: "{{ $labels.vm_name }} is reading memory back from the hypervisor swap"
+          description: "Swap-in at {{ $value | humanize1024 }}B/s: severe performance degradation (ESX memory contention or a memory limit on the VM)."
 
       - alert: VMwareVMMemoryBallooned
         expr: vmware_vm_memory_ballooned_bytes > 0
