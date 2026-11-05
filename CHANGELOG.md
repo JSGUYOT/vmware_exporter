@@ -12,6 +12,7 @@
 * [ENHANCEMENT] Overview and VMs dashboards: VMs without a valid supervision tag.
 * [ENHANCEMENT] `VMwareHostCpuHigh` and `VMwareClusterCpuPressure` leave out the VMs with dedicated
   CPUs (latency sensitivity `high`, full CPU reservation, powered on), from load and capacity.
+* [BUGFIX] `VMwareClusterDrsScoreLow` no longer fires on clusters where DRS is disabled.
 
 ## 2.0.0 / 2026-10-29
 

@@ -230,7 +230,7 @@ groups:
           description: "VM CPU demand is approaching the cluster's effective capacity (VMs with dedicated CPUs excluded from both)."
 
       - alert: VMwareClusterDrsScoreLow
-        expr: vmware_cluster_drs_score < 60
+        expr: vmware_cluster_drs_score < 60 and on(vcenter, dc_name, cluster_name) vmware_cluster_drs_enabled == 1
         for: 1h
         labels: {severity: warning}
         annotations:

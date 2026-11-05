@@ -343,3 +343,23 @@ tests:
             exp_annotations:
               summary: "Cluster C2 CPU at 90%"
               description: "VM CPU demand is approaching the cluster's effective capacity (VMs with dedicated CPUs excluded from both)."
+
+  # Low DRS score: only on clusters where DRS is enabled
+  - interval: 1m
+    input_series:
+      - series: 'vmware_cluster_drs_score{vcenter="vc1",dc_name="DC1",cluster_name="C1"}'
+        values: '40x70'
+      - series: 'vmware_cluster_drs_enabled{vcenter="vc1",dc_name="DC1",cluster_name="C1"}'
+        values: '1x70'
+      - series: 'vmware_cluster_drs_score{vcenter="vc1",dc_name="DC1",cluster_name="C2"}'
+        values: '40x70'
+      - series: 'vmware_cluster_drs_enabled{vcenter="vc1",dc_name="DC1",cluster_name="C2"}'
+        values: '0x70'
+    alert_rule_test:
+      - eval_time: 65m
+        alertname: VMwareClusterDrsScoreLow
+        exp_alerts:
+          - exp_labels: {severity: warning, vcenter: vc1, dc_name: DC1, cluster_name: C1}
+            exp_annotations:
+              summary: "Low DRS score (40) on C1"
+              description: "VMs in the cluster are not getting the resources they demand (contention)."
