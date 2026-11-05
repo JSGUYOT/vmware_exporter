@@ -7,7 +7,11 @@
   `vmware-alerts.yml` and `pryorda-alerts.yml`, but VM rules and vCenter alarms on a VM only fire
   for the VMs tagged `supervision=true`.
 * [FEATURE] `VMwareExporterTagsReadFailing` alert.
+* [FEATURE] `latency_sensitivity` label on `vmware_vm_info`, `vmware_vm_cpu_reservation_mhz` and
+  `vmware_vm_memory_reservation_bytes`.
 * [ENHANCEMENT] Overview and VMs dashboards: VMs without a valid supervision tag.
+* [ENHANCEMENT] `VMwareHostCpuHigh` and `VMwareClusterCpuPressure` leave out the VMs with dedicated
+  CPUs (latency sensitivity `high`, full CPU reservation, powered on), from load and capacity.
 
 ## 2.0.0 / 2026-10-29
 

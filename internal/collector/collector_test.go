@@ -851,3 +851,41 @@ func TestTagsCollection(t *testing.T) {
 		t.Errorf("tag labels: %v", tags[0])
 	}
 }
+
+func TestVMLatencySensitivity(t *testing.T) {
+	m, s := newModel(t, "9.0.0", "9.0.0.0")
+	ctx := context.Background()
+	gc, err := govmomi.NewClient(ctx, s.URL, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref, err := find.NewFinder(gc.Client).VirtualMachine(ctx, "/DC0/vm/DC0_C0_RP0_VM0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	vm := m.Map().Get(ref.Reference()).(*simulator.VirtualMachine)
+	vm.Config.LatencySensitivity = &types.LatencySensitivity{Level: types.LatencySensitivitySensitivityLevelHigh}
+	vm.Summary.Config.CpuReservation = 4000
+	vm.Summary.Config.MemoryReservation = 2048
+
+	tg := NewTarget(targetFor(t, s, nil), testLogger())
+	tg.collectOnce(ctx)
+	g := gather(t, tg)
+	want := map[string]string{"vm_name": "DC0_C0_RP0_VM0"}
+	if vi := g.find("vmware_vm_info", want); len(vi) != 1 || label(vi[0], "latency_sensitivity") != "high" {
+		t.Errorf("vmware_vm_info must carry latency_sensitivity=high: %v", vi)
+	}
+	if c := g.find("vmware_vm_cpu_reservation_mhz", want); len(c) != 1 || value(c[0]) != 4000 {
+		t.Errorf("vmware_vm_cpu_reservation_mhz = %v, want 4000", c)
+	}
+	if b := g.find("vmware_vm_memory_reservation_bytes", want); len(b) != 1 || value(b[0]) != 2048*1024*1024 {
+		t.Errorf("vmware_vm_memory_reservation_bytes = %v, want 2 GiB", b)
+	}
+	// Level not reported by vCenter.
+	vm.Config.LatencySensitivity = nil
+	tg.collectOnce(ctx)
+	g = gather(t, tg)
+	if vi := g.find("vmware_vm_info", want); len(vi) != 1 || label(vi[0], "latency_sensitivity") != "unknown" {
+		t.Errorf("vmware_vm_info must carry latency_sensitivity=unknown: %v", vi)
+	}
+}

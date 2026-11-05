@@ -12,6 +12,24 @@
 
 groups:
   # ---------------------------------------------------------------------------
+  # VMs with dedicated physical CPUs: latency sensitivity "high" with a full CPU
+  # reservation, powered on. ESXi gives them exclusive cores, whatever the guest
+  # really does, so VMwareHostCpuHigh and VMwareClusterCpuPressure leave them out.
+  # The per-host and per-cluster sums are 0 when there is no such VM.
+  - name: vmware-cpu-dedicated
+    rules:
+      - record: vmware:vm_cpu_dedicated:info
+        expr: vmware_vm_info{latency_sensitivity="high"} and on(vcenter, vm_moid) (vmware_vm_cpu_reservation_mhz >= vmware_vm_cpu_max_mhz) and on(vcenter, vm_moid) (vmware_vm_power_status == 1)
+      - record: vmware:host_cpu_dedicated_usage_mhz:sum
+        expr: sum by (vcenter, dc_name, cluster_name, host_name) (vmware_vm_cpu_usage_mhz * on(vcenter, vm_moid) group_left(cluster_name, host_name) vmware:vm_cpu_dedicated:info) or sum by (vcenter, dc_name, cluster_name, host_name) (vmware_host_cpu_usage_mhz) * 0
+      - record: vmware:host_cpu_dedicated_reserved_mhz:sum
+        expr: sum by (vcenter, dc_name, cluster_name, host_name) (vmware_vm_cpu_reservation_mhz * on(vcenter, vm_moid) group_left(cluster_name, host_name) vmware:vm_cpu_dedicated:info) or sum by (vcenter, dc_name, cluster_name, host_name) (vmware_host_cpu_usage_mhz) * 0
+      - record: vmware:cluster_cpu_dedicated_demand_mhz:sum
+        expr: sum by (vcenter, dc_name, cluster_name) (vmware_vm_cpu_demand_mhz * on(vcenter, vm_moid) group_left(cluster_name) vmware:vm_cpu_dedicated:info) or sum by (vcenter, dc_name, cluster_name) (vmware_cluster_cpu_demand_mhz) * 0
+      - record: vmware:cluster_cpu_dedicated_reserved_mhz:sum
+        expr: sum by (vcenter, dc_name, cluster_name) (vmware_vm_cpu_reservation_mhz * on(vcenter, vm_moid) group_left(cluster_name) vmware:vm_cpu_dedicated:info) or sum by (vcenter, dc_name, cluster_name) (vmware_cluster_cpu_demand_mhz) * 0
+
+  # ---------------------------------------------------------------------------
   - name: vmware_exporter
     rules:
       - alert: VMwareExporterTargetDown
@@ -202,12 +220,12 @@ groups:
           description: "VM memory demand is approaching the cluster's effective capacity."
 
       - alert: VMwareClusterCpuPressure
-        expr: vmware_cluster_cpu_demand_mhz / vmware_cluster_cpu_effective_mhz > 0.85
+        expr: (vmware_cluster_cpu_demand_mhz - on(vcenter, dc_name, cluster_name) group_left() vmware:cluster_cpu_dedicated_demand_mhz:sum) / ((vmware_cluster_cpu_effective_mhz - on(vcenter, dc_name, cluster_name) group_left() vmware:cluster_cpu_dedicated_reserved_mhz:sum) > 0) > 0.85
         for: 30m
         labels: {severity: warning}
         annotations:
           summary: "Cluster {{ $labels.cluster_name }} CPU at {{ $value | humanizePercentage }}"
-          description: "VM CPU demand is approaching the cluster's effective capacity."
+          description: "VM CPU demand is approaching the cluster's effective capacity (VMs with dedicated CPUs excluded from both)."
 
       - alert: VMwareClusterDrsScoreLow
         expr: vmware_cluster_drs_score < 60
@@ -365,12 +383,12 @@ groups:
           description: "A patch or configuration change is pending a reboot."
 
       - alert: VMwareHostCpuHigh
-        expr: vmware_host_cpu_usage_mhz / vmware_host_cpu_total_mhz > 0.90
+        expr: (vmware_host_cpu_usage_mhz - on(vcenter, dc_name, cluster_name, host_name) group_left() vmware:host_cpu_dedicated_usage_mhz:sum) / ((vmware_host_cpu_total_mhz - on(vcenter, dc_name, cluster_name, host_name) group_left() vmware:host_cpu_dedicated_reserved_mhz:sum) > 0) > 0.90
         for: 30m
         labels: {severity: warning}
         annotations:
           summary: "CPU on {{ $labels.host_name }} at {{ $value | humanizePercentage }}"
-          description: "Sustained CPU load on the host."
+          description: "Sustained CPU load on the host (VMs with dedicated CPUs excluded from load and capacity)."
 
       - alert: VMwareHostMemoryHigh
         expr: vmware_host_memory_usage_bytes / vmware_host_memory_total_bytes > 0.95

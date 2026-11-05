@@ -362,6 +362,32 @@ the VM tags shown were injected for the demonstration):
 | **VMs** | **Datastores** |
 | [![VMs](docs/images/dashboard-vms.png)](docs/images/dashboard-vms.png) | [![Datastores](docs/images/dashboard-datastores.png)](docs/images/dashboard-datastores.png) |
 
+## Latency-sensitive VMs
+
+`vmware_vm_info` carries `latency_sensitivity` (`low`, `normal`, `medium`, `high`, `custom`, or
+`unknown` if vCenter does not report it), next to `vmware_vm_cpu_reservation_mhz` and
+`vmware_vm_memory_reservation_bytes`.
+
+A powered-on VM with sensitivity `high` and a full CPU reservation
+(`vmware_vm_cpu_reservation_mhz >= vmware_vm_cpu_max_mhz`) has dedicated physical CPUs: its cores
+are busy for ESXi, whatever the guest does. `VMwareHostCpuHigh` and `VMwareClusterCpuPressure`
+therefore leave these VMs out, from both the load and the capacity:
+
+```
+(host usage - usage of its dedicated VMs) / (host capacity - reservation of its dedicated VMs) > 90%
+```
+
+The alerts still fire if the rest of the host or cluster is saturated. Sensitivity `high` with a
+partial reservation does not dedicate CPUs, so such a VM stays counted. VMs excluded by `filters:`
+are not known to the rules, so they stay counted too. `VMwareVMCpuReadyHigh` and
+`VMwareVMCoStopHigh` are unchanged: they measure contention, which matters even more on these VMs.
+
+No shipped rule alerts on the CPU usage of a VM. To leave these VMs out of your own rules:
+
+```
+<your VM expression> unless on(vcenter, vm_moid) vmware_vm_info{latency_sensitivity="high"}
+```
+
 ## Alerting only on the VMs tagged for supervision
 
 To alert only on some VMs, based on a vSphere tag. Create a tag category `supervision`

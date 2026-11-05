@@ -165,14 +165,16 @@ metrics then stay empty.
 | `vmware_vm_consolidation_needed` | gauge | dc_name, folder_name, vm_name, vm_moid | 1 if the VM disks need consolidation. |
 | `vmware_vm_cpu_demand_mhz` | gauge | dc_name, folder_name, vm_name, vm_moid | CPU demand (MHz). |
 | `vmware_vm_cpu_max_mhz` | gauge | dc_name, folder_name, vm_name, vm_moid | Maximum usable CPU (MHz). |
+| `vmware_vm_cpu_reservation_mhz` | gauge | dc_name, folder_name, vm_name, vm_moid | CPU reservation (MHz). |
 | `vmware_vm_cpu_usage_mhz` | gauge | dc_name, folder_name, vm_name, vm_moid | CPU used (MHz). |
 | `vmware_vm_disks` | gauge | dc_name, folder_name, vm_name, vm_moid | Number of virtual disks. |
 | `vmware_vm_guest_heartbeat_status` | gauge | dc_name, folder_name, vm_name, vm_moid | Guest OS VMware Tools heartbeat (0=gray/unknown, 1=green, 2=yellow, 3=red). |
-| `vmware_vm_info` | gauge | cluster_name, dc_name, folder_name, guest_hostname, guest_os, host_name, hw_version, ip_address, managed_by, template, tools_version, vm_name, vm_moid | VM information (value always 1). Carries the current cluster and host. |
+| `vmware_vm_info` | gauge | cluster_name, dc_name, folder_name, guest_hostname, guest_os, host_name, hw_version, ip_address, latency_sensitivity, managed_by, template, tools_version, vm_name, vm_moid | VM information (value always 1). Carries the current cluster and host, and the latency sensitivity (low, normal, medium, high, custom; unknown if vCenter does not report it). |
 | `vmware_vm_memory_ballooned_bytes` | gauge | dc_name, folder_name, vm_name, vm_moid | Memory reclaimed by ballooning. |
 | `vmware_vm_memory_compressed_bytes` | gauge | dc_name, folder_name, vm_name, vm_moid | Compressed memory. |
 | `vmware_vm_memory_guest_active_bytes` | gauge | dc_name, folder_name, vm_name, vm_moid | Guest active memory. |
 | `vmware_vm_memory_host_consumed_bytes` | gauge | dc_name, folder_name, vm_name, vm_moid | Memory consumed on the ESX host. |
+| `vmware_vm_memory_reservation_bytes` | gauge | dc_name, folder_name, vm_name, vm_moid | Memory reservation. |
 | `vmware_vm_memory_size_bytes` | gauge | dc_name, folder_name, vm_name, vm_moid | Configured memory. |
 | `vmware_vm_memory_swapped_bytes` | gauge | dc_name, folder_name, vm_name, vm_moid | Memory swapped by the hypervisor. |
 | `vmware_vm_nics` | gauge | dc_name, folder_name, vm_name, vm_moid | Number of virtual NICs. |

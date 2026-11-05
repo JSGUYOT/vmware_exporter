@@ -10,7 +10,7 @@ import (
 
 var vmProps = []string{
 	"name", "parent", "resourcePool", "overallStatus", "guestHeartbeatStatus",
-	"config.managedBy", "config.version", "config.template",
+	"config.managedBy", "config.version", "config.template", "config.latencySensitivity",
 	"summary.config", "summary.quickStats", "summary.storage",
 	"runtime.host", "runtime.powerState", "runtime.connectionState", "runtime.bootTime",
 	"runtime.consolidationNeeded", "runtime.question", "runtime.maxCpuUsage", "runtime.maxMemoryUsage",
@@ -106,7 +106,8 @@ func collectVMs(ctx context.Context, r *Run) error {
 		}
 		s.Gauge(n("vm_info"), "VM information (value always 1). Carries the current cluster and host.", 1, append(append(L{}, l...),
 			"cluster_name", cl, "host_name", hostName, "guest_os", guestOS, "hw_version", hw, "tools_version", toolsVer,
-			"ip_address", ip, "guest_hostname", gh, "managed_by", managedBy, "template", boolStr(isTemplate)))
+			"ip_address", ip, "guest_hostname", gh, "managed_by", managedBy, "template", boolStr(isTemplate),
+			"latency_sensitivity", latencySensitivity(vm)))
 
 		s.Gauge(n("vm_power_status"), "VM power state"+powerHelp+".", vmPower(vm.Runtime.PowerState), l)
 		s.Gauge(n("vm_connection_state"), "VM connection state"+vmConnHelp+".", vmConn(vm.Runtime.ConnectionState), l)
@@ -126,6 +127,8 @@ func collectVMs(ctx context.Context, r *Run) error {
 		s.Gauge(n("vm_disks"), "Number of virtual disks.", float64(sc.NumVirtualDisks), l)
 		s.Gauge(n("vm_nics"), "Number of virtual NICs.", float64(sc.NumEthernetCards), l)
 		s.Gauge(n("vm_cpu_max_mhz"), "Maximum usable CPU (MHz).", float64(vm.Runtime.MaxCpuUsage), l)
+		s.Gauge(n("vm_cpu_reservation_mhz"), "CPU reservation (MHz).", float64(sc.CpuReservation), l)
+		s.Gauge(n("vm_memory_reservation_bytes"), "Memory reservation.", float64(sc.MemoryReservation)*1024*1024, l)
 
 		qs := vm.Summary.QuickStats
 		s.Gauge(n("vm_cpu_usage_mhz"), "CPU usage (MHz).", float64(qs.OverallCpuUsage), l)
@@ -178,6 +181,15 @@ func collectVMs(ctx context.Context, r *Run) error {
 		s.Gauge(n("vms_system_managed"), "Number of VMs managed by a solution (vCLS, Supervisor, agents...).", float64(system), nil)
 	}
 	return nil
+}
+
+// latencySensitivity returns the VM's level (low, normal, medium, high, custom),
+// "unknown" if vCenter does not report it.
+func latencySensitivity(vm *mo.VirtualMachine) string {
+	if vm.Config == nil || vm.Config.LatencySensitivity == nil || vm.Config.LatencySensitivity.Level == "" {
+		return "unknown"
+	}
+	return string(vm.Config.LatencySensitivity.Level)
 }
 
 func walkSnapshots(list []types.VirtualMachineSnapshotTree, fn func(time.Time)) {
