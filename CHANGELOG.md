@@ -3,8 +3,9 @@
 * [FEATURE] vSphere tags of the VMs: `collectors.tags` and `tags.categories` emit `vmware_vm_tag`
   (read through `/api/cis/tagging`, last known tags kept if a read fails), with
   `vmware_tags_read_success` and `vmware_tags_last_read_timestamp_seconds`.
-* [FEATURE] `vmware-alerts-supervised.yml`: same rules as `vmware-alerts.yml`, but VM rules and
-  vCenter alarms on a VM only fire for the VMs tagged `supervision=true`.
+* [FEATURE] `vmware-alerts-supervised.yml` and `pryorda-alerts-supervised.yml`: same rules as
+  `vmware-alerts.yml` and `pryorda-alerts.yml`, but VM rules and vCenter alarms on a VM only fire
+  for the VMs tagged `supervision=true`.
 * [FEATURE] `VMwareExporterTagsReadFailing` alert.
 * [ENHANCEMENT] Overview and VMs dashboards: VMs without a valid supervision tag.
 

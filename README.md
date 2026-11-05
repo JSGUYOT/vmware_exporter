@@ -316,8 +316,8 @@ On the Prometheus side, add the credentials to the scrape job:
 - Severities: `critical`, `warning`, `info`. Thresholds are starting values to be tuned.
 
 ```bash
-promtool check rules deploy/prometheus/vmware-alerts.yml deploy/prometheus/vmware-alerts-supervised.yml deploy/prometheus/pryorda-alerts.yml
-cd deploy/prometheus && promtool test rules vmware-alerts.test.yml vmware-alerts-supervised.test.yml pryorda-alerts.test.yml
+promtool check rules deploy/prometheus/vmware-alerts.yml deploy/prometheus/vmware-alerts-supervised.yml deploy/prometheus/pryorda-alerts.yml deploy/prometheus/pryorda-alerts-supervised.yml
+cd deploy/prometheus && promtool test rules vmware-alerts.test.yml vmware-alerts-supervised.test.yml pryorda-alerts.test.yml pryorda-alerts-supervised.test.yml
 ```
 
 Prometheus configuration snippet: [deploy/prometheus/prometheus-scrape.yml](deploy/prometheus/prometheus-scrape.yml).
@@ -351,7 +351,8 @@ Five linked dashboards (Grafana >= 10, no plugin), in `deploy/grafana/`:
   datastores.
 
 Screenshots (simulated vCenter from `make sim`, so the values are synthetic and some panels
-are empty: no alarms, no vSAN, no datastore counters):
+are empty: no alarms, no vSAN, no datastore counters; the simulator has no tagging API either, so
+the VM tags shown were injected for the demonstration):
 
 ![Overview](docs/images/dashboard-overview.png)
 
@@ -378,8 +379,10 @@ defaults:
 Load [deploy/prometheus/vmware-alerts-supervised.yml](deploy/prometheus/vmware-alerts-supervised.yml)
 **instead of** `vmware-alerts.yml`. It has the same rules, except that the rules of the `vmware-vm`
 group and the vCenter alarms raised on a VM only fire for the VMs tagged `supervision=true`.
+For pryorda's rules, load [deploy/prometheus/pryorda-alerts-supervised.yml](deploy/prometheus/pryorda-alerts-supervised.yml)
+instead of `pryorda-alerts.yml`: all five are filtered, on the VM name since these series have no
+`vm_moid` (VMs of the same name in one vCenter share the result: if one is tagged `true`, all alert).
 For another category or tag: `python3 build_supervised_alerts.py --category <c> --tag <t>`.
-pryorda's rules are not filtered.
 
 | VM | Alerts |
 |---|---|

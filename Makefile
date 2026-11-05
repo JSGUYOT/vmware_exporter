@@ -53,10 +53,10 @@ lint:
 
 # Requires promtool (shipped with Prometheus)
 check-rules:
-	promtool check rules deploy/prometheus/vmware-alerts.yml deploy/prometheus/vmware-alerts-supervised.yml deploy/prometheus/pryorda-alerts.yml
+	promtool check rules deploy/prometheus/vmware-alerts.yml deploy/prometheus/vmware-alerts-supervised.yml deploy/prometheus/pryorda-alerts.yml deploy/prometheus/pryorda-alerts-supervised.yml
 
 test-rules:
-	cd deploy/prometheus && promtool test rules vmware-alerts.test.yml vmware-alerts-supervised.test.yml pryorda-alerts.test.yml
+	cd deploy/prometheus && promtool test rules vmware-alerts.test.yml vmware-alerts-supervised.test.yml pryorda-alerts.test.yml pryorda-alerts-supervised.test.yml
 
 # Simulated vCenter for testing without infrastructure (VERSION_SIM=8.0.3 API_SIM=8.0.3.0)
 VERSION_SIM ?= 9.0.0
