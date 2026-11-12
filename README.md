@@ -549,6 +549,9 @@ vendor/                  dependencies (offline build, make build; DEPS=online ig
   (Linux amd64/arm64, Windows amd64, SHA-256 checksums) and publishes the GitHub release,
   with the changelog entry as release notes.
   `make release-tarballs` builds the same archives locally (needs promu).
+- Pre-releases: push a tag with a suffix from any branch, e.g. from `dev`
+  (`git tag v$(cat VERSION)-rc.1 && git push origin v$(cat VERSION)-rc.1`). Same archives, marked
+  as a pre-release on GitHub (never "Latest"), notes from the `main / unreleased` section.
 
 ## License
 
