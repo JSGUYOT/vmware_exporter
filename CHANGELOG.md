@@ -1,4 +1,4 @@
-## main / unreleased
+## 2.1.0 / 2026-11-18
 
 * [CHANGE] `VMwareHostNetworkDrops` fires above 0.5% of packets dropped (was a fixed 100 packets
   per 20 s, noisy on bursts). A custom `perf.host_counters` must include `net.packetsRx.summation`
@@ -21,6 +21,9 @@
 * [ENHANCEMENT] Overview and VMs dashboards: VMs without a valid supervision tag.
 * [ENHANCEMENT] `VMwareHostCpuHigh` and `VMwareClusterCpuPressure` leave out the VMs with dedicated
   CPUs (latency sensitivity `high`, full CPU reservation, powered on), from load and capacity.
+* [ENHANCEMENT] `docs/ALERTS.md`: every alerting rule explained, and whether vCenter shows it.
+* [ENHANCEMENT] Pre-releases: a tag with a suffix (e.g. `v2.1.0-rc.1`) publishes a GitHub
+  pre-release from any branch.
 * [BUGFIX] `VMwareClusterDrsScoreLow` no longer fires on clusters where DRS is disabled.
 
 ## 2.0.0 / 2026-10-29
