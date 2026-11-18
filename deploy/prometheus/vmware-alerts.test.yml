@@ -184,3 +184,269 @@ tests:
             exp_annotations:
               summary: "Slow collection on vc1 (90.91% of the timeout)"
               description: "The collection uses more than 80% of its timeout and risks being cut. Increase 'interval'/'timeout' or reduce the scope (filters, perf counters)."
+
+  - interval: 1m
+    input_series:
+      - series: 'vmware_tags_read_success{vcenter="vc1"}'
+        values: '0x20'
+      - series: 'vmware_tags_read_success{vcenter="vc2"}'
+        values: '1x20'
+    alert_rule_test:
+      - eval_time: 16m
+        alertname: VMwareExporterTagsReadFailing
+        exp_alerts:
+          - exp_labels: {severity: critical, vcenter: vc1}
+            exp_annotations:
+              summary: "Cannot read the vSphere tags of vc1"
+              description: "The last known tags are kept, but tag changes are ignored and, if the tags were never read since the exporter started, rules filtered on a tag stay silent. Check the exporter logs, the tag category names and the privileges of the service account."
+
+  # VMs with dedicated CPUs left out of the host and cluster CPU alerts. All hosts: 92.5% raw.
+  - interval: 1m
+    input_series:
+      # esx01: dedicated VM => (18500-10000)/(20000-10000) = 85%: no alert
+      - series: 'vmware_host_cpu_usage_mhz{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx01"}'
+        values: '18500x40'
+      - series: 'vmware_host_cpu_total_mhz{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx01"}'
+        values: '20000x40'
+      - series: 'vmware_vm_info{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt01",vm_moid="vm-1",cluster_name="C1",host_name="esx01",latency_sensitivity="high"}'
+        values: '1x40'
+      - series: 'vmware_vm_cpu_usage_mhz{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt01",vm_moid="vm-1"}'
+        values: '10000x40'
+      - series: 'vmware_vm_cpu_demand_mhz{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt01",vm_moid="vm-1"}'
+        values: '10000x40'
+      - series: 'vmware_vm_cpu_reservation_mhz{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt01",vm_moid="vm-1"}'
+        values: '10000x40'
+      - series: 'vmware_vm_cpu_max_mhz{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt01",vm_moid="vm-1"}'
+        values: '10000x40'
+      - series: 'vmware_vm_power_status{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt01",vm_moid="vm-1"}'
+        values: '1x40'
+      # esx02: high, but partial reservation: not dedicated, counted => 92.5%: alert
+      - series: 'vmware_host_cpu_usage_mhz{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx02"}'
+        values: '18500x40'
+      - series: 'vmware_host_cpu_total_mhz{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx02"}'
+        values: '20000x40'
+      - series: 'vmware_vm_info{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt02",vm_moid="vm-2",cluster_name="C1",host_name="esx02",latency_sensitivity="high"}'
+        values: '1x40'
+      - series: 'vmware_vm_cpu_usage_mhz{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt02",vm_moid="vm-2"}'
+        values: '10000x40'
+      - series: 'vmware_vm_cpu_reservation_mhz{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt02",vm_moid="vm-2"}'
+        values: '5000x40'
+      - series: 'vmware_vm_cpu_max_mhz{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt02",vm_moid="vm-2"}'
+        values: '10000x40'
+      - series: 'vmware_vm_power_status{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt02",vm_moid="vm-2"}'
+        values: '1x40'
+      # esx03: full reservation but normal sensitivity: counted => 92.5%: alert
+      - series: 'vmware_host_cpu_usage_mhz{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx03"}'
+        values: '18500x40'
+      - series: 'vmware_host_cpu_total_mhz{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx03"}'
+        values: '20000x40'
+      - series: 'vmware_vm_info{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="app03",vm_moid="vm-3",cluster_name="C1",host_name="esx03",latency_sensitivity="normal"}'
+        values: '1x40'
+      - series: 'vmware_vm_cpu_usage_mhz{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="app03",vm_moid="vm-3"}'
+        values: '10000x40'
+      - series: 'vmware_vm_cpu_reservation_mhz{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="app03",vm_moid="vm-3"}'
+        values: '10000x40'
+      - series: 'vmware_vm_cpu_max_mhz{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="app03",vm_moid="vm-3"}'
+        values: '10000x40'
+      - series: 'vmware_vm_power_status{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="app03",vm_moid="vm-3"}'
+        values: '1x40'
+      # esx04: dedicated and powered off: reservation not subtracted, counted => 92.5%: alert
+      - series: 'vmware_host_cpu_usage_mhz{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx04"}'
+        values: '18500x40'
+      - series: 'vmware_host_cpu_total_mhz{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx04"}'
+        values: '20000x40'
+      - series: 'vmware_vm_info{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt04",vm_moid="vm-4",cluster_name="C1",host_name="esx04",latency_sensitivity="high"}'
+        values: '1x40'
+      - series: 'vmware_vm_cpu_usage_mhz{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt04",vm_moid="vm-4"}'
+        values: '0x40'
+      - series: 'vmware_vm_cpu_reservation_mhz{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt04",vm_moid="vm-4"}'
+        values: '10000x40'
+      - series: 'vmware_vm_cpu_max_mhz{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt04",vm_moid="vm-4"}'
+        values: '0x40'
+      - series: 'vmware_vm_power_status{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt04",vm_moid="vm-4"}'
+        values: '0x40'
+      # esx05: dedicated VM, but the rest of the host is saturated: (19900-10000)/(20000-10000) = 99%: alert
+      - series: 'vmware_host_cpu_usage_mhz{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx05"}'
+        values: '19900x40'
+      - series: 'vmware_host_cpu_total_mhz{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx05"}'
+        values: '20000x40'
+      - series: 'vmware_vm_info{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt05",vm_moid="vm-5",cluster_name="C1",host_name="esx05",latency_sensitivity="high"}'
+        values: '1x40'
+      - series: 'vmware_vm_cpu_usage_mhz{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt05",vm_moid="vm-5"}'
+        values: '10000x40'
+      - series: 'vmware_vm_cpu_demand_mhz{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt05",vm_moid="vm-5"}'
+        values: '10000x40'
+      - series: 'vmware_vm_cpu_reservation_mhz{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt05",vm_moid="vm-5"}'
+        values: '10000x40'
+      - series: 'vmware_vm_cpu_max_mhz{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt05",vm_moid="vm-5"}'
+        values: '10000x40'
+      - series: 'vmware_vm_power_status{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt05",vm_moid="vm-5"}'
+        values: '1x40'
+      # esx06: no VM known at all (e.g. vm collector off): raw value => 92.5%: alert
+      - series: 'vmware_host_cpu_usage_mhz{vcenter="vc1",dc_name="DC1",cluster_name="C2",host_name="esx06"}'
+        values: '18500x40'
+      - series: 'vmware_host_cpu_total_mhz{vcenter="vc1",dc_name="DC1",cluster_name="C2",host_name="esx06"}'
+        values: '20000x40'
+      # C1: rt01 and rt05 dedicated => (45000-20000)/(50000-20000) = 83.3%: no alert, 90% raw.
+      # C2: no dedicated VM, 90%: alert.
+      # C3: only its dedicated VM's capacity: no capacity left, no alert
+      - series: 'vmware_cluster_cpu_demand_mhz{vcenter="vc1",dc_name="DC1",cluster_name="C1"}'
+        values: '45000x40'
+      - series: 'vmware_cluster_cpu_effective_mhz{vcenter="vc1",dc_name="DC1",cluster_name="C1"}'
+        values: '50000x40'
+      - series: 'vmware_cluster_cpu_demand_mhz{vcenter="vc1",dc_name="DC1",cluster_name="C2"}'
+        values: '45000x40'
+      - series: 'vmware_cluster_cpu_effective_mhz{vcenter="vc1",dc_name="DC1",cluster_name="C2"}'
+        values: '50000x40'
+      - series: 'vmware_cluster_cpu_demand_mhz{vcenter="vc1",dc_name="DC1",cluster_name="C3"}'
+        values: '20000x40'
+      - series: 'vmware_cluster_cpu_effective_mhz{vcenter="vc1",dc_name="DC1",cluster_name="C3"}'
+        values: '20000x40'
+      - series: 'vmware_vm_info{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt06",vm_moid="vm-6",cluster_name="C3",host_name="esx07",latency_sensitivity="high"}'
+        values: '1x40'
+      - series: 'vmware_vm_cpu_demand_mhz{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt06",vm_moid="vm-6"}'
+        values: '20000x40'
+      - series: 'vmware_vm_cpu_reservation_mhz{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt06",vm_moid="vm-6"}'
+        values: '20000x40'
+      - series: 'vmware_vm_cpu_max_mhz{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt06",vm_moid="vm-6"}'
+        values: '20000x40'
+      - series: 'vmware_vm_power_status{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="rt06",vm_moid="vm-6"}'
+        values: '1x40'
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: VMwareHostCpuHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, vcenter: vc1, dc_name: DC1, cluster_name: C1, host_name: esx02}
+            exp_annotations:
+              summary: "CPU on esx02 at 92.5%"
+              description: "Sustained CPU load on the host (VMs with dedicated CPUs excluded from load and capacity)."
+          - exp_labels: {severity: warning, vcenter: vc1, dc_name: DC1, cluster_name: C1, host_name: esx03}
+            exp_annotations:
+              summary: "CPU on esx03 at 92.5%"
+              description: "Sustained CPU load on the host (VMs with dedicated CPUs excluded from load and capacity)."
+          - exp_labels: {severity: warning, vcenter: vc1, dc_name: DC1, cluster_name: C1, host_name: esx04}
+            exp_annotations:
+              summary: "CPU on esx04 at 92.5%"
+              description: "Sustained CPU load on the host (VMs with dedicated CPUs excluded from load and capacity)."
+          - exp_labels: {severity: warning, vcenter: vc1, dc_name: DC1, cluster_name: C1, host_name: esx05}
+            exp_annotations:
+              summary: "CPU on esx05 at 99%"
+              description: "Sustained CPU load on the host (VMs with dedicated CPUs excluded from load and capacity)."
+          - exp_labels: {severity: warning, vcenter: vc1, dc_name: DC1, cluster_name: C2, host_name: esx06}
+            exp_annotations:
+              summary: "CPU on esx06 at 92.5%"
+              description: "Sustained CPU load on the host (VMs with dedicated CPUs excluded from load and capacity)."
+      - eval_time: 35m
+        alertname: VMwareClusterCpuPressure
+        exp_alerts:
+          - exp_labels: {severity: warning, vcenter: vc1, dc_name: DC1, cluster_name: C2}
+            exp_annotations:
+              summary: "Cluster C2 CPU at 90%"
+              description: "VM CPU demand is approaching the cluster's effective capacity (VMs with dedicated CPUs excluded from both)."
+
+  # Low DRS score: only on clusters where DRS is enabled
+  - interval: 1m
+    input_series:
+      - series: 'vmware_cluster_drs_score{vcenter="vc1",dc_name="DC1",cluster_name="C1"}'
+        values: '40x70'
+      - series: 'vmware_cluster_drs_enabled{vcenter="vc1",dc_name="DC1",cluster_name="C1"}'
+        values: '1x70'
+      - series: 'vmware_cluster_drs_score{vcenter="vc1",dc_name="DC1",cluster_name="C2"}'
+        values: '40x70'
+      - series: 'vmware_cluster_drs_enabled{vcenter="vc1",dc_name="DC1",cluster_name="C2"}'
+        values: '0x70'
+    alert_rule_test:
+      - eval_time: 65m
+        alertname: VMwareClusterDrsScoreLow
+        exp_alerts:
+          - exp_labels: {severity: warning, vcenter: vc1, dc_name: DC1, cluster_name: C1}
+            exp_annotations:
+              summary: "Low DRS score (40) on C1"
+              description: "VMs in the cluster are not getting the resources they demand (contention)."
+
+  # Packet loss rate (above 0.5%) and physical errors
+  - interval: 1m
+    input_series:
+      # esx01: 8800 drops, a lot in absolute terms, but 0.088% of the traffic: no alert
+      - series: 'vmware_host_perf_net_dropped_rx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx01",perf_instance=""}'
+        values: '8800x20'
+      - series: 'vmware_host_perf_net_dropped_tx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx01",perf_instance=""}'
+        values: '0x20'
+      - series: 'vmware_host_perf_net_packets_rx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx01",perf_instance=""}'
+        values: '9000000x20'
+      - series: 'vmware_host_perf_net_packets_tx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx01",perf_instance=""}'
+        values: '1000000x20'
+      # esx02: 1000 drops only, but 1% of the traffic: alert
+      - series: 'vmware_host_perf_net_dropped_rx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx02",perf_instance=""}'
+        values: '800x20'
+      - series: 'vmware_host_perf_net_dropped_tx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx02",perf_instance=""}'
+        values: '200x20'
+      - series: 'vmware_host_perf_net_packets_rx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx02",perf_instance=""}'
+        values: '50000x20'
+      - series: 'vmware_host_perf_net_packets_tx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx02",perf_instance=""}'
+        values: '50000x20'
+      # esx03: a burst of a few minutes at 50%: no alert
+      - series: 'vmware_host_perf_net_dropped_rx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx03",perf_instance=""}'
+        values: '0x5 50000x3 0x12'
+      - series: 'vmware_host_perf_net_dropped_tx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx03",perf_instance=""}'
+        values: '0x20'
+      - series: 'vmware_host_perf_net_packets_rx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx03",perf_instance=""}'
+        values: '50000x20'
+      - series: 'vmware_host_perf_net_packets_tx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx03",perf_instance=""}'
+        values: '50000x20'
+      # no traffic at all (0 / 0): no alert
+      - series: 'vmware_host_perf_net_dropped_rx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx04",perf_instance=""}'
+        values: '0x20'
+      - series: 'vmware_host_perf_net_dropped_tx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx04",perf_instance=""}'
+        values: '0x20'
+      - series: 'vmware_host_perf_net_packets_rx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx04",perf_instance=""}'
+        values: '0x20'
+      - series: 'vmware_host_perf_net_packets_tx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx04",perf_instance=""}'
+        values: '0x20'
+      # esx01: 12 errors: alert. esx02: 2 errors: no alert
+      - series: 'vmware_host_perf_net_errors_rx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx01",perf_instance=""}'
+        values: '10x20'
+      - series: 'vmware_host_perf_net_errors_tx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx01",perf_instance=""}'
+        values: '2x20'
+      - series: 'vmware_host_perf_net_errors_rx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx02",perf_instance=""}'
+        values: '2x20'
+      - series: 'vmware_host_perf_net_errors_tx_summation{vcenter="vc1",dc_name="DC1",cluster_name="C1",host_name="esx02",perf_instance=""}'
+        values: '0x20'
+    alert_rule_test:
+      - eval_time: 18m
+        alertname: VMwareHostNetworkDrops
+        exp_alerts:
+          - exp_labels: {severity: warning, vcenter: vc1, dc_name: DC1, cluster_name: C1, host_name: esx02}
+            exp_annotations:
+              summary: "1% of packets dropped on esx02"
+              description: "Sustained packet loss: network saturation, or guests not emptying their receive buffers fast enough."
+      - eval_time: 18m
+        alertname: VMwareHostNetworkErrors
+        exp_alerts:
+          - exp_labels: {severity: warning, vcenter: vc1, dc_name: DC1, cluster_name: C1, host_name: esx01}
+            exp_annotations:
+              summary: "Network errors on esx01"
+              description: "12 physical errors per 20 s interval: check cable, SFP and switch port."
+
+  # Swap-in activity: residual swap alone does not alert
+  - interval: 1m
+    input_series:
+      # old01: residual swap, nothing read back: no alert
+      - series: 'vmware_vm_memory_swapped_bytes{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="old01",vm_moid="vm-1"}'
+        values: '1073741824x20'
+      - series: 'vmware_vm_perf_mem_swapin_rate_average_bytes_per_second{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="old01",vm_moid="vm-1",perf_instance=""}'
+        values: '0x20'
+      # busy01: sustained swap-in: alert
+      - series: 'vmware_vm_perf_mem_swapin_rate_average_bytes_per_second{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="busy01",vm_moid="vm-2",perf_instance=""}'
+        values: '1048576x20'
+      # burst01: swap-in for a few minutes only: no alert
+      - series: 'vmware_vm_perf_mem_swapin_rate_average_bytes_per_second{vcenter="vc1",dc_name="DC1",folder_name="Prod",vm_name="burst01",vm_moid="vm-3",perf_instance=""}'
+        values: '0x5 1048576x3 0x12'
+    alert_rule_test:
+      - eval_time: 18m
+        alertname: VMwareVMMemorySwapping
+        exp_alerts:
+          - exp_labels: {severity: warning, vcenter: vc1, dc_name: DC1, folder_name: Prod, vm_name: busy01, vm_moid: vm-2}
+            exp_annotations:
+              summary: "busy01 is reading memory back from the hypervisor swap"
+              description: "Swap-in at 1MiB/s: severe performance degradation (ESX memory contention or a memory limit on the VM)."

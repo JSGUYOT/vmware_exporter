@@ -1,6 +1,7 @@
 package vsphere
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -14,8 +15,11 @@ import (
 	"github.com/JSGUYOT/vmware_exporter/internal/config"
 )
 
-// ErrNotFound reports an endpoint missing on this vCenter version.
+// ErrNotFound reports an endpoint missing on this vCenter version (or an object deleted meanwhile).
 var ErrNotFound = errors.New("REST endpoint not available on this version")
+
+// ErrForbidden reports a privilege missing on the requested object.
+var ErrForbidden = errors.New("REST request not allowed for this account")
 
 // RESTClient is a minimal client for the modern vSphere Automation API (/api).
 //
@@ -75,6 +79,20 @@ func (r *RESTClient) login(ctx context.Context) error {
 
 // Get performs a JSON GET on an /api/... path, re-authenticating on 401.
 func (r *RESTClient) Get(ctx context.Context, path string, out any) error {
+	return r.do(ctx, http.MethodGet, path, nil, out)
+}
+
+// Post performs a JSON POST on an /api/... path (read-only "?action=" operations),
+// re-authenticating on 401.
+func (r *RESTClient) Post(ctx context.Context, path string, in, out any) error {
+	data, err := json.Marshal(in)
+	if err != nil {
+		return err
+	}
+	return r.do(ctx, http.MethodPost, path, data, out)
+}
+
+func (r *RESTClient) do(ctx context.Context, method, path string, data []byte, out any) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for attempt := 0; attempt < 2; attempt++ {
@@ -83,12 +101,15 @@ func (r *RESTClient) Get(ctx context.Context, path string, out any) error {
 				return err
 			}
 		}
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, r.base.String()+path, nil)
+		req, err := http.NewRequestWithContext(ctx, method, r.base.String()+path, bytes.NewReader(data))
 		if err != nil {
 			return err
 		}
 		req.Header.Set("vmware-api-session-id", r.token)
 		req.Header.Set("Accept", "application/json")
+		if data != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
 		res, err := r.http.Do(req)
 		if err != nil {
 			return err
@@ -101,12 +122,14 @@ func (r *RESTClient) Get(ctx context.Context, path string, out any) error {
 			continue
 		case res.StatusCode == http.StatusNotFound:
 			return ErrNotFound
+		case res.StatusCode == http.StatusForbidden:
+			return fmt.Errorf("%w: %s %s", ErrForbidden, method, path)
 		case res.StatusCode >= 300:
-			return fmt.Errorf("GET %s: %s %s", path, res.Status, strings.TrimSpace(string(body)))
+			return fmt.Errorf("%s %s: %s %s", method, path, res.Status, strings.TrimSpace(string(body)))
 		}
 		return json.Unmarshal(body, out)
 	}
-	return fmt.Errorf("GET %s: REST authentication rejected", path)
+	return fmt.Errorf("%s %s: REST authentication rejected", method, path)
 }
 
 // Logout deletes the REST session.

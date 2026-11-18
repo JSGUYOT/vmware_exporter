@@ -1,3 +1,31 @@
+## 2.1.0 / 2026-11-18
+
+* [CHANGE] `VMwareHostNetworkDrops` fires above 0.5% of packets dropped (was a fixed 100 packets
+  per 20 s, noisy on bursts). A custom `perf.host_counters` must include `net.packetsRx.summation`
+  and `net.packetsTx.summation`, otherwise the alert cannot fire.
+* [CHANGE] `VMwareVMMemorySwapped` is replaced by `VMwareVMMemorySwapping`, which fires on swap-in
+  activity. Swapped pages stay in the swap file until the guest reads them, so the old rule kept
+  firing long after the contention had ended. Residual swap stays visible in the dashboards.
+* [FEATURE] vSphere tags of the VMs: `collectors.tags` and `tags.categories` emit `vmware_vm_tag`
+  (read through `/api/cis/tagging`, last known tags kept if a read fails), with
+  `vmware_tags_read_success` and `vmware_tags_last_read_timestamp_seconds`.
+* [FEATURE] `vmware-alerts-supervised.yml` and `pryorda-alerts-supervised.yml`: same rules as
+  `vmware-alerts.yml` and `pryorda-alerts.yml`, but VM rules and vCenter alarms on a VM only fire
+  for the VMs tagged `supervision=true`.
+* [FEATURE] `VMwareExporterTagsReadFailing` alert.
+* [FEATURE] `VMwareHostNetworkErrors` alert: physical network errors.
+* [FEATURE] `latency_sensitivity` label on `vmware_vm_info`, `vmware_vm_cpu_reservation_mhz` and
+  `vmware_vm_memory_reservation_bytes`.
+* [ENHANCEMENT] ESX counters collected by default: `net.packetsRx.summation`,
+  `net.packetsTx.summation`.
+* [ENHANCEMENT] Overview and VMs dashboards: VMs without a valid supervision tag.
+* [ENHANCEMENT] `VMwareHostCpuHigh` and `VMwareClusterCpuPressure` leave out the VMs with dedicated
+  CPUs (latency sensitivity `high`, full CPU reservation, powered on), from load and capacity.
+* [ENHANCEMENT] `docs/ALERTS.md`: every alerting rule explained, and whether vCenter shows it.
+* [ENHANCEMENT] Pre-releases: a tag with a suffix (e.g. `v2.1.0-rc.1`) publishes a GitHub
+  pre-release from any branch.
+* [BUGFIX] `VMwareClusterDrsScoreLow` no longer fires on clusters where DRS is disabled.
+
 ## 2.0.0 / 2026-10-29
 
 * [CHANGE] `vmware-exporter` is renamed `vmware_exporter` everywhere: binary, systemd unit

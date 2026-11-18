@@ -16,7 +16,7 @@ for dashboards (Grafana) **and** alerting (Prometheus / Alertmanager).
 - Go 1.25, **govmomi v0.56.0** (vim25 API 9.1), client_golang 1.23
 - Single static binary, no system dependencies, 100 % offline build (`vendor/`)
 - Multi-vCenter (8 and 9 side by side), background collection with a cache: a Prometheus scrape never triggers a call to vCenter
-- Ships with 76 tested alerting rules and a Grafana dashboard
+- Ships with 78 tested alerting rules and a Grafana dashboard
 - Optional [pryorda/vmware_exporter compatibility](#migrating-from-pryordavmware_exporter): same metric names and labels, so existing dashboards keep working
 
 ## Why a new exporter
@@ -28,7 +28,7 @@ for dashboards (Grafana) **and** alerting (Prometheus / Alertmanager).
 | Scope | VM, ESX | resources (perf) | VM, ESX, clusters, datastores, vDS, resource pools, vSAN, vCenter appliance |
 | vCenter alarms | alarm counts per VM/host/datastore (optional) | no | **yes** (all entities, a single request) |
 | Hardware health (IPMI), multipath, uplinks, certificates | no | no | **yes** |
-| Bundled alerting rules | 5 (VM memory, snapshots) | no | **76 rules + promtool tests**, plus pryorda's 5 |
+| Bundled alerting rules | 5 (VM memory, snapshots) | no | **78 rules + promtool tests**, plus pryorda's 5 |
 | Reuse pryorda dashboards | — | no | **yes** (optional `pryorda` collector) |
 
 ## vCenter 8 / vCenter 9 compatibility: what is handled
@@ -70,7 +70,7 @@ The automated tests replay a full collection against the govmomi simulator adver
 | Datastores | capacity, free, provisioned, accessibility per ESX, maintenance | > 85/95 %, full within 7 days, inaccessible |
 | Network | vDS (per-ESX synchronization), portgroups | ESX outOfSync |
 | vSAN | overall health, per group, per test | red health, failed test |
-| Real-time performance | CPU ready/co-stop/latency, disk/datastore latency, network, packet drops, power | datastore latency > 30 ms, network drops |
+| Real-time performance | CPU ready/co-stop/latency, disk/datastore latency, network, packet drops, power | datastore latency > 30 ms, packet loss > 0.5 %, network errors |
 
 Full reference: [docs/METRICS.md](docs/METRICS.md).
 Status convention: `0 = gray/unknown, 1 = green, 2 = yellow, 3 = red`.
@@ -199,12 +199,14 @@ See [config.example.yml](config.example.yml) (fully commented). Key points:
   drops the collection's own metrics (durations, collectors, failures); `vmware_up` stays.
 - `perf.host_counters` / `perf.vm_counters`: vSphere counters as `group.counter.rollup`,
   with a `:*` suffix for all instances (e.g. `datastore.totalReadLatency.average:*`).
+  A custom `host_counters` replaces the default list: keep `net.packetsRx.summation` and
+  `net.packetsTx.summation`, or `VMwareHostNetworkDrops` cannot fire.
 - `extra_labels:` adds static labels (site, env…) to every series.
 
 Counters collected by default:
 
 - **ESX**: cpu.usage/utilization/coreUtilization, mem.usage/active/consumed/vmmemctl/swapinRate/swapoutRate,
-  disk.maxTotalLatency/read/write/commandsAborted/busResets, net.received/transmitted/droppedRx/droppedTx/errorsRx/errorsTx,
+  disk.maxTotalLatency/read/write/commandsAborted/busResets, net.received/transmitted/droppedRx/droppedTx/errorsRx/errorsTx/packetsRx/packetsTx,
   power.power, datastore.totalReadLatency/totalWriteLatency, read/write, numberReadAveraged/numberWriteAveraged
   (per datastore)
 - **VM**: cpu.usage/ready/costop/latency/readiness, mem.usage/active/vmmemctl/swapped/swapinRate,
@@ -303,7 +305,7 @@ On the Prometheus side, add the credentials to the scrape job:
 
 ## Alerting
 
-[deploy/prometheus/vmware-alerts.yml](deploy/prometheus/vmware-alerts.yml): 76 rules in 8 groups
+[deploy/prometheus/vmware-alerts.yml](deploy/prometheus/vmware-alerts.yml): 78 rules in 8 groups
 (exporter, vCenter + appliance, cluster, ESX + performance, VM, datastore, network, vSAN).
 
 - **vCenter alarm relay**: `VMwareVCenterAlarmCritical` / `VMwareVCenterAlarmWarning`
@@ -314,10 +316,12 @@ On the Prometheus side, add the credentials to the scrape job:
   (datastore full within 7 days), redundancy (multipath, uplinks), CPU ready, old snapshots,
   vCenter backups, failed collections…
 - Severities: `critical`, `warning`, `info`. Thresholds are starting values to be tuned.
+- [docs/ALERTS.md](docs/ALERTS.md) explains each alert: what it is for, why it fires, and whether
+  vCenter shows it (and why it may not appear in the vSphere Client).
 
 ```bash
-promtool check rules deploy/prometheus/vmware-alerts.yml deploy/prometheus/pryorda-alerts.yml
-cd deploy/prometheus && promtool test rules vmware-alerts.test.yml pryorda-alerts.test.yml
+promtool check rules deploy/prometheus/vmware-alerts.yml deploy/prometheus/vmware-alerts-supervised.yml deploy/prometheus/pryorda-alerts.yml deploy/prometheus/pryorda-alerts-supervised.yml
+cd deploy/prometheus && promtool test rules vmware-alerts.test.yml vmware-alerts-supervised.test.yml pryorda-alerts.test.yml pryorda-alerts-supervised.test.yml
 ```
 
 Prometheus configuration snippet: [deploy/prometheus/prometheus-scrape.yml](deploy/prometheus/prometheus-scrape.yml).
@@ -351,7 +355,8 @@ Five linked dashboards (Grafana >= 10, no plugin), in `deploy/grafana/`:
   datastores.
 
 Screenshots (simulated vCenter from `make sim`, so the values are synthetic and some panels
-are empty: no alarms, no vSAN, no datastore counters):
+are empty: no alarms, no vSAN, no datastore counters; the simulator has no tagging API either, so
+the VM tags shown were injected for the demonstration):
 
 ![Overview](docs/images/dashboard-overview.png)
 
@@ -360,6 +365,67 @@ are empty: no alarms, no vSAN, no datastore counters):
 | [![Clusters](docs/images/dashboard-clusters.png)](docs/images/dashboard-clusters.png) | [![ESX hosts](docs/images/dashboard-hosts.png)](docs/images/dashboard-hosts.png) |
 | **VMs** | **Datastores** |
 | [![VMs](docs/images/dashboard-vms.png)](docs/images/dashboard-vms.png) | [![Datastores](docs/images/dashboard-datastores.png)](docs/images/dashboard-datastores.png) |
+
+## Latency-sensitive VMs
+
+`vmware_vm_info` carries `latency_sensitivity` (`low`, `normal`, `medium`, `high`, `custom`, or
+`unknown` if vCenter does not report it), next to `vmware_vm_cpu_reservation_mhz` and
+`vmware_vm_memory_reservation_bytes`.
+
+A powered-on VM with sensitivity `high` and a full CPU reservation
+(`vmware_vm_cpu_reservation_mhz >= vmware_vm_cpu_max_mhz`) has dedicated physical CPUs: its cores
+are busy for ESXi, whatever the guest does. `VMwareHostCpuHigh` and `VMwareClusterCpuPressure`
+therefore leave these VMs out, from both the load and the capacity:
+
+```
+(host usage - usage of its dedicated VMs) / (host capacity - reservation of its dedicated VMs) > 90%
+```
+
+The alerts still fire if the rest of the host or cluster is saturated. Sensitivity `high` with a
+partial reservation does not dedicate CPUs, so such a VM stays counted. VMs excluded by `filters:`
+are not known to the rules, so they stay counted too. `VMwareVMCpuReadyHigh` and
+`VMwareVMCoStopHigh` are unchanged: they measure contention, which matters even more on these VMs.
+
+No shipped rule alerts on the CPU usage of a VM. To leave these VMs out of your own rules:
+
+```
+<your VM expression> unless on(vcenter, vm_moid) vmware_vm_info{latency_sensitivity="high"}
+```
+
+## Alerting only on the VMs tagged for supervision
+
+To alert only on some VMs, based on a vSphere tag. Create a tag category `supervision`
+(*One tag per object*, for virtual machines) with the tags `true` and `false`, attach them to the VMs, then:
+
+```yaml
+defaults:
+  collectors:
+    tags: true
+  tags:
+    categories: [supervision]
+    refresh_interval: 5m      # a tag change is seen within this delay
+```
+
+Load [deploy/prometheus/vmware-alerts-supervised.yml](deploy/prometheus/vmware-alerts-supervised.yml)
+**instead of** `vmware-alerts.yml`. It has the same rules, except that the rules of the `vmware-vm`
+group and the vCenter alarms raised on a VM only fire for the VMs tagged `supervision=true`.
+For pryorda's rules, load [deploy/prometheus/pryorda-alerts-supervised.yml](deploy/prometheus/pryorda-alerts-supervised.yml)
+instead of `pryorda-alerts.yml`: all five are filtered, on the VM name since these series have no
+`vm_moid` (VMs of the same name in one vCenter share the result: if one is tagged `true`, all alert).
+For another category or tag: `python3 build_supervised_alerts.py --category <c> --tag <t>`.
+
+| VM | Alerts |
+|---|---|
+| `supervision=true` | yes |
+| `supervision=false` | no |
+| no tag, or another value | no, but listed as an anomaly in the Overview and VMs dashboards |
+
+- Tags are read through the Automation API (`/api/cis/tagging`). The service account must be able
+  to read the category and its tags; the API silently omits what it may not read.
+- If a read fails or a category cannot be found, the last known tags are kept and
+  `VMwareExporterTagsReadFailing` fires. If the tags were never read since the exporter started,
+  the filtered rules stay silent until that alert is resolved.
+- Template VMs and VMs excluded by `filters:` have no `vmware_vm_tag` series.
 
 ## Migrating from pryorda/vmware_exporter
 
@@ -457,12 +523,13 @@ internal/config/         YAML loading / validation, secrets, defaults
 internal/vsphere/        SOAP connection (version negotiation, session recovery), /api REST client
 internal/collector/      collectors (vcenter, alarms, cluster, host, vm, datastore, network,
                          resourcepool, perf, vsan, appliance, pryorda) + cache + tests
-deploy/prometheus/       alerting rules (native + pryorda-compatible), promtool tests, scrape snippet
+deploy/prometheus/       alerting rules (native, filtered on a VM tag, pryorda-compatible), promtool tests, scrape snippet
 deploy/grafana/          5 linked dashboards (JSON + generator)
 deploy/systemd/          hardened systemd unit
 deploy/web-config.example.yml  optional authentication / HTTPS for the endpoints
 hack/vcsim/              simulated vCenter (8.x / 9.x) for testing
 docs/METRICS.md          metrics reference
+docs/ALERTS.md           each alert explained, compared with what vCenter shows
 docs/images/             dashboard screenshots (simulated vCenter)
 vendor/                  dependencies (offline build, make build; DEPS=online ignores it)
 ```
@@ -482,6 +549,9 @@ vendor/                  dependencies (offline build, make build; DEPS=online ig
   (Linux amd64/arm64, Windows amd64, SHA-256 checksums) and publishes the GitHub release,
   with the changelog entry as release notes.
   `make release-tarballs` builds the same archives locally (needs promu).
+- Pre-releases: push a tag with a suffix from any branch, e.g. from `dev`
+  (`git tag v$(cat VERSION)-rc.1 && git push origin v$(cat VERSION)-rc.1`). Same archives, marked
+  as a pre-release on GitHub (never "Latest"), notes from the `main / unreleased` section.
 
 ## License
 

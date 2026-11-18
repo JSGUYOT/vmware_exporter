@@ -1339,7 +1339,7 @@
   },
   {
    "type": "row",
-   "title": "CPU",
+   "title": "Supervision tag",
    "collapsed": false,
    "panels": [],
    "gridPos": {
@@ -1349,6 +1349,457 @@
     "h": 1
    },
    "id": 9
+  },
+  {
+   "type": "stat",
+   "title": "VMs without supervision tag",
+   "description": "No alert for these VMs: no tag, or a tag other than true / false in the supervision category. Stays at 0 when the tags collector is off.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "count((vmware_vm_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", folder_name=~\"$folder_name\", vm_name=~\"$vm_name\"} unless on(vcenter, vm_moid) vmware_vm_tag{category=\"supervision\", tag=~\"true|false\"}) and on(vcenter) (vmware_tags_last_read_timestamp_seconds > 0)) or vector(0)",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "mappings": [],
+     "links": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "justifyMode": "auto",
+    "textMode": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 15,
+    "w": 6,
+    "h": 4
+   },
+   "id": 10
+  },
+  {
+   "type": "stat",
+   "title": "VMs supervised (tag true)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "count(vmware_vm_tag{category=\"supervision\", tag=\"true\"} and on(vcenter, vm_moid) vmware_vm_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", folder_name=~\"$folder_name\", vm_name=~\"$vm_name\"}) or vector(0)",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "mappings": [],
+     "links": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "auto",
+    "textMode": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   },
+   "gridPos": {
+    "x": 6,
+    "y": 15,
+    "w": 6,
+    "h": 4
+   },
+   "id": 11
+  },
+  {
+   "type": "stat",
+   "title": "VMs not supervised (tag false)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "count(vmware_vm_tag{category=\"supervision\", tag=\"false\"} and on(vcenter, vm_moid) vmware_vm_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", folder_name=~\"$folder_name\", vm_name=~\"$vm_name\"}) or vector(0)",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "mappings": [],
+     "links": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "auto",
+    "textMode": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 15,
+    "w": 6,
+    "h": 4
+   },
+   "id": 12
+  },
+  {
+   "type": "stat",
+   "title": "vCenters with tag read failing",
+   "description": "The last known tags are kept: tag changes are ignored until the read works again.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "count(vmware_tags_read_success{vcenter=~\"$vcenter\"} == 0) or vector(0)",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "mappings": [],
+     "links": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "justifyMode": "auto",
+    "textMode": "auto",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   },
+   "gridPos": {
+    "x": 18,
+    "y": 15,
+    "w": 6,
+    "h": 4
+   },
+   "id": 13
+  },
+  {
+   "type": "table",
+   "title": "VMs without a valid supervision tag (no alert)",
+   "description": "Anomaly to fix: tag these VMs with supervision=true or false.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "max by (vcenter, vm_name, dc_name, folder_name, cluster_name, host_name) ((vmware_vm_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", folder_name=~\"$folder_name\", vm_name=~\"$vm_name\"} unless on(vcenter, vm_moid) vmware_vm_tag{category=\"supervision\", tag=~\"true|false\"}) and on(vcenter) (vmware_tags_last_read_timestamp_seconds > 0))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true,
+       "Value": true
+      },
+      "renameByName": {},
+      "indexByName": {
+       "vcenter": 0,
+       "vm_name": 1,
+       "dc_name": 2,
+       "folder_name": 3,
+       "cluster_name": 4,
+       "host_name": 5
+      }
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "vm_name"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Open VM ${__value.raw}",
+          "url": "/d/vmware-vms/vmware-vsphere-vcf-vms?var-datasource=${datasource}&var-vcenter=${__data.fields.vcenter}&var-vm_name=${__value.raw}&${__url_time_range}"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "host_name"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Open ESX host ${__value.raw}",
+          "url": "/d/vmware-hosts/vmware-vsphere-vcf-esx-hosts?var-datasource=${datasource}&var-vcenter=${__data.fields.vcenter}&var-host_name=${__value.raw}&${__url_time_range}"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "cluster_name"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Open cluster ${__value.raw}",
+          "url": "/d/vmware-clusters/vmware-vsphere-vcf-clusters?var-datasource=${datasource}&var-vcenter=${__data.fields.vcenter}&var-cluster_name=${__value.raw}&${__url_time_range}"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 19,
+    "w": 12,
+    "h": 8
+   },
+   "id": 14
+  },
+  {
+   "type": "table",
+   "title": "Supervision tags",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "vmware_vm_tag{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", folder_name=~\"$folder_name\", vm_name=~\"$vm_name\", category=\"supervision\"} and on(vcenter, vm_moid) vmware_vm_info{vcenter=~\"$vcenter\", dc_name=~\"$dc_name\", cluster_name=~\"$cluster_name\", host_name=~\"$host_name\", folder_name=~\"$folder_name\", vm_name=~\"$vm_name\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true,
+       "__name__": true,
+       "job": true,
+       "instance": true,
+       "vm_moid": true,
+       "dc_name": true,
+       "folder_name": true,
+       "category": true,
+       "Value": true
+      },
+      "renameByName": {
+       "Value": "Value"
+      },
+      "indexByName": {
+       "vcenter": 0,
+       "vm_name": 1,
+       "tag": 2
+      }
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "vm_name"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Open VM ${__value.raw}",
+          "url": "/d/vmware-vms/vmware-vsphere-vcf-vms?var-datasource=${datasource}&var-vcenter=${__data.fields.vcenter}&var-vm_name=${__value.raw}&${__url_time_range}"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    }
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 19,
+    "w": 12,
+    "h": 8
+   },
+   "id": 15
+  },
+  {
+   "type": "row",
+   "title": "CPU",
+   "collapsed": false,
+   "panels": [],
+   "gridPos": {
+    "x": 0,
+    "y": 27,
+    "w": 24,
+    "h": 1
+   },
+   "id": 16
   },
   {
    "type": "timeseries",
@@ -1417,11 +1868,11 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 15,
+    "y": 28,
     "w": 12,
     "h": 8
    },
-   "id": 10
+   "id": 17
   },
   {
    "type": "timeseries",
@@ -1501,11 +1952,11 @@
    },
    "gridPos": {
     "x": 12,
-    "y": 15,
+    "y": 28,
     "w": 12,
     "h": 8
    },
-   "id": 11
+   "id": 18
   },
   {
    "type": "row",
@@ -1514,11 +1965,11 @@
    "panels": [],
    "gridPos": {
     "x": 0,
-    "y": 23,
+    "y": 36,
     "w": 24,
     "h": 1
    },
-   "id": 12
+   "id": 19
   },
   {
    "type": "timeseries",
@@ -1587,11 +2038,11 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 24,
+    "y": 37,
     "w": 12,
     "h": 8
    },
-   "id": 13
+   "id": 20
   },
   {
    "type": "timeseries",
@@ -1660,11 +2111,11 @@
    },
    "gridPos": {
     "x": 12,
-    "y": 24,
+    "y": 37,
     "w": 12,
     "h": 8
    },
-   "id": 14
+   "id": 21
   },
   {
    "type": "row",
@@ -1673,11 +2124,11 @@
    "panels": [],
    "gridPos": {
     "x": 0,
-    "y": 32,
+    "y": 45,
     "w": 24,
     "h": 1
    },
-   "id": 15
+   "id": 22
   },
   {
    "type": "timeseries",
@@ -1737,11 +2188,11 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 33,
+    "y": 46,
     "w": 12,
     "h": 8
    },
-   "id": 16
+   "id": 23
   },
   {
    "type": "timeseries",
@@ -1792,11 +2243,11 @@
    },
    "gridPos": {
     "x": 12,
-    "y": 33,
+    "y": 46,
     "w": 12,
     "h": 8
    },
-   "id": 17
+   "id": 24
   },
   {
    "type": "table",
@@ -2023,11 +2474,11 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 41,
+    "y": 54,
     "w": 12,
     "h": 8
    },
-   "id": 18
+   "id": 25
   },
   {
    "type": "table",
@@ -2198,11 +2649,11 @@
    },
    "gridPos": {
     "x": 12,
-    "y": 41,
+    "y": 54,
     "w": 12,
     "h": 8
    },
-   "id": 19
+   "id": 26
   },
   {
    "type": "row",
@@ -2211,11 +2662,11 @@
    "panels": [],
    "gridPos": {
     "x": 0,
-    "y": 49,
+    "y": 62,
     "w": 24,
     "h": 1
    },
-   "id": 20
+   "id": 27
   },
   {
    "type": "timeseries",
@@ -2275,11 +2726,11 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 50,
+    "y": 63,
     "w": 12,
     "h": 8
    },
-   "id": 21
+   "id": 28
   },
   {
    "type": "timeseries",
@@ -2339,11 +2790,11 @@
    },
    "gridPos": {
     "x": 12,
-    "y": 50,
+    "y": 63,
     "w": 12,
     "h": 8
    },
-   "id": 22
+   "id": 29
   },
   {
    "type": "row",
@@ -2352,11 +2803,11 @@
    "panels": [],
    "gridPos": {
     "x": 0,
-    "y": 58,
+    "y": 71,
     "w": 24,
     "h": 1
    },
-   "id": 23
+   "id": 30
   },
   {
    "type": "table",
@@ -2476,11 +2927,11 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 59,
+    "y": 72,
     "w": 24,
     "h": 7
    },
-   "id": 24
+   "id": 31
   }
  ]
 }

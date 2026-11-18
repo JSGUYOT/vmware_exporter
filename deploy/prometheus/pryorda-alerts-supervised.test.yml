@@ -1,0 +1,54 @@
+# Rule unit tests: promtool test rules pryorda-alerts-supervised.test.yml
+rule_files:
+  - pryorda-alerts-supervised.yml
+evaluation_interval: 1m
+tests:
+  # Only the VM tagged supervision=true alerts: not false, not untagged, not another vCenter's VM of the same name.
+  - interval: 1m
+    input_series:
+      - series: 'vmware_vm_mem_usage_average{vcenter="vc1",vm_name="on"}'
+        values: '9200x40'
+      - series: 'vmware_vm_mem_usage_average{vcenter="vc1",vm_name="off"}'
+        values: '9200x40'
+      - series: 'vmware_vm_mem_usage_average{vcenter="vc1",vm_name="untagged"}'
+        values: '9200x40'
+      - series: 'vmware_vm_mem_usage_average{vcenter="vc2",vm_name="on"}'
+        values: '9200x40'
+      - series: 'vmware_vm_snapshots{vcenter="vc1",vm_name="on"}'
+        values: '4x40'
+      - series: 'vmware_vm_snapshots{vcenter="vc1",vm_name="off"}'
+        values: '4x40'
+      - series: 'vmware_vm_tag{vcenter="vc1",vm_name="on",vm_moid="vm-1",category="supervision",tag="true"}'
+        values: '1x40'
+      - series: 'vmware_vm_tag{vcenter="vc1",vm_name="off",vm_moid="vm-2",category="supervision",tag="false"}'
+        values: '1x40'
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: VMWarnMemoryUsage
+        exp_alerts:
+          - exp_labels: {severity: warning, vcenter: vc1, vm_name: "on"}
+            exp_annotations:
+              title: 'High memory usage on : 92.00%'
+      - eval_time: 35m
+        alertname: VMCritNumberSnapshots
+        exp_alerts:
+          - exp_labels: {severity: critical, vcenter: vc1, vm_name: "on"}
+            exp_annotations:
+              title: 'Very high snapshot number on : 4'
+
+  # Each of the five rules is filtered: an untagged VM triggers none of them.
+  - interval: 1m
+    input_series:
+      - series: 'vmware_vm_mem_usage_average{vcenter="vc1",vm_name="untagged"}'
+        values: '9700x40'
+      - series: 'vmware_vm_snapshots{vcenter="vc1",vm_name="untagged"}'
+        values: '1x40'
+      - series: 'vmware_vm_snapshot_timestamp_seconds{vcenter="vc1",vm_name="untagged",vm_snapshot_name="old"}'
+        values: '0+0x11530'
+    promql_expr_test:
+      - expr: count(ALERTS)
+        eval_time: 35m
+        exp_samples: []
+      - expr: count(ALERTS)
+        eval_time: 8d
+        exp_samples: []
